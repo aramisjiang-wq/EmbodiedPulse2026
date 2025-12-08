@@ -1,15 +1,54 @@
-CMakeLists.txt.user
-CMakeLists_modified.txt
+# Python
+*.pyc
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+.venv
 
+# 数据库文件
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
 
-build/
+# 环境变量和配置
+.env
+.env.local
+*.key
+*.pem
 
-lib/
-bin/
-
-cmake_modules/
-cmake-build-debug/
+# IDE
 .idea/
 .vscode/
-*.pyc
+*.swp
+*.swo
+*~
+.DS_Store
+
+# 日志文件
+*.log
+logs/
+
+# 临时文件
+tmp/
+temp/
+*.tmp
+
+# 构建文件
+build/
+dist/
+*.egg-info/
+
+# CMake (保留原有配置)
+CMakeLists.txt.user
+CMakeLists_modified.txt
+lib/
+bin/
+cmake_modules/
+cmake-build-debug/
 

@@ -93,10 +93,32 @@ def get_daily_papers(topic,query="slam", max_results=2):
     @param topic: str
     @param query: str
     @return paper_with_code: dict
+    
+    抓取策略：
+    1. 优先抓取最新日期的论文（按提交日期倒序）
+    2. 如果该类别论文总数少于1000篇，则允许补齐历史论文
     """
     # output 
     content = dict() 
     content_to_web = dict()
+    
+    # 检查当前类别的论文数量
+    try:
+        from models import get_session, Paper
+        from sqlalchemy import func
+        session = get_session()
+        current_count = session.query(func.count(Paper.id)).filter(Paper.category == topic).scalar()
+        session.close()
+        
+        # 如果论文数量少于1000，增加抓取数量以补齐历史论文
+        if current_count < 1000:
+            shortage = 1000 - current_count
+            # 适当增加抓取数量，但不超过原max_results的3倍
+            adjusted_max_results = min(max_results + shortage, max_results * 3)
+            logging.info(f"{topic}: 当前{current_count}篇，少于1000篇，增加抓取量至{adjusted_max_results}篇")
+            max_results = adjusted_max_results
+    except Exception as e:
+        logging.warning(f"检查论文数量失败: {e}，使用默认抓取数量")
     
     # 使用新的 Client API 替代已弃用的 Search.results()
     client = arxiv.Client(
@@ -105,10 +127,12 @@ def get_daily_papers(topic,query="slam", max_results=2):
         num_retries=3
     )
     
+    # 按提交日期倒序排序，优先获取最新论文
     search = arxiv.Search(
         query = query,
         max_results = max_results,
-        sort_by = arxiv.SortCriterion.SubmittedDate
+        sort_by = arxiv.SortCriterion.SubmittedDate,
+        sort_order = arxiv.SortOrder.Descending  # 倒序：最新的在前
     )
 
     try:
@@ -230,10 +254,116 @@ def update_paper_links(filename):
         with open(filename,"w") as f:
             json.dump(json_data,f)
 
-def update_json_file(filename,data_dict):
+def parse_paper_entry_from_string(entry_str):
+    """从字符串解析论文条目（与app.py中的parse_paper_entry相同）"""
+    try:
+        parts = entry_str.split('|')
+        if len(parts) >= 6:
+            date = parts[1].replace('**', '').strip()
+            title = parts[2].replace('**', '').strip()
+            authors = parts[3].replace(' Team', '').strip()
+            
+            pdf_part = parts[4].strip()
+            pdf_id = pdf_part.split('](')[0].replace('[', '').strip()
+            pdf_url = pdf_part.split('](')[1].replace(')', '').strip() if '](' in pdf_part else ''
+            
+            code_part = parts[5].strip()
+            code_url = None
+            if 'link' in code_part and 'http' in code_part:
+                code_url = code_part.split('](')[1].replace(')', '').replace('**', '').strip() if '](' in code_part else None
+            
+            return {
+                'date': date,
+                'title': title,
+                'authors': authors,
+                'pdf_id': pdf_id,
+                'pdf_url': pdf_url,
+                'code_url': code_url
+            }
+    except Exception as e:
+        logging.error(f"解析论文条目失败: {e}")
+    return None
+
+def update_json_file(filename,data_dict, save_to_db=True, enable_dedup=True, enable_incremental=True):
     '''
     daily update json file using data_dict
+    同时保存到数据库（如果启用）
+    
+    Args:
+        filename: JSON文件路径
+        data_dict: 论文数据字典
+        save_to_db: 是否保存到数据库
+        enable_dedup: 是否启用智能去重
+        enable_incremental: 是否启用增量更新
     '''
+    # 如果启用数据库，先保存到数据库
+    if save_to_db:
+        try:
+            from save_paper_to_db import save_paper_to_db
+            from utils import is_duplicate_title, should_fetch_paper
+            from models import get_session, Paper
+            from datetime import datetime
+            
+            # 获取所有已有标题（用于去重）
+            existing_titles = []
+            if enable_dedup:
+                try:
+                    session = get_session()
+                    existing_titles = [p.title for p in session.query(Paper.title).all()]
+                    session.close()
+                except Exception as e:
+                    logging.warning(f"获取已有标题失败: {e}")
+            
+            saved_count = 0
+            skipped_dup = 0
+            skipped_old = 0
+            
+            for data in data_dict:
+                for keyword, papers in data.items():
+                    for paper_id, paper_entry in papers.items():
+                        # 解析论文条目
+                        parsed = parse_paper_entry_from_string(paper_entry)
+                        if not parsed:
+                            continue
+                        
+                        parsed['id'] = paper_id
+                        
+                        # 智能去重检查
+                        if enable_dedup and parsed.get('title'):
+                            if is_duplicate_title(parsed['title'], existing_titles):
+                                skipped_dup += 1
+                                logging.info(f"跳过重复论文: {parsed['title'][:50]}...")
+                                continue
+                        
+                        # 增量更新检查
+                        if enable_incremental and parsed.get('date'):
+                            try:
+                                paper_date = datetime.strptime(parsed['date'], '%Y-%m-%d')
+                                if not should_fetch_paper(paper_date, keyword):
+                                    skipped_old += 1
+                                    logging.info(f"跳过旧论文: {parsed['title'][:50]}... (日期: {parsed['date']})")
+                                    continue
+                            except Exception as e:
+                                logging.warning(f"解析日期失败: {e}")
+                        
+                        # 保存到数据库（强制启用去重）
+                        success, action = save_paper_to_db(parsed, keyword, enable_title_dedup=enable_dedup)
+                        if success:
+                            if action == 'created':
+                                saved_count += 1
+                            elif action == 'updated':
+                                saved_count += 1  # 更新也算作处理成功
+                            # 更新已有标题列表（避免同一批次内重复）
+                            if enable_dedup and parsed.get('title'):
+                                existing_titles.append(parsed['title'])
+                        elif action == 'skipped':
+                            skipped_dup += 1
+            
+            logging.info(f"保存统计: 新增 {saved_count} 篇, 跳过重复 {skipped_dup} 篇, 跳过旧论文 {skipped_old} 篇")
+        except Exception as e:
+            logging.warning(f"保存到数据库失败，继续使用JSON: {e}")
+    
+    # 同时更新JSON文件（作为备份）
     with open(filename,"r") as f:
         content = f.read()
         if not content:
@@ -388,19 +518,39 @@ def demo(**config):
     data_collector = []
     data_collector_web= []
     
-    keywords = config['kv']
-    max_results = config['max_results']
-    publish_readme = config['publish_readme']
-    publish_gitpage = config['publish_gitpage']
-    publish_wechat = config['publish_wechat']
-    show_badge = config['show_badge']
+    keywords = config.get('kv', {})
+    max_results = config.get('max_results', 20)
+    publish_readme = config.get('publish_readme', True)
+    publish_gitpage = config.get('publish_gitpage', False)
+    publish_wechat = config.get('publish_wechat', False)
+    show_badge = config.get('show_badge', False)
+    fetch_status = config.get('fetch_status', None)  # 获取fetch_status用于更新进度
+    fetch_status_lock = config.get('fetch_status_lock', None)  # 获取锁用于线程安全更新
 
-    b_update = config['update_paper_links']
+    b_update = config.get('update_paper_links', False)
     logging.info(f'Update Paper Link = {b_update}')
-    if config['update_paper_links'] == False:
+    if config.get('update_paper_links', False) == False:
         logging.info(f"GET daily papers begin")
+        total_keywords = len(keywords)
+        current_progress = 0
+        
         for topic, keyword in keywords.items():
-            logging.info(f"Keyword: {topic}")
+            current_progress += 1
+            if fetch_status:
+                # 使用锁保护更新
+                if fetch_status_lock:
+                    with fetch_status_lock:
+                        fetch_status['current_keyword'] = topic
+                        fetch_status['message'] = f'正在抓取 {topic} ({current_progress}/{total_keywords})...'
+                        fetch_status['progress'] = current_progress
+                else:
+                    # 如果没有锁，直接更新（向后兼容）
+                    fetch_status['current_keyword'] = topic
+                    fetch_status['message'] = f'正在抓取 {topic} ({current_progress}/{total_keywords})...'
+                    fetch_status['progress'] = current_progress
+                logging.info(f"更新进度: {fetch_status['message']}, progress={fetch_status['progress']}/{fetch_status.get('total', total_keywords)}")
+            
+            logging.info(f"Keyword: {topic} ({current_progress}/{total_keywords})")
             data, data_web = get_daily_papers(topic, query = keyword,
                                             max_results = max_results)
             data_collector.append(data)
@@ -416,8 +566,11 @@ def demo(**config):
         if config['update_paper_links']:
             update_paper_links(json_file)
         else:    
-            # update json data
-            update_json_file(json_file,data_collector)
+            # update json data (启用优化选项)
+            update_json_file(json_file, data_collector, 
+                           save_to_db=True, 
+                           enable_dedup=enable_dedup,
+                           enable_incremental=enable_incremental)
         # json data to markdown
         json_to_md(json_file,md_file, task ='Update Readme', \
             show_badge = show_badge)
@@ -430,7 +583,10 @@ def demo(**config):
         if config['update_paper_links']:
             update_paper_links(json_file)
         else:    
-            update_json_file(json_file,data_collector)
+            update_json_file(json_file, data_collector,
+                           save_to_db=False,  # gitpage不需要保存到数据库
+                           enable_dedup=enable_dedup,
+                           enable_incremental=enable_incremental)
         json_to_md(json_file, md_file, task ='Update GitPage', \
             to_web = True, show_badge = show_badge, \
             use_tc=False, use_b2t=False)
@@ -458,12 +614,13 @@ if __name__ == "__main__":
     config = {**config, 'update_paper_links':args.update_paper_links}
     demo(**config)
 
-    try:
-        subprocess.run(["git", "add", "."], check=True)
-        subprocess.run(["git", "commit", "-m", "commit"], check=True)
-        subprocess.run(["git", "push", "-u", "origin", "main"], check=True)
-        print("Git commands executed successfully.")
-    except subprocess.CalledProcessError as e:
-        pass
+    # 注释掉自动git提交，避免权限问题
+    # try:
+    #     subprocess.run(["git", "add", "."], check=True)
+    #     subprocess.run(["git", "commit", "-m", "commit"], check=True)
+    #     subprocess.run(["git", "push", "-u", "origin", "main"], check=True)
+    #     print("Git commands executed successfully.")
+    # except subprocess.CalledProcessError as e:
+    #     pass
 
     

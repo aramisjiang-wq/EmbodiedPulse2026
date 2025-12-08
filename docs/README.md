@@ -1,59 +1,78 @@
-<p align="center">
-  <h1 align="center"><br><ins>CV-ARXIV-DAILY</ins><br>Automatically Update CV Papers Daily using Github Actions</h1>
- 
-</p>
+# 项目文档目录
 
+本文档目录包含项目的所有文档，按类型分类管理。
 
+> 📖 **文档管理规范**: 请查看 [文档管理规范.md](./文档管理规范.md) 了解文档命名、分类和管理规范
 
-##
+## 📁 文档分类
 
-This repository hosts the source code for cv-arxiv-daily, an useful sripts to fetch arxiv paper daily. 
+### 📖 使用说明
+用户使用指南和操作手册
+- 使用说明_20251208.md
+- README_WEB_20251208.md
 
-## Overview
+### 🔧 功能说明
+功能特性详细说明文档
+- 论文抓取逻辑说明_20251208.md
+- 自动抓取说明_20251208.md
+- 自动抓取配置_20251208.md
+- 抓取功能完整说明_20251208.md
 
-This codebase is composed of the following parts:
+### 💻 技术文档
+技术实现和架构文档
+- 数据库分析_20251208.md
+- 项目总结_20251208.md
 
-- `daily_arxiv.py`: main scripts to processing given configurations
-- `config.yaml`: configuration file of papers' keywords etc.
+### 🧪 测试文档
+测试结果和测试报告
+- 测试结果_20251208.md
 
-## Usage
+### 🐛 问题修复
+问题修复记录和解决方案
+- 问题修复说明_20251208.md
 
-<details>
-  <summary>Table of Contents</summary>
+### ✨ 优化记录
+优化改进记录和总结
+- UI优化说明_20251208.md
+- 优化总结_20251208.md
 
-1. Fork this [repo](https://github.com/Vincentqyw/cv-arxiv-daily)
-2. Edit configs:
-    - Change `GITHUB_USER_NAME` and `GITHUB_USER_EMAIL` in [cv-arxiv-daily.yml](../.github/workflows/cv-arxiv-daily.yml) and [update_paper_links.yml](../.github/workflows/update_paper_links.yml)
-    - Change `user_name` in [config.yaml](../config.yaml)
-    - Push changes to remote repo
-3. Config Github Actions
-    - Enable read and write permissions: Setting -> Actions -> Workflow permissions, select `Read and write permissions` and save.
-    ![](../assets/4-ga-2-1.png)
-    - Enable workflows: Actions -> `I understand my workflows, go ahead and enable them` -> Select `Run Arxiv Papars Daily` in right sidebar and click `Enable workflow` -> click `Run workflow` wait about 1 min until the job update done. The same for the job `Run Update Paper Links Weekly`.
-    ![](../assets/4-ga-3-1.png)
-    ![](../assets/4-ga-5-1.png)
-    ![](../assets/4-ga-7.png)
-    ![](../assets/4-ga-8.png)
-    ![](../assets/4-ga-9.png)
-4. Setting Gitpages (optional)
-    - Setting -> Pages -> Build an deployment. Source: `Deploy from a branch`; Branch select `main` and `/docs` folder, then save.
-    ![](../assets/5-pages-1.png)
-    - Now you can open gitpage: https://your_github_usrname.github.io/cv-arxiv-daily
-5. Add new keywords (optional)
-    - Edit `keywords` in [config.yaml](../config.yaml), you can add more filters or keywords.
-    - Push changes to remote repo and re-run Github Actions Manually.
+## 📝 文档命名规范
 
-</details>
+所有文档遵循以下命名规范：
+```
+文档名称_YYYYMMDD.md
+```
 
-## Release plan
+例如：
+- `使用说明_20251208.md`
+- `论文抓取逻辑说明_20251208.md`
 
- We are still in the process of fully releasing. Here is the release plan:
+## 🔄 文档更新流程
 
-- [x] Configuration file
-- [x] Update code link
-- [ ] Subscribe & Update alerting
-- [ ] Support more `arxiv` filters
-- [ ] Archive old papers
-- [ ] Language translation ([`ChatGPT`](https://chat.openai.com/chat))
-- [ ] Usefull comments
-- [ ] ...
+1. **创建新文档时**：
+   - 根据文档类型放入对应目录
+   - 使用标准命名格式：`文档名称_YYYYMMDD.md`
+   - 更新本README和主README.md
+
+2. **更新现有文档时**：
+   - 保留原文档作为历史记录
+   - 创建新版本：`文档名称_YYYYMMDD.md`
+   - 更新文档索引
+
+3. **文档分类**：
+   - 使用说明 → `使用说明/`
+   - 功能说明 → `功能说明/`
+   - 技术文档 → `技术文档/`
+   - 测试文档 → `测试文档/`
+   - 问题修复 → `问题修复/`
+   - 优化记录 → `优化记录/`
+
+## 📅 最后更新
+
+2025-12-08 - 文档整理和分类
+
+## 📖 相关文档
+
+- [文档管理规范](./文档管理规范.md) - 文档命名、分类和管理规范
+- [主README](../../README.md) - 项目主文档
+

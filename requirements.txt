@@ -1,3 +1,7 @@
 requests
 arxiv
 pyyaml
+flask
+sqlalchemy
+apscheduler
+gunicorn

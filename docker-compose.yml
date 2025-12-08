@@ -1,0 +1,28 @@
+version: '3.8'
+
+services:
+  web:
+    build: .
+    container_name: robotics-arxiv-web
+    ports:
+      - "5001:5001"
+    volumes:
+      # 数据持久化
+      - ./papers.db:/app/papers.db
+      - ./docs:/app/docs
+      - ./config.yaml:/app/config.yaml
+    environment:
+      - DATABASE_URL=sqlite:///./papers.db
+      - AUTO_FETCH_ENABLED=true
+      - AUTO_FETCH_SCHEDULE=0 2 * * *
+      - AUTO_FETCH_MAX_RESULTS=10
+      - FLASK_ENV=production
+      - LOG_LEVEL=info
+    restart: always
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import requests; requests.get('http://localhost:5001/api/stats', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+

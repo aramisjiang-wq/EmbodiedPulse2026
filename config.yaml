@@ -21,15 +21,30 @@ md_gitpage_path: './docs/index.md'
 md_wechat_path: './docs/wechat.md'
 
 # keywords to search
+# 按照具身智能研究方向全量标签配置
 keywords:
-    # --------- My Keywords ---------
-    "Manipulation":
-        filters: ["Robot Manipulation", "Robotic Manipulation", "Robot Learning", "Imitation Learning"]
+    # --------- 感知层 (Perception Layer) ---------
+    "Perception":
+        filters: ["Visual Perception", "Scene Understanding", "Robot Perception", "Perception", "Visual Understanding", "Scene Recognition"]
     "VLM":
-        filters: ["Vision Language Model", "Vision Language Models", "Vision-Language Model", "Vision-Language Models"]
-    "VLA":
-        filters: ["Vision Language Action","Vision-Language-Action"]
-    "Humanoid":
-        filters: ["Humanoid Robot", "Humanoid"]
+        filters: ["Vision Language Model", "Vision Language Models", "Vision-Language Model", "Vision-Language Models", "Multimodal Learning", "Visual-Language"]
+    
+    # --------- 决策层 (Decision Layer) ---------
+    "Planning":
+        filters: ["Task Planning", "Path Planning", "Motion Planning", "Robot Planning", "Action Planning", "Trajectory Planning"]
+    "RL/IL":
+        filters: ["Reinforcement Learning", "Imitation Learning", "Robot Learning", "Deep Reinforcement Learning", "RL", "Imitation"]
+    
+    # --------- 执行层 (Execution Layer) ---------
+    "Manipulation":
+        filters: ["Robot Manipulation", "Robotic Manipulation", "Robot Learning", "Imitation Learning", "Grasping", "Object Manipulation"]
+    "Locomotion":
+        filters: ["Mobile Robot", "Navigation", "Robot Locomotion", "Legged Robot", "Walking Robot", "Mobile Navigation", "Robot Walking"]
     "Dexterous":
-        filters: ["Dexterous Manipulation", "Dexterous hand", "Dexterity", "Dexterous"]
+        filters: ["Dexterous Manipulation", "Dexterous hand", "Dexterity", "Dexterous", "Fine Manipulation", "Dexterous Robot"]
+    
+    # --------- 系统集成 (System Integration) ---------
+    "VLA":
+        filters: ["Vision Language Action", "Vision-Language-Action", "VLA", "Embodied Agent", "Embodied AI"]
+    "Humanoid":
+        filters: ["Humanoid Robot", "Humanoid", "Bipedal Robot", "Humanoid Robotics", "Bipedal Locomotion"]

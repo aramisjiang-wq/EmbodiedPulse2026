@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Embodied AI ArXiv Daily - 具身领域前沿论文每日更新</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <!-- 头部 Banner -->
+        <header class="header">
+            <div class="header-background"></div>
+            <div class="header-wrapper">
+                <div class="header-content">
+                    <div class="header-title">
+                        <i class="fas fa-robot"></i>
+                        <h1>Embodied AI ArXiv Daily</h1>
+                    </div>
+                    <p class="subtitle">具身领域前沿论文每日更新</p>
+                    <p class="header-description">追踪具身智能、机器人学习、视觉语言动作模型等前沿研究</p>
+                </div>
+                <div class="header-actions">
+                    <button id="refreshBtn" class="btn btn-primary">
+                        <i class="fas fa-sync-alt"></i> 刷新数据
+                    </button>
+                    <button id="fetchBtn" class="btn btn-success">
+                        <i class="fas fa-download"></i> 抓取新论文
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- 顶部导航栏 - Tab样式 -->
+        <nav class="top-nav">
+            <div class="nav-tabs">
+                <a href="https://limxdynamics.com/" target="_blank" class="nav-tab active">
+                    <span>逐际动力 LimX</span>
+                </a>
+                <a href="https://gradmotion.com/" target="_blank" class="nav-tab">
+                    <span>具身算法工具箱（GradMotion）</span>
+                </a>
+                <a href="https://paj5uamwttr.feishu.cn/wiki/GaozwfU3iiWA9Nk0LVUcUzKZnHc" target="_blank" class="nav-tab">
+                    <span>具身知识库</span>
+                </a>
+                <a href="https://paj5uamwttr.feishu.cn/share/base/form/shrcnYlYb0NorOBVv2P8xRAArDe" target="_blank" class="nav-tab">
+                    <span>需求反馈</span>
+                </a>
+            </div>
+        </nav>
+
+        <!-- 具身机器人研究方向结构 -->
+        <section class="research-structure">
+            <div class="structure-header">
+                <h2><i class="fas fa-sitemap"></i> 具身智能研究方向</h2>
+                <p class="structure-subtitle">Embodied AI Research Directions</p>
+            </div>
+            
+            <!-- 按分类组织：感知层 → 决策层 → 执行层 → 集成层 -->
+            <div class="structure-grid">
+                <!-- 感知层 -->
+                <div class="structure-category">
+                    <div class="category-label">感知层</div>
+                    <div class="category-cards">
+                        <div class="structure-card perception">
+                            <div class="structure-icon">
+                                <i class="fas fa-camera"></i>
+                            </div>
+                            <h3>Perception<br><span class="structure-en">感知理解</span></h3>
+                            <p class="structure-desc">视觉感知、场景理解</p>
+                            <div class="structure-keywords">
+                                <span>Visual Perception</span>
+                                <span>Scene Understanding</span>
+                            </div>
+                        </div>
+                        
+                        <div class="structure-card vlm">
+                            <div class="structure-icon">
+                                <i class="fas fa-eye"></i>
+                            </div>
+                            <h3>VLM<br><span class="structure-en">视觉语言模型</span></h3>
+                            <p class="structure-desc">视觉理解、多模态学习</p>
+                            <div class="structure-keywords">
+                                <span>Vision-Language</span>
+                                <span>Multimodal</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 决策层 -->
+                <div class="structure-category">
+                    <div class="category-label">决策层</div>
+                    <div class="category-cards">
+                        <div class="structure-card planning">
+                            <div class="structure-icon">
+                                <i class="fas fa-route"></i>
+                            </div>
+                            <h3>Planning<br><span class="structure-en">任务规划</span></h3>
+                            <p class="structure-desc">路径规划、任务分解</p>
+                            <div class="structure-keywords">
+                                <span>Task Planning</span>
+                                <span>Path Planning</span>
+                            </div>
+                        </div>
+                        
+                        <div class="structure-card learning">
+                            <div class="structure-icon">
+                                <i class="fas fa-graduation-cap"></i>
+                            </div>
+                            <h3>RL/IL<br><span class="structure-en">强化/模仿学习</span></h3>
+                            <p class="structure-desc">强化学习、模仿学习</p>
+                            <div class="structure-keywords">
+                                <span>Reinforcement Learning</span>
+                                <span>Imitation</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 执行层 -->
+                <div class="structure-category">
+                    <div class="category-label">执行层</div>
+                    <div class="category-cards">
+                        <div class="structure-card manipulation">
+                            <div class="structure-icon">
+                                <i class="fas fa-hand-paper"></i>
+                            </div>
+                            <h3>Manipulation<br><span class="structure-en">操作控制</span></h3>
+                            <p class="structure-desc">机器人操作、抓取</p>
+                            <div class="structure-keywords">
+                                <span>Robot Manipulation</span>
+                                <span>Grasping</span>
+                            </div>
+                        </div>
+                        
+                        <div class="structure-card locomotion">
+                            <div class="structure-icon">
+                                <i class="fas fa-running"></i>
+                            </div>
+                            <h3>Locomotion<br><span class="structure-en">运动控制</span></h3>
+                            <p class="structure-desc">移动、导航、步态规划</p>
+                            <div class="structure-keywords">
+                                <span>Mobile Robot</span>
+                                <span>Navigation</span>
+                            </div>
+                        </div>
+                        
+                        <div class="structure-card dexterous">
+                            <div class="structure-icon">
+                                <i class="fas fa-fingerprint"></i>
+                            </div>
+                            <h3>Dexterous<br><span class="structure-en">灵巧操作</span></h3>
+                            <p class="structure-desc">精细操作、触觉感知</p>
+                            <div class="structure-keywords">
+                                <span>Dexterous Hand</span>
+                                <span>Tactile</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 集成层 -->
+                <div class="structure-category">
+                    <div class="category-label">集成层</div>
+                    <div class="category-cards">
+                        <div class="structure-card vla">
+                            <div class="structure-icon">
+                                <i class="fas fa-brain"></i>
+                            </div>
+                            <h3>VLA<br><span class="structure-en">视觉语言动作</span></h3>
+                            <p class="structure-desc">端到端控制、指令跟随</p>
+                            <div class="structure-keywords">
+                                <span>Vision-Language-Action</span>
+                                <span>Embodied Agent</span>
+                            </div>
+                        </div>
+                        
+                        <div class="structure-card humanoid">
+                            <div class="structure-icon">
+                                <i class="fas fa-walking"></i>
+                            </div>
+                            <h3>Humanoid<br><span class="structure-en">人形机器人</span></h3>
+                            <p class="structure-desc">双足行走、全身协调</p>
+                            <div class="structure-keywords">
+                                <span>Humanoid Robot</span>
+                                <span>Bipedal</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 统计信息 - 总论文数+柱状图 -->
+        <section class="stats-section">
+            <div class="stats-header">
+                <h2><i class="fas fa-chart-bar"></i> 论文数据统计</h2>
+            </div>
+            <div class="stats-dashboard">
+                <div class="stats-layout">
+                    <!-- 左侧：总论文数（1/5） -->
+                    <div class="stats-total-panel">
+                        <div class="total-card">
+                            <div class="total-label">总论文数</div>
+                            <div class="total-value" id="totalPapersValue">-</div>
+                        </div>
+                    </div>
+                    
+                    <!-- 右侧：柱状图（4/5） -->
+                    <div class="stats-chart-panel">
+                        <div class="chart-card">
+                            <div class="chart-container">
+                                <canvas id="barChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 论文清单 -->
+        <section class="papers-list-section">
+            <div class="papers-list-header">
+                <h2><i class="fas fa-list"></i> 论文清单</h2>
+            </div>
+            
+            <!-- 搜索框 -->
+            <div class="search-section">
+                <div class="search-container">
+                    <div class="search-box">
+                        <i class="fas fa-search"></i>
+                        <input type="text" id="searchInput" placeholder="搜索论文标题或作者...">
+                        <select id="categoryFilter">
+                            <option value="">所有类别</option>
+                        </select>
+                        <button id="searchBtn" class="btn btn-primary">
+                            <i class="fas fa-search"></i> 搜索
+                        </button>
+                        <button id="clearSearchBtn" class="btn btn-secondary hidden">
+                            <i class="fas fa-times"></i> 清除搜索
+                        </button>
+                    </div>
+                </div>
+                <div id="searchResults" class="search-results hidden"></div>
+            </div>
+
+            <!-- 最后更新时间 -->
+            <div class="last-update-info">
+                <i class="fas fa-clock"></i>
+                <span>最后更新: <span id="lastUpdateTime">加载中...</span></span>
+            </div>
+
+            <!-- 论文列表 -->
+            <div class="papers-section-content">
+                <div class="tabs" id="tabs">
+                    <!-- 标签页将通过JS动态生成 -->
+                </div>
+                
+                <div class="papers-container" id="papersContainer">
+                    <div class="loading-spinner">
+                        <i class="fas fa-spinner fa-spin fa-3x"></i>
+                        <p>加载论文数据中...</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 抓取状态 -->
+        <div id="fetchStatus" class="fetch-status hidden">
+            <div class="status-content">
+                <div class="status-header">
+                    <i class="fas fa-spinner fa-spin"></i>
+                    <span id="statusMessage">正在抓取论文...</span>
+                </div>
+                <div class="progress-bar">
+                    <div id="progressFill" class="progress-fill"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 抓取配置模态框 -->
+    <div id="fetchModal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>抓取配置</h2>
+                <button class="modal-close" onclick="closeFetchModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="maxResults">每类论文数量:</label>
+                    <input type="number" id="maxResults" value="20" min="1" max="100">
+                </div>
+                <div class="form-group">
+                    <label for="configPath">配置文件路径:</label>
+                    <input type="text" id="configPath" value="config.yaml">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeFetchModal()">取消</button>
+                <button class="btn btn-primary" onclick="confirmFetch()">开始抓取</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>
