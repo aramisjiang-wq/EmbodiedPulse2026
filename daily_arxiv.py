@@ -8,6 +8,7 @@ import argparse
 import datetime
 import requests
 import subprocess
+import time
 
 logging.basicConfig(format='[%(asctime)s %(levelname)s] %(message)s',
                     datefmt='%m/%d/%Y %H:%M:%S',
@@ -96,71 +97,90 @@ def get_daily_papers(topic,query="slam", max_results=2):
     # output 
     content = dict() 
     content_to_web = dict()
-    search_engine = arxiv.Search(
+    
+    # 使用新的 Client API 替代已弃用的 Search.results()
+    client = arxiv.Client(
+        page_size=100,
+        delay_seconds=3.0,  # 添加延迟避免速率限制
+        num_retries=3
+    )
+    
+    search = arxiv.Search(
         query = query,
         max_results = max_results,
         sort_by = arxiv.SortCriterion.SubmittedDate
     )
 
-    for result in search_engine.results():
+    try:
+        results = client.results(search)
+        for result in results:
+            paper_id            = result.get_short_id()
+            paper_title         = result.title
+            paper_url           = result.entry_id
+            code_url            = base_url + paper_id #TODO
+            paper_abstract      = result.summary.replace("\n"," ")
+            paper_authors       = get_authors(result.authors)
+            paper_first_author  = get_authors(result.authors,first_author = True)
+            paper_last_author   = get_authors(result.authors,last_author = True)
+            primary_category    = result.primary_category
+            publish_time        = result.published.date()
+            update_time         = result.updated.date()
+            comments            = result.comment
 
-        paper_id            = result.get_short_id()
-        paper_title         = result.title
-        paper_url           = result.entry_id
-        code_url            = base_url + paper_id #TODO
-        paper_abstract      = result.summary.replace("\n"," ")
-        paper_authors       = get_authors(result.authors)
-        paper_first_author  = get_authors(result.authors,first_author = True)
-        paper_last_author   = get_authors(result.authors,last_author = True)
-        primary_category    = result.primary_category
-        publish_time        = result.published.date()
-        update_time         = result.updated.date()
-        comments            = result.comment
+            logging.info(f"Time = {update_time} title = {paper_title} author = {paper_first_author}")
 
-        logging.info(f"Time = {update_time} title = {paper_title} author = {paper_first_author}")
+            # eg: 2108.09112v1 -> 2108.09112
+            ver_pos = paper_id.find('v')
+            if ver_pos == -1:
+                paper_key = paper_id
+            else:
+                paper_key = paper_id[0:ver_pos]    
+            paper_url = arxiv_url + 'abs/' + paper_key
+            
+            # 初始化 repo_url 为 None
+            repo_url = None
+            
+            # 直接从 comments 中提取代码链接
+            if comments:
+                # 用正则提取 http/https 链接
+                urls = re.findall(r'(https?://[^\s,;]+)', comments)
+                if urls:
+                    repo_url = urls[0]  # 取第一个链接
+            
+            # TODO: not found, two more chances  
+            # if not repo_url:
+            #    repo_url = get_code_link(paper_title)
+            #    if repo_url is None:
+            #        repo_url = get_code_link(paper_key)
+            
+            # 根据是否有代码链接来生成 content
+            if repo_url is not None:
+                content[paper_key] = "|**{}**|**{}**|{} Team|[{}]({})|**[link]({})**|\n".format(
+                       update_time,paper_title,paper_last_author,paper_key,paper_url,repo_url)
+                content_to_web[paper_key] = "- {}, **{}**, {} Team, Paper: [{}]({}), Code: **[{}]({})**".format(
+                       update_time,paper_title,paper_last_author,paper_url,paper_url,repo_url,repo_url)
+            else:
+                content[paper_key] = "|**{}**|**{}**|{} Team|[{}]({})|null|\n".format(
+                       update_time,paper_title,paper_last_author,paper_key,paper_url)
+                content_to_web[paper_key] = "- {}, **{}**, {} Team, Paper: [{}]({})".format(
+                       update_time,paper_title,paper_last_author,paper_url,paper_url)
 
-        # eg: 2108.09112v1 -> 2108.09112
-        ver_pos = paper_id.find('v')
-        if ver_pos == -1:
-            paper_key = paper_id
-        else:
-            paper_key = paper_id[0:ver_pos]    
-        paper_url = arxiv_url + 'abs/' + paper_key
-        
-        # 初始化 repo_url 为 None
-        repo_url = None
-        
-        # 直接从 comments 中提取代码链接
-        if comments:
-            # 用正则提取 http/https 链接
-            urls = re.findall(r'(https?://[^\s,;]+)', comments)
-            if urls:
-                repo_url = urls[0]  # 取第一个链接
-        
-        # TODO: not found, two more chances  
-        # if not repo_url:
-        #    repo_url = get_code_link(paper_title)
-        #    if repo_url is None:
-        #        repo_url = get_code_link(paper_key)
-        
-        # 根据是否有代码链接来生成 content
-        if repo_url is not None:
-            content[paper_key] = "|**{}**|**{}**|{} Team|[{}]({})|**[link]({})**|\n".format(
-                   update_time,paper_title,paper_last_author,paper_key,paper_url,repo_url)
-            content_to_web[paper_key] = "- {}, **{}**, {} Team, Paper: [{}]({}), Code: **[{}]({})**".format(
-                   update_time,paper_title,paper_last_author,paper_url,paper_url,repo_url,repo_url)
-        else:
-            content[paper_key] = "|**{}**|**{}**|{} Team|[{}]({})|null|\n".format(
-                   update_time,paper_title,paper_last_author,paper_key,paper_url)
-            content_to_web[paper_key] = "- {}, **{}**, {} Team, Paper: [{}]({})".format(
-                   update_time,paper_title,paper_last_author,paper_url,paper_url)
-
-        # TODO: select useful comments
-        comments = None
-        if comments != None:
-            content_to_web[paper_key] += f", {comments}\n"
-        else:
-            content_to_web[paper_key] += f"\n"
+            # TODO: select useful comments
+            comments = None
+            if comments != None:
+                content_to_web[paper_key] += f", {comments}\n"
+            else:
+                content_to_web[paper_key] += f"\n"
+            
+            # 添加延迟避免触发速率限制
+            time.sleep(1.0)
+    
+    except arxiv.HTTPError as e:
+        logging.error(f"HTTP错误 (可能是速率限制): {e}")
+        logging.info(f"已获取 {len(content)} 篇论文，将继续处理已获取的数据")
+    except Exception as e:
+        logging.error(f"获取论文时发生错误: {e}")
+        logging.info(f"已获取 {len(content)} 篇论文，将继续处理已获取的数据")
 
     data = {topic:content}
     data_web = {topic:content_to_web}
