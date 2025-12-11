@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>清除运势签记录</title>
+</head>
+<body>
+    <h1>清除运势签记录</h1>
+    <p>点击下面的按钮清除localStorage中的抽签记录：</p>
+    <button onclick="clearFortune()">清除抽签记录</button>
+    <button onclick="location.reload()">刷新页面</button>
+    <div id="result"></div>
+    
+    <script>
+        function clearFortune() {
+            localStorage.removeItem('fortuneDate');
+            localStorage.removeItem('fortuneMessage');
+            localStorage.removeItem('fortuneTimestamp');
+            localStorage.removeItem('fortuneCategory');
+            document.getElementById('result').innerHTML = '<p style="color: green;">✅ 抽签记录已清除！</p>';
+            console.log('抽签记录已清除');
+        }
+        
+        // 显示当前状态
+        window.onload = function() {
+            const date = localStorage.getItem('fortuneDate');
+            const message = localStorage.getItem('fortuneMessage');
+            const timestamp = localStorage.getItem('fortuneTimestamp');
+            const category = localStorage.getItem('fortuneCategory');
+            
+            if (date || message || timestamp || category) {
+                document.getElementById('result').innerHTML = `
+                    <h3>当前记录：</h3>
+                    <p>日期: ${date || '无'}</p>
+                    <p>消息: ${message || '无'}</p>
+                    <p>时间: ${timestamp || '无'}</p>
+                    <p>研究方向: ${category || '无'}</p>
+                `;
+            } else {
+                document.getElementById('result').innerHTML = '<p style="color: blue;">当前没有抽签记录</p>';
+            }
+        };
+    </script>
+</body>
+</html>

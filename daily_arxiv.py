@@ -123,7 +123,7 @@ def get_daily_papers(topic,query="slam", max_results=2):
     # 使用新的 Client API 替代已弃用的 Search.results()
     client = arxiv.Client(
         page_size=100,
-        delay_seconds=3.0,  # 添加延迟避免速率限制
+        delay_seconds=1.5,  # 优化：减少延迟到1.5秒（ArXiv允许，提升速度）
         num_retries=3
     )
     
@@ -178,16 +178,17 @@ def get_daily_papers(topic,query="slam", max_results=2):
             #        repo_url = get_code_link(paper_key)
             
             # 根据是否有代码链接来生成 content
+            # 注意：使用publish_time作为日期字段，用于后续的日期过滤
             if repo_url is not None:
                 content[paper_key] = "|**{}**|**{}**|{} Team|[{}]({})|**[link]({})**|\n".format(
-                       update_time,paper_title,paper_last_author,paper_key,paper_url,repo_url)
+                       publish_time,paper_title,paper_last_author,paper_key,paper_url,repo_url)
                 content_to_web[paper_key] = "- {}, **{}**, {} Team, Paper: [{}]({}), Code: **[{}]({})**".format(
-                       update_time,paper_title,paper_last_author,paper_url,paper_url,repo_url,repo_url)
+                       publish_time,paper_title,paper_last_author,paper_url,paper_url,repo_url,repo_url)
             else:
                 content[paper_key] = "|**{}**|**{}**|{} Team|[{}]({})|null|\n".format(
-                       update_time,paper_title,paper_last_author,paper_key,paper_url)
+                       publish_time,paper_title,paper_last_author,paper_key,paper_url)
                 content_to_web[paper_key] = "- {}, **{}**, {} Team, Paper: [{}]({})".format(
-                       update_time,paper_title,paper_last_author,paper_url,paper_url)
+                       publish_time,paper_title,paper_last_author,paper_url,paper_url)
 
             # TODO: select useful comments
             comments = None
@@ -196,8 +197,8 @@ def get_daily_papers(topic,query="slam", max_results=2):
             else:
                 content_to_web[paper_key] += f"\n"
             
-            # 添加延迟避免触发速率限制
-            time.sleep(1.0)
+            # 优化：减少延迟到0.3秒（数据库操作很快，不需要1秒）
+            time.sleep(0.3)
     
     except arxiv.HTTPError as e:
         logging.error(f"HTTP错误 (可能是速率限制): {e}")
@@ -284,7 +285,7 @@ def parse_paper_entry_from_string(entry_str):
         logging.error(f"解析论文条目失败: {e}")
     return None
 
-def update_json_file(filename,data_dict, save_to_db=True, enable_dedup=True, enable_incremental=True):
+def update_json_file(filename,data_dict, save_to_db=True, enable_dedup=True, enable_incremental=True, days_back=7, fetch_semantic_scholar=False):
     '''
     daily update json file using data_dict
     同时保存到数据库（如果启用）
@@ -295,6 +296,8 @@ def update_json_file(filename,data_dict, save_to_db=True, enable_dedup=True, ena
         save_to_db: 是否保存到数据库
         enable_dedup: 是否启用智能去重
         enable_incremental: 是否启用增量更新
+        days_back: 只抓取最近N天的论文（默认7天）
+        fetch_semantic_scholar: 是否从Semantic Scholar获取补充数据（默认False）
     '''
     # 如果启用数据库，先保存到数据库
     if save_to_db:
@@ -335,19 +338,22 @@ def update_json_file(filename,data_dict, save_to_db=True, enable_dedup=True, ena
                                 logging.info(f"跳过重复论文: {parsed['title'][:50]}...")
                                 continue
                         
-                        # 增量更新检查
+                        # 增量更新检查（只检查时间范围，不检查日期比较）
                         if enable_incremental and parsed.get('date'):
                             try:
                                 paper_date = datetime.strptime(parsed['date'], '%Y-%m-%d')
-                                if not should_fetch_paper(paper_date, keyword):
+                                # 只检查是否在时间范围内（days_back），不检查日期比较
+                                # 去重机制（ID和标题相似度）已经足够处理重复问题
+                                if not should_fetch_paper(paper_date, keyword, days_back=days_back):
                                     skipped_old += 1
-                                    logging.info(f"跳过旧论文: {parsed['title'][:50]}... (日期: {parsed['date']})")
+                                    logging.debug(f"跳过超出时间范围的论文: {parsed['title'][:50]}... (日期: {parsed['date']})")
                                     continue
                             except Exception as e:
                                 logging.warning(f"解析日期失败: {e}")
                         
-                        # 保存到数据库（强制启用去重）
-                        success, action = save_paper_to_db(parsed, keyword, enable_title_dedup=enable_dedup)
+                        # 保存到数据库（强制启用去重，可选启用Semantic Scholar）
+                        # 如果启用Semantic Scholar，会在保存时同时获取补充数据（引用数、机构信息等）
+                        success, action = save_paper_to_db(parsed, keyword, enable_title_dedup=enable_dedup, fetch_semantic_scholar=fetch_semantic_scholar)
                         if success:
                             if action == 'created':
                                 saved_count += 1
@@ -519,13 +525,15 @@ def demo(**config):
     data_collector_web= []
     
     keywords = config.get('kv', {})
-    max_results = config.get('max_results', 20)
+    max_results = config.get('max_results', 100)
     publish_readme = config.get('publish_readme', True)
     publish_gitpage = config.get('publish_gitpage', False)
     publish_wechat = config.get('publish_wechat', False)
     show_badge = config.get('show_badge', False)
     fetch_status = config.get('fetch_status', None)  # 获取fetch_status用于更新进度
     fetch_status_lock = config.get('fetch_status_lock', None)  # 获取锁用于线程安全更新
+    enable_dedup = config.get('enable_dedup', True)  # 是否启用智能去重
+    enable_incremental = config.get('enable_incremental', True)  # 是否启用增量更新
 
     b_update = config.get('update_paper_links', False)
     logging.info(f'Update Paper Link = {b_update}')
@@ -570,7 +578,9 @@ def demo(**config):
             update_json_file(json_file, data_collector, 
                            save_to_db=True, 
                            enable_dedup=enable_dedup,
-                           enable_incremental=enable_incremental)
+                           enable_incremental=enable_incremental,
+                           days_back=config.get('days_back', 7),
+                           fetch_semantic_scholar=config.get('fetch_semantic_scholar', False))
         # json data to markdown
         json_to_md(json_file,md_file, task ='Update Readme', \
             show_badge = show_badge)
@@ -586,7 +596,8 @@ def demo(**config):
             update_json_file(json_file, data_collector,
                            save_to_db=False,  # gitpage不需要保存到数据库
                            enable_dedup=enable_dedup,
-                           enable_incremental=enable_incremental)
+                           enable_incremental=enable_incremental,
+                           days_back=config.get('days_back', 7))
         json_to_md(json_file, md_file, task ='Update GitPage', \
             to_web = True, show_badge = show_badge, \
             use_tc=False, use_b2t=False)
@@ -599,7 +610,11 @@ def demo(**config):
         if config['update_paper_links']:
             update_paper_links(json_file)
         else:    
-            update_json_file(json_file, data_collector_web)
+            update_json_file(json_file, data_collector_web,
+                           save_to_db=False,
+                           enable_dedup=enable_dedup,
+                           enable_incremental=enable_incremental,
+                           days_back=config.get('days_back', 7))
         json_to_md(json_file, md_file, task ='Update Wechat', \
             to_web=False, use_title= False, show_badge = show_badge) 
 

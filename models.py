@@ -2,7 +2,7 @@
 数据库模型定义
 使用 SQLAlchemy ORM
 """
-from sqlalchemy import create_engine, Column, String, Date, Text, DateTime, Index
+from sqlalchemy import create_engine, Column, String, Date, Text, DateTime, Index, Integer, JSON
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from datetime import datetime
@@ -23,6 +23,13 @@ class Paper(Base):
     code_url = Column(Text, nullable=True)
     abstract = Column(Text, nullable=True)
     category = Column(String)  # 类别：Manipulation, VLM, VLA等
+    # Semantic Scholar补充数据
+    citation_count = Column(Integer, default=0, nullable=True)  # 被引用数量
+    influential_citation_count = Column(Integer, default=0, nullable=True)  # 高影响力引用数
+    author_affiliations = Column(Text, nullable=True)  # 作者机构信息（JSON字符串）
+    venue = Column(String, nullable=True)  # 发表期刊/会议
+    publication_year = Column(Integer, nullable=True)  # 发表年份
+    semantic_scholar_updated_at = Column(DateTime, nullable=True)  # Semantic Scholar数据更新时间
     created_at = Column(DateTime, default=datetime.now)
     updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
     
@@ -35,6 +42,16 @@ class Paper(Base):
     
     def to_dict(self):
         """转换为字典"""
+        import json
+        # 解析机构信息（如果是JSON字符串）
+        affiliations = []
+        if self.author_affiliations:
+            try:
+                affiliations = json.loads(self.author_affiliations)
+            except:
+                # 如果不是JSON，尝试按逗号分割
+                affiliations = [aff.strip() for aff in self.author_affiliations.split(',') if aff.strip()]
+        
         return {
             'id': self.id,
             'title': self.title,
@@ -43,7 +60,13 @@ class Paper(Base):
             'pdf_id': self.id,
             'pdf_url': self.pdf_url,
             'code_url': self.code_url,
-            'category': self.category
+            'category': self.category,
+            'abstract': self.abstract or '',
+            'citation_count': self.citation_count or 0,
+            'influential_citation_count': self.influential_citation_count or 0,
+            'author_affiliations': affiliations,
+            'venue': self.venue or '',
+            'publication_year': self.publication_year
         }
 
 # 数据库配置

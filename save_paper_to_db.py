@@ -5,11 +5,12 @@
 from models import get_session, Paper
 from datetime import datetime
 import logging
+import json
 from utils import is_duplicate_title
 
 logger = logging.getLogger(__name__)
 
-def save_paper_to_db(paper_data, category, enable_title_dedup=True):
+def save_paper_to_db(paper_data, category, enable_title_dedup=True, fetch_semantic_scholar=False):
     """
     保存论文到数据库（强制去重）
     
@@ -21,6 +22,7 @@ def save_paper_to_db(paper_data, category, enable_title_dedup=True):
         paper_data: 包含论文信息的字典
         category: 论文类别
         enable_title_dedup: 是否启用标题相似度去重（默认True）
+        fetch_semantic_scholar: 是否从Semantic Scholar获取补充数据（默认False）
     
     Returns:
         tuple: (success: bool, action: str)
@@ -63,6 +65,10 @@ def save_paper_to_db(paper_data, category, enable_title_dedup=True):
                 except Exception as e:
                     logger.warning(f"解析日期失败: {e}")
             
+            # 如果启用Semantic Scholar，获取补充数据
+            if fetch_semantic_scholar:
+                update_semantic_scholar_data(existing, paper_id, session)
+            
             session.commit()
             return True, 'updated'
         
@@ -90,6 +96,10 @@ def save_paper_to_db(paper_data, category, enable_title_dedup=True):
             except Exception as e:
                 logger.warning(f"解析日期失败: {e}")
         
+        # 如果启用Semantic Scholar，获取补充数据
+        if fetch_semantic_scholar:
+            update_semantic_scholar_data(paper, paper_id, session)
+        
         session.add(paper)
         session.commit()
         logger.debug(f"新建论文记录: {paper_id} - {title[:50]}...")
@@ -101,4 +111,39 @@ def save_paper_to_db(paper_data, category, enable_title_dedup=True):
         return False, 'error'
     finally:
         session.close()
+
+
+def update_semantic_scholar_data(paper, arxiv_id, session):
+    """
+    从Semantic Scholar获取补充数据并更新论文记录
+    
+    Args:
+        paper: Paper对象
+        arxiv_id: ArXiv论文ID
+        session: 数据库会话
+    """
+    try:
+        from semantic_scholar_client import get_paper_supplement_data
+        
+        supplement_data = get_paper_supplement_data(arxiv_id)
+        
+        if supplement_data:
+            paper.citation_count = supplement_data.get('citation_count', 0) or 0
+            paper.influential_citation_count = supplement_data.get('influential_citation_count', 0) or 0
+            paper.venue = supplement_data.get('venue', '') or ''
+            paper.publication_year = supplement_data.get('publication_year')
+            
+            # 保存机构信息为JSON字符串
+            affiliations = supplement_data.get('author_affiliations', [])
+            if affiliations:
+                paper.author_affiliations = json.dumps(affiliations, ensure_ascii=False)
+            
+            paper.semantic_scholar_updated_at = datetime.now()
+            logger.debug(f"更新Semantic Scholar数据: {arxiv_id} - 引用数: {paper.citation_count}")
+        else:
+            logger.debug(f"未获取到Semantic Scholar数据: {arxiv_id}")
+            
+    except Exception as e:
+        logger.warning(f"获取Semantic Scholar数据失败 (ID: {arxiv_id}): {e}")
+        # 不抛出异常，允许论文保存继续
 

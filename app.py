@@ -9,7 +9,10 @@ import logging
 from datetime import datetime
 from daily_arxiv import load_config, demo, get_daily_papers
 from models import init_db, get_session, Paper
-from sqlalchemy import func, or_
+from sqlalchemy import func, or_, and_, desc
+from jobs_models import get_jobs_session, Job
+from datasets_models import get_datasets_session, Dataset
+from news_models import get_news_session, News
 
 app = Flask(__name__)
 app.config['JSON_AS_ASCII'] = False  # 支持中文
@@ -30,9 +33,37 @@ fetch_status = {
 # 线程锁，保护fetch_status的更新
 fetch_status_lock = threading.Lock()
 
+# 全局定时任务调度器（用于Gunicorn启动时自动启动）
+scheduler = None
+
+# 初始化定时任务调度器的函数（适用于Gunicorn等生产环境）
+def init_scheduler():
+    """初始化定时任务调度器（适用于Gunicorn等生产环境）"""
+    global scheduler
+    if scheduler is not None:
+        logger.info("定时任务调度器已存在，跳过重复初始化")
+        return scheduler  # 已经启动，直接返回
+    
+    auto_fetch_enabled = os.getenv('AUTO_FETCH_ENABLED', 'false').lower() == 'true'
+    if auto_fetch_enabled:
+        logger.info("=" * 60)
+        logger.info("检测到 AUTO_FETCH_ENABLED=true，正在启动定时任务...")
+        logger.info("=" * 60)
+        scheduler = start_scheduler()
+        if scheduler:
+            logger.info("✅ 定时任务调度器已启动（适用于Gunicorn等生产环境）")
+            logger.info("=" * 60)
+        else:
+            logger.warning("⚠️  定时任务调度器启动失败（需要安装 APScheduler）")
+        return scheduler
+    else:
+        logger.info("ℹ️  自动定时抓取未启用（设置 AUTO_FETCH_ENABLED=true 启用）")
+        return None
+
 def load_papers_data(json_path='./docs/cv-arxiv-daily.json', use_db=True):
     """加载论文数据（优先使用数据库）"""
     if use_db:
+        session = None
         try:
             session = get_session()
             papers = session.query(Paper).all()
@@ -44,11 +75,13 @@ def load_papers_data(json_path='./docs/cv-arxiv-daily.json', use_db=True):
                     result[paper.category] = {}
                 result[paper.category][paper.id] = paper.to_dict()
             
-            session.close()
             return result
         except Exception as e:
             logger.warning(f"从数据库加载失败，尝试使用JSON: {e}")
             # 如果数据库失败，回退到JSON
+        finally:
+            if session:
+                session.close()
     
     # 回退到JSON文件
     try:
@@ -103,8 +136,12 @@ def index():
 @app.route('/api/papers')
 def get_papers():
     """获取论文列表API（使用数据库）"""
+    session = None
     try:
         session = get_session()
+        
+        # 获取查询参数：上次查看时间（用于计算新论文数量）
+        last_viewed = request.args.get('last_viewed', type=str, default=None)
         
         # 从数据库查询所有论文
         papers = session.query(Paper).order_by(Paper.publish_date.desc()).all()
@@ -116,6 +153,54 @@ def get_papers():
         else:
             last_update = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         
+        # 计算新论文数量（如果提供了last_viewed参数）
+        new_papers_count = 0
+        if last_viewed:
+            try:
+                # 解析last_viewed时间戳（支持多种格式）
+                # 优先使用datetime.fromisoformat（Python 3.7+）
+                try:
+                    if 'T' in last_viewed:
+                        # ISO格式：2025-12-10T10:35:44.020977 或 2025-12-10T10:35:44Z
+                        if last_viewed.endswith('Z'):
+                            # UTC时间，去掉Z后解析为本地时间
+                            last_viewed_dt = datetime.fromisoformat(last_viewed.replace('Z', ''))
+                        else:
+                            # 如果没有时区信息，直接解析为本地时间
+                            last_viewed_dt = datetime.fromisoformat(last_viewed)
+                    else:
+                        # 其他格式，尝试标准解析
+                        last_viewed_dt = datetime.fromisoformat(last_viewed)
+                except ValueError:
+                    # 如果fromisoformat失败，尝试去掉微秒
+                    try:
+                        clean_time = last_viewed.split('.')[0] if '.' in last_viewed else last_viewed
+                        clean_time = clean_time.replace('Z', '')
+                        last_viewed_dt = datetime.fromisoformat(clean_time)
+                    except ValueError:
+                        # 最后尝试使用dateutil
+                        from dateutil import parser
+                        last_viewed_dt = parser.isoparse(last_viewed)
+                        # 转换为本地时间（naive）
+                        if last_viewed_dt.tzinfo is not None:
+                            last_viewed_dt = last_viewed_dt.astimezone().replace(tzinfo=None)
+                
+                # 确保是naive datetime（数据库中的时间也是naive）
+                if last_viewed_dt.tzinfo is not None:
+                    last_viewed_dt = last_viewed_dt.astimezone().replace(tzinfo=None)
+                
+                # 查询在此时间之后真正新增的论文（使用created_at，而不是updated_at）
+                # 这样只计算真正新增的论文，不包括已有论文的更新（如Semantic Scholar数据更新）
+                new_papers = session.query(Paper).filter(
+                    Paper.created_at > last_viewed_dt
+                ).count()
+                new_papers_count = new_papers
+                logger.info(f"新论文查询: last_viewed={last_viewed}, parsed={last_viewed_dt}, new_count={new_papers_count} (使用created_at判断)")
+            except Exception as e:
+                logger.warning(f"解析last_viewed失败: {e}, last_viewed={last_viewed}")
+                import traceback
+                logger.debug(traceback.format_exc())
+        
         # 按类别组织数据
         result = {}
         for paper in papers:
@@ -126,13 +211,12 @@ def get_papers():
         # 计算总数
         total_count = len(papers)
         
-        session.close()
-        
         return jsonify({
             'success': True,
             'data': result,
             'last_update': last_update,
-            'total_count': total_count  # 添加总数
+            'total_count': total_count,
+            'new_papers_count': new_papers_count  # 新增论文数量
         })
     except Exception as e:
         logger.error(f"获取论文列表失败: {e}")
@@ -163,10 +247,14 @@ def get_papers():
                 'success': False,
                 'error': str(e2)
             }), 500
+    finally:
+        if session:
+            session.close()
 
 @app.route('/api/stats')
 def get_stats():
     """获取统计信息（使用数据库）"""
+    session = None
     try:
         session = get_session()
         
@@ -178,8 +266,6 @@ def get_stats():
         
         stats = {category: count for category, count in stats_query}
         total = session.query(func.count(Paper.id)).scalar() or 0
-        
-        session.close()
         
         return jsonify({
             'success': True,
@@ -210,6 +296,418 @@ def get_stats():
                 'success': False,
                 'error': str(e2)
             }), 500
+    finally:
+        if session:
+            session.close()
+
+@app.route('/api/jobs')
+def get_jobs():
+    """获取招聘信息列表API"""
+    session = None
+    try:
+        session = get_jobs_session()
+        
+        # 获取查询参数
+        limit = request.args.get('limit', type=int, default=20)
+        offset = request.args.get('offset', type=int, default=0)
+        
+        # 查询所有招聘信息
+        all_jobs = session.query(Job).all()
+        
+        # 转换为字典列表
+        jobs_list = [job.to_dict() for job in all_jobs]
+        
+        # 按日期排序（从近到远）
+        # update_date格式: "2025.9.8" 或 "2025.10.1"
+        def parse_date(date_str):
+            """将日期字符串转换为可比较的元组"""
+            if not date_str:
+                return (0, 0, 0)  # 空日期排最后
+            try:
+                parts = date_str.split('.')
+                if len(parts) == 3:
+                    year = int(parts[0])
+                    month = int(parts[1])
+                    day = int(parts[2])
+                    return (year, month, day)
+                else:
+                    return (0, 0, 0)
+            except:
+                return (0, 0, 0)
+        
+        # 按日期从近到远排序（最新的在前）
+        jobs_list.sort(key=lambda x: parse_date(x.get('update_date', '')), reverse=True)
+        
+        # 应用分页
+        total_count = len(jobs_list)
+        jobs_list = jobs_list[offset:offset + limit]
+        
+        return jsonify({
+            'success': True,
+            'jobs': jobs_list,
+            'total': total_count,
+            'limit': limit,
+            'offset': offset
+        })
+    except Exception as e:
+        logger.error(f"获取招聘信息失败: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+    finally:
+        if session:
+            session.close()
+
+@app.route('/api/datasets')
+def get_datasets():
+    """获取数据集信息列表API"""
+    session = None
+    try:
+        session = get_datasets_session()
+        
+        # 获取查询参数
+        limit = request.args.get('limit', type=int, default=20)
+        offset = request.args.get('offset', type=int, default=0)
+        category = request.args.get('category', type=str, default='')
+        
+        # 构建查询
+        query = session.query(Dataset)
+        
+        # 按类别筛选
+        if category:
+            query = query.filter(Dataset.category == category)
+        
+        # 查询数据集信息，按创建时间倒序排列
+        datasets = query.order_by(
+            desc(Dataset.created_at)
+        ).limit(limit).offset(offset).all()
+        
+        # 转换为字典列表
+        datasets_list = [dataset.to_dict() for dataset in datasets]
+        
+        # 获取总数
+        total_count = session.query(Dataset).count()
+        
+        return jsonify({
+            'success': True,
+            'datasets': datasets_list,
+            'total': total_count,
+            'limit': limit,
+            'offset': offset
+        })
+    except Exception as e:
+        logger.error(f"获取数据集信息失败: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+    finally:
+        if session:
+            session.close()
+
+@app.route('/api/news')
+def get_news():
+    """获取新闻信息列表API"""
+    session = None
+    try:
+        session = get_news_session()
+        
+        # 获取查询参数
+        limit = request.args.get('limit', type=int, default=30)  # 默认增加到30条
+        offset = request.args.get('offset', type=int, default=0)
+        platform = request.args.get('platform', type=str, default='')
+        
+        # 计算24小时前的时间
+        from datetime import datetime, timedelta
+        twenty_four_hours_ago = datetime.now() - timedelta(hours=24)
+        
+        # 构建查询
+        query = session.query(News)
+        
+        # 只显示24小时内的新闻
+        # 优先使用published_at，如果没有则使用created_at
+        query = query.filter(
+            or_(
+                and_(News.published_at.isnot(None), News.published_at >= twenty_four_hours_ago),
+                and_(News.published_at.is_(None), News.created_at >= twenty_four_hours_ago)
+            )
+        )
+        
+        # 按平台筛选
+        if platform:
+            query = query.filter(News.platform == platform)
+        
+        # 查询新闻信息，按创建时间倒序排列（最新的新闻在前面）
+        # 优先使用created_at（刷新时间），确保显示最新刷新的新闻
+        news = query.order_by(
+            desc(News.created_at),
+            desc(News.published_at)
+        ).limit(limit).offset(offset).all()
+        
+        # 转换为字典列表
+        news_list = [item.to_dict() for item in news]
+        
+        # 获取24小时内的总数
+        from datetime import datetime, timedelta
+        twenty_four_hours_ago = datetime.now() - timedelta(hours=24)
+        total_count = session.query(News).filter(
+            or_(
+                and_(News.published_at.isnot(None), News.published_at >= twenty_four_hours_ago),
+                and_(News.published_at.is_(None), News.created_at >= twenty_four_hours_ago)
+            )
+        ).count()
+        
+        return jsonify({
+            'success': True,
+            'news': news_list,
+            'total': total_count,
+            'limit': limit,
+            'offset': offset
+        })
+    except Exception as e:
+        logger.error(f"获取新闻信息失败: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+    finally:
+        if session:
+            session.close()
+
+# 刷新任务状态（全局变量）
+refresh_status = {
+    'running': False,
+    'papers': {'status': 'idle', 'message': ''},
+    'jobs': {'status': 'idle', 'message': ''},
+    'news': {'status': 'idle', 'message': ''}
+}
+refresh_status_lock = threading.Lock()
+
+@app.route('/api/refresh-all', methods=['POST'])
+def refresh_all_data():
+    """一键刷新所有数据：论文、招聘、新闻（异步执行）"""
+    import threading
+    from fetch_jobs import fetch_and_save_jobs
+    from fetch_news import fetch_and_save_news
+    
+    global refresh_status
+    
+    with refresh_status_lock:
+        if refresh_status['running']:
+            return jsonify({
+                'success': True,
+                'message': '刷新任务已在运行中',
+                'status': refresh_status
+            })
+        
+        refresh_status['running'] = True
+        refresh_status['papers'] = {'status': 'pending', 'message': '等待刷新...'}
+        refresh_status['jobs'] = {'status': 'pending', 'message': '等待刷新...'}
+        refresh_status['news'] = {'status': 'pending', 'message': '等待刷新...'}
+    
+    def refresh_papers():
+        """刷新论文数据 - 使用fetch_new_data.py中的fetch_papers函数"""
+        global refresh_status
+        try:
+            with refresh_status_lock:
+                refresh_status['papers'] = {'status': 'running', 'message': '正在刷新论文...'}
+            logger.info("=" * 60)
+            logger.info("开始刷新论文数据...")
+            logger.info("=" * 60)
+            
+            # 检查必要的模块是否可以导入
+            try:
+                from fetch_new_data import fetch_papers
+                logger.info("论文抓取模块导入成功")
+            except ImportError as e:
+                raise ImportError(f"无法导入论文抓取模块: {str(e)}，请检查fetch_new_data.py文件是否存在")
+            
+            # 检查配置文件是否存在
+            config_path = 'config.yaml'
+            if not os.path.exists(config_path):
+                raise FileNotFoundError(f"配置文件不存在: {config_path}")
+            logger.info(f"配置文件检查通过: {config_path}")
+            
+            logger.info("开始执行论文抓取...")
+            fetch_papers()
+            
+            with refresh_status_lock:
+                refresh_status['papers'] = {'status': 'success', 'message': '论文刷新完成'}
+            logger.info("=" * 60)
+            logger.info("论文数据刷新完成")
+            logger.info("=" * 60)
+        except FileNotFoundError as e:
+            error_msg = f"配置文件不存在: {str(e)}"
+            with refresh_status_lock:
+                refresh_status['papers'] = {'status': 'error', 'message': error_msg}
+            logger.error("=" * 60)
+            logger.error(f"论文数据刷新失败: {error_msg}")
+            logger.error("=" * 60)
+            import traceback
+            logger.error(traceback.format_exc())
+        except ImportError as e:
+            error_msg = f"导入模块失败: {str(e)}，请检查依赖是否安装"
+            with refresh_status_lock:
+                refresh_status['papers'] = {'status': 'error', 'message': error_msg}
+            logger.error("=" * 60)
+            logger.error(f"论文数据刷新失败: {error_msg}")
+            logger.error("=" * 60)
+            import traceback
+            logger.error(traceback.format_exc())
+        except Exception as e:
+            error_msg = f"刷新失败: {str(e)}"
+            with refresh_status_lock:
+                refresh_status['papers'] = {'status': 'error', 'message': error_msg}
+            logger.error("=" * 60)
+            logger.error(f"论文数据刷新失败: {error_msg}")
+            logger.error("=" * 60)
+            import traceback
+            logger.error(traceback.format_exc())
+    
+    def refresh_jobs():
+        """刷新招聘数据 - 使用fetch_jobs.py中的fetch_and_save_jobs函数"""
+        global refresh_status
+        try:
+            with refresh_status_lock:
+                refresh_status['jobs'] = {'status': 'running', 'message': '正在刷新招聘信息...'}
+            logger.info("=" * 60)
+            logger.info("开始刷新招聘数据...")
+            logger.info("=" * 60)
+            
+            # 检查必要的模块是否可以导入
+            try:
+                from fetch_jobs import fetch_and_save_jobs
+                logger.info("招聘信息抓取模块导入成功")
+            except ImportError as e:
+                raise ImportError(f"无法导入招聘信息抓取模块: {str(e)}，请检查fetch_jobs.py文件是否存在")
+            
+            logger.info("开始执行招聘信息抓取...")
+            fetch_and_save_jobs()
+            
+            with refresh_status_lock:
+                refresh_status['jobs'] = {'status': 'success', 'message': '招聘信息刷新完成'}
+            logger.info("=" * 60)
+            logger.info("招聘数据刷新完成")
+            logger.info("=" * 60)
+        except ImportError as e:
+            error_msg = f"模块导入失败: {str(e)}"
+            with refresh_status_lock:
+                refresh_status['jobs'] = {'status': 'error', 'message': error_msg}
+            logger.error("=" * 60)
+            logger.error(f"招聘数据刷新失败: {error_msg}")
+            logger.error("=" * 60)
+            import traceback
+            logger.error(traceback.format_exc())
+        except Exception as e:
+            error_msg = f"刷新失败: {str(e)}"
+            with refresh_status_lock:
+                refresh_status['jobs'] = {'status': 'error', 'message': error_msg}
+            logger.error("=" * 60)
+            logger.error(f"招聘数据刷新失败: {error_msg}")
+            logger.error("=" * 60)
+            import traceback
+            logger.error(traceback.format_exc())
+    
+    def refresh_news():
+        """刷新新闻数据 - 使用fetch_news.py中的fetch_and_save_news函数"""
+        global refresh_status
+        try:
+            with refresh_status_lock:
+                refresh_status['news'] = {'status': 'running', 'message': '正在刷新新闻...'}
+            logger.info("=" * 60)
+            logger.info("开始刷新新闻数据...")
+            logger.info("=" * 60)
+            
+            # 检查必要的模块是否可以导入
+            try:
+                from fetch_news import fetch_and_save_news
+                logger.info("新闻抓取模块导入成功")
+            except ImportError as e:
+                raise ImportError(f"无法导入新闻抓取模块: {str(e)}，请检查fetch_news.py文件是否存在")
+            
+            # 检查数据库连接
+            try:
+                from news_models import init_news_db, get_news_session
+                init_news_db()
+                session = get_news_session()
+                session.close()
+                logger.info("新闻数据库连接正常")
+            except Exception as e:
+                logger.warning(f"新闻数据库初始化警告: {e}")
+            
+            logger.info("开始执行新闻抓取...")
+            fetch_and_save_news()
+            
+            with refresh_status_lock:
+                refresh_status['news'] = {'status': 'success', 'message': '新闻刷新完成'}
+            logger.info("=" * 60)
+            logger.info("新闻数据刷新完成")
+            logger.info("=" * 60)
+        except ImportError as e:
+            error_msg = f"模块导入失败: {str(e)}"
+            with refresh_status_lock:
+                refresh_status['news'] = {'status': 'error', 'message': error_msg}
+            logger.error("=" * 60)
+            logger.error(f"新闻数据刷新失败: {error_msg}")
+            logger.error("=" * 60)
+            import traceback
+            logger.error(traceback.format_exc())
+        except Exception as e:
+            error_msg = f"刷新失败: {str(e)}"
+            with refresh_status_lock:
+                refresh_status['news'] = {'status': 'error', 'message': error_msg}
+            logger.error("=" * 60)
+            logger.error(f"新闻数据刷新失败: {error_msg}")
+            logger.error("=" * 60)
+            import traceback
+            logger.error(traceback.format_exc())
+    
+    # 在后台线程中执行刷新任务（避免阻塞）
+    paper_thread = threading.Thread(target=refresh_papers, daemon=True)
+    jobs_thread = threading.Thread(target=refresh_jobs, daemon=True)
+    news_thread = threading.Thread(target=refresh_news, daemon=True)
+    
+    paper_thread.start()
+    jobs_thread.start()
+    news_thread.start()
+    
+    # 立即返回，不等待完成
+    with refresh_status_lock:
+        status_copy = refresh_status.copy()
+    
+    return jsonify({
+        'success': True,
+        'message': '刷新任务已启动',
+        'status': status_copy
+    })
+
+@app.route('/api/refresh-status', methods=['GET'])
+def get_refresh_status():
+    """获取刷新任务状态"""
+    global refresh_status
+    with refresh_status_lock:
+        status_copy = refresh_status.copy()
+        
+        # 检查是否所有任务都完成
+        # 确保所有任务都有状态，且都不是 'running' 或 'pending'
+        papers_done = status_copy.get('papers', {}).get('status', 'idle') in ['success', 'error']
+        jobs_done = status_copy.get('jobs', {}).get('status', 'idle') in ['success', 'error']
+        news_done = status_copy.get('news', {}).get('status', 'idle') in ['success', 'error']
+        
+        all_done = papers_done and jobs_done and news_done
+        
+        if all_done and status_copy.get('running', False):
+            status_copy['running'] = False
+            logger.info(f"所有刷新任务完成: papers={status_copy.get('papers', {}).get('status')}, jobs={status_copy.get('jobs', {}).get('status')}, news={status_copy.get('news', {}).get('status')}")
+    
+    return jsonify(status_copy)
 
 @app.route('/api/fetch-status')
 def get_fetch_status():
@@ -225,6 +723,7 @@ def get_fetch_status():
 @app.route('/api/search')
 def search_papers():
     """搜索论文"""
+    session = None
     try:
         query = request.args.get('q', '').strip()
         category = request.args.get('category', '').strip()
@@ -258,23 +757,26 @@ def search_papers():
         
         result = [paper.to_dict() for paper in papers]
         
-        session.close()
-        
         return jsonify({
             'success': True,
             'data': result,
             'count': len(result)
         })
     except Exception as e:
+        if session:
+            session.close()
         logger.error(f"搜索论文失败: {e}")
         return jsonify({
             'success': False,
             'error': str(e)
         }), 500
+    finally:
+        if session:
+            session.close()
 
 @app.route('/api/fetch', methods=['POST'])
 def trigger_fetch():
-    """触发论文抓取"""
+    """触发论文抓取 - 统一使用fetch_new_data.fetch_papers()函数"""
     global fetch_status
     
     with fetch_status_lock:
@@ -286,9 +788,10 @@ def trigger_fetch():
     
     # 获取配置参数
     config_path = request.json.get('config_path', 'config.yaml')
-    max_results = request.json.get('max_results', 20)
+    max_results = request.json.get('max_results', 100)
     
     def fetch_task():
+        """后台抓取任务 - 统一使用fetch_new_data.fetch_papers()函数"""
         global fetch_status
         try:
             with fetch_status_lock:
@@ -296,33 +799,69 @@ def trigger_fetch():
                 fetch_status['message'] = '开始抓取论文...'
                 fetch_status['progress'] = 0
                 fetch_status['last_update'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-            logger.info(f"抓取任务开始，fetch_status: {fetch_status}")
+            logger.info("=" * 60)
+            logger.info("开始抓取论文数据（通过/api/fetch接口）...")
+            logger.info("=" * 60)
             
-            config = load_config(config_path)
-            config['max_results'] = max_results
-            config['update_paper_links'] = False  # 确保是抓取模式
-            config['enable_dedup'] = True  # 启用智能去重
-            config['enable_incremental'] = False  # 暂时关闭增量更新，确保所有类别都有论文
-            config['days_back'] = 60  # 抓取最近60天的论文，确保覆盖所有类别
+            # 检查必要的模块是否可以导入
+            try:
+                from fetch_new_data import fetch_papers
+                logger.info("论文抓取模块导入成功")
+            except ImportError as e:
+                raise ImportError(f"无法导入论文抓取模块: {str(e)}，请检查fetch_new_data.py文件是否存在")
             
-            keywords = config['kv']
-            with fetch_status_lock:
-                fetch_status['total'] = len(keywords)
-            logger.info(f"准备抓取 {fetch_status['total']} 个类别")
+            # 检查配置文件是否存在
+            if not os.path.exists(config_path):
+                raise FileNotFoundError(f"配置文件不存在: {config_path}")
+            logger.info(f"配置文件检查通过: {config_path}")
             
-            # 执行抓取（传入fetch_status和lock用于更新进度）
-            demo(**config, fetch_status=fetch_status, fetch_status_lock=fetch_status_lock)
+            logger.info("开始执行论文抓取...")
+            # 使用统一的函数调用方式（与refresh_papers()一致）
+            fetch_papers()
             
             with fetch_status_lock:
                 fetch_status['message'] = '抓取完成！'
-                fetch_status['progress'] = fetch_status['total']
+                fetch_status['progress'] = fetch_status.get('total', 0)
                 fetch_status['last_update'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-            logger.info(f"抓取任务完成，最终进度: {fetch_status['progress']}/{fetch_status['total']}")
+            logger.info("=" * 60)
+            logger.info("论文数据抓取完成")
+            logger.info("=" * 60)
             
-        except Exception as e:
-            logger.error(f"抓取任务失败: {e}", exc_info=True)
+        except FileNotFoundError as e:
+            error_msg = f"配置文件不存在: {str(e)}"
+            logger.error("=" * 60)
+            logger.error(f"论文数据抓取失败: {error_msg}")
+            logger.error("=" * 60)
+            import traceback
+            logger.error(traceback.format_exc())
             with fetch_status_lock:
-                fetch_status['message'] = f'抓取失败: {str(e)}'
+                fetch_status['message'] = error_msg
+                fetch_status['running'] = False
+                fetch_status['progress'] = 0
+                fetch_status['current_keyword'] = ''
+                fetch_status['last_update'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        except ImportError as e:
+            error_msg = f"导入模块失败: {str(e)}，请检查依赖是否安装"
+            logger.error("=" * 60)
+            logger.error(f"论文数据抓取失败: {error_msg}")
+            logger.error("=" * 60)
+            import traceback
+            logger.error(traceback.format_exc())
+            with fetch_status_lock:
+                fetch_status['message'] = error_msg
+                fetch_status['running'] = False
+                fetch_status['progress'] = 0
+                fetch_status['current_keyword'] = ''
+                fetch_status['last_update'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        except Exception as e:
+            error_msg = f"抓取失败: {str(e)}"
+            logger.error("=" * 60)
+            logger.error(f"论文数据抓取失败: {error_msg}")
+            logger.error("=" * 60)
+            import traceback
+            logger.error(traceback.format_exc())
+            with fetch_status_lock:
+                fetch_status['message'] = error_msg
                 fetch_status['running'] = False
                 fetch_status['progress'] = 0
                 fetch_status['current_keyword'] = ''
@@ -341,9 +880,14 @@ def trigger_fetch():
     thread.daemon = True
     thread.start()
     
+    # 立即返回，不等待完成
+    with fetch_status_lock:
+        status_copy = fetch_status.copy()
+    
     return jsonify({
         'success': True,
-        'message': '抓取任务已启动'
+        'message': '抓取任务已启动',
+        'status': status_copy
     })
 
 def start_scheduler():
@@ -355,49 +899,207 @@ def start_scheduler():
         scheduler = BackgroundScheduler()
         
         def scheduled_fetch():
-            """定时抓取任务"""
+            """定时抓取论文任务 - 使用fetch_new_data.fetch_papers()函数"""
             global fetch_status
             if fetch_status['running']:
                 logger.info("定时抓取任务跳过：已有任务正在运行")
                 return
             
             try:
-                logger.info("开始执行定时抓取任务...")
-                config = load_config('config.yaml')
-                config['max_results'] = int(os.getenv('AUTO_FETCH_MAX_RESULTS', 10))  # 定时任务使用较小数量
-                config['update_paper_links'] = False
-                config['publish_gitpage'] = False  # 定时任务不更新gitpage
-                config['publish_wechat'] = False   # 定时任务不更新wechat
+                logger.info("=" * 60)
+                logger.info("开始执行定时论文抓取任务...")
+                logger.info("=" * 60)
                 
-                # 执行抓取
-                demo(**config)
-                logger.info("定时抓取任务完成")
+                # 使用统一的函数调用方式（与手动刷新一致）
+                from fetch_new_data import fetch_papers
+                fetch_papers()
+                
+                logger.info("=" * 60)
+                logger.info("定时论文抓取任务完成")
+                logger.info("=" * 60)
             except Exception as e:
-                logger.error(f"定时抓取任务失败: {e}")
+                logger.error("=" * 60)
+                logger.error(f"定时论文抓取任务失败: {e}")
+                logger.error("=" * 60)
+                import traceback
+                logger.error(traceback.format_exc())
         
-        # 配置定时任务
-        # 每天凌晨2点执行（UTC时间，可根据时区调整）
-        schedule_cron = os.getenv('AUTO_FETCH_SCHEDULE', '0 2 * * *')  # 默认每天凌晨2点
+        def scheduled_fetch_jobs():
+            """定时抓取招聘信息任务"""
+            try:
+                logger.info("开始执行定时招聘信息抓取任务...")
+                from fetch_jobs import fetch_and_save_jobs
+                fetch_and_save_jobs()
+                logger.info("定时招聘信息抓取任务完成")
+            except Exception as e:
+                logger.error(f"定时招聘信息抓取任务失败: {e}")
         
-        # 解析 cron 表达式
+        # 配置论文抓取定时任务（每小时执行一次）
+        # 支持通过环境变量自定义，格式：用分号分隔多个cron表达式，如 "0 * * * *"
+        # 如果环境变量未设置，默认每小时执行一次
+        schedule_cron = os.getenv('AUTO_FETCH_SCHEDULE', '0 * * * *')  # 默认每小时整点执行
+        
+        # 解析 cron 表达式（支持多个，用分号分隔）
         if schedule_cron:
-            parts = schedule_cron.split()
-            if len(parts) == 5:
-                minute, hour, day, month, weekday = parts
-                scheduler.add_job(
-                    scheduled_fetch,
-                    trigger=CronTrigger(
-                        minute=minute,
-                        hour=hour,
-                        day=day,
-                        month=month,
-                        day_of_week=weekday
-                    ),
-                    id='daily_fetch',
-                    name='每日论文抓取',
-                    replace_existing=True
-                )
-                logger.info(f"定时任务已配置: {schedule_cron}")
+            cron_list = schedule_cron.split(';')
+            for idx, cron_expr in enumerate(cron_list):
+                cron_expr = cron_expr.strip()
+                if not cron_expr:
+                    continue
+                parts = cron_expr.split()
+                if len(parts) == 5:
+                    minute, hour, day, month, weekday = parts
+                    job_id = f'hourly_fetch_papers_{idx}'
+                    job_name = f'每小时论文抓取_{idx+1}'
+                    scheduler.add_job(
+                        scheduled_fetch,
+                        trigger=CronTrigger(
+                            minute=minute,
+                            hour=hour,
+                            day=day,
+                            month=month,
+                            day_of_week=weekday
+                        ),
+                        id=job_id,
+                        name=job_name,
+                        replace_existing=True
+                    )
+                    logger.info(f"定时任务已配置 ({job_name}): {cron_expr}")
+        
+        # 配置招聘信息抓取定时任务（使用cron表达式，可选）
+        try:
+            # 支持通过环境变量自定义招聘信息抓取时间（cron表达式）
+            # 如果未设置，默认每小时整点执行
+            jobs_schedule_cron = os.getenv('AUTO_FETCH_JOBS_SCHEDULE', os.getenv('AUTO_FETCH_SCHEDULE', '0 * * * *'))
+            
+            # 解析 cron 表达式（支持多个，用分号分隔）
+            if jobs_schedule_cron:
+                cron_list = jobs_schedule_cron.split(';')
+                for idx, cron_expr in enumerate(cron_list):
+                    cron_expr = cron_expr.strip()
+                    if not cron_expr:
+                        continue
+                    parts = cron_expr.split()
+                    if len(parts) == 5:
+                        minute, hour, day, month, weekday = parts
+                        job_id = f'hourly_fetch_jobs_{idx}'
+                        job_name = f'招聘信息抓取_{idx+1}'
+                        scheduler.add_job(
+                            scheduled_fetch_jobs,
+                            trigger=CronTrigger(
+                                minute=minute,
+                                hour=hour,
+                                day=day,
+                                month=month,
+                                day_of_week=weekday
+                            ),
+                            id=job_id,
+                            name=job_name,
+                            replace_existing=True
+                        )
+                        logger.info(f"招聘信息抓取定时任务已配置 ({job_name}): {cron_expr}")
+        except Exception as e:
+            logger.warning(f"配置招聘信息抓取定时任务失败: {e}")
+            import traceback
+            logger.warning(traceback.format_exc())
+        
+        # 配置新闻信息抓取定时任务（使用cron表达式）
+        try:
+            def scheduled_fetch_news():
+                """定时抓取新闻信息任务"""
+                try:
+                    logger.info("=" * 60)
+                    logger.info("开始执行定时新闻信息抓取任务...")
+                    logger.info("=" * 60)
+                    from fetch_news import fetch_and_save_news
+                    fetch_and_save_news()
+                    logger.info("=" * 60)
+                    logger.info("定时新闻信息抓取任务完成")
+                    logger.info("=" * 60)
+                except Exception as e:
+                    logger.error("=" * 60)
+                    logger.error(f"定时新闻信息抓取任务失败: {e}")
+                    logger.error("=" * 60)
+                    import traceback
+                    logger.error(traceback.format_exc())
+            
+            # 支持通过环境变量自定义新闻抓取的cron表达式
+            # 格式：分钟 小时 日 月 星期，如 "0 * * * *" 表示每小时整点执行
+            # 如果环境变量未设置，默认每小时整点执行
+            news_schedule_cron = os.getenv('AUTO_FETCH_NEWS_SCHEDULE', '0 * * * *')  # 默认每小时整点执行
+            
+            # 解析 cron 表达式（支持多个，用分号分隔）
+            if news_schedule_cron:
+                cron_list = news_schedule_cron.split(';')
+                for idx, cron_expr in enumerate(cron_list):
+                    cron_expr = cron_expr.strip()
+                    if not cron_expr:
+                        continue
+                    parts = cron_expr.split()
+                    if len(parts) == 5:
+                        minute, hour, day, month, weekday = parts
+                        job_id = f'hourly_fetch_news_{idx}'
+                        job_name = f'新闻信息抓取_{idx+1}'
+                        scheduler.add_job(
+                            scheduled_fetch_news,
+                            trigger=CronTrigger(
+                                minute=minute,
+                                hour=hour,
+                                day=day,
+                                month=month,
+                                day_of_week=weekday
+                            ),
+                            id=job_id,
+                            name=job_name,
+                            replace_existing=True
+                        )
+                        logger.info(f"新闻信息抓取定时任务已配置 ({job_name}): {cron_expr}")
+        except Exception as e:
+            logger.warning(f"配置新闻信息抓取定时任务失败: {e}")
+            import traceback
+            logger.warning(traceback.format_exc())
+        
+        # 配置Semantic Scholar数据更新定时任务（每天凌晨3点执行）
+        try:
+            def scheduled_update_semantic_scholar():
+                """定时更新Semantic Scholar数据任务"""
+                try:
+                    logger.info("开始执行定时Semantic Scholar数据更新任务...")
+                    from update_semantic_scholar_data import update_all_papers
+                    # 每次更新100篇论文（避免一次性更新太多导致API限制）
+                    # 只更新没有Semantic Scholar数据的论文
+                    update_all_papers(limit=100, skip_existing=True)
+                    logger.info("定时Semantic Scholar数据更新任务完成")
+                except Exception as e:
+                    logger.error(f"定时Semantic Scholar数据更新任务失败: {e}")
+            
+            # 每天凌晨3点执行一次（避免与论文抓取任务冲突）
+            # 可以通过环境变量 SEMANTIC_UPDATE_LIMIT 自定义每次更新的数量（默认200篇）
+            update_limit = int(os.getenv('SEMANTIC_UPDATE_LIMIT', 200))
+            
+            # 修改函数以使用配置的limit
+            def scheduled_update_semantic_scholar_with_limit():
+                """定时更新Semantic Scholar数据任务（带配置的limit）"""
+                try:
+                    logger.info(f"开始执行定时Semantic Scholar数据更新任务（每次{update_limit}篇）...")
+                    from update_semantic_scholar_data import update_all_papers
+                    # 每次更新指定数量的论文（避免一次性更新太多导致API限制）
+                    # 只更新没有Semantic Scholar数据的论文
+                    update_all_papers(limit=update_limit, skip_existing=True)
+                    logger.info("定时Semantic Scholar数据更新任务完成")
+                except Exception as e:
+                    logger.error(f"定时Semantic Scholar数据更新任务失败: {e}")
+            
+            scheduler.add_job(
+                scheduled_update_semantic_scholar_with_limit,
+                trigger=CronTrigger(hour=3, minute=0),
+                id='daily_update_semantic_scholar',
+                name='每天Semantic Scholar数据更新',
+                replace_existing=True
+            )
+            logger.info(f"Semantic Scholar数据更新定时任务已配置: 每天凌晨3点执行，每次更新{update_limit}篇")
+        except Exception as e:
+            logger.warning(f"配置Semantic Scholar数据更新定时任务失败: {e}")
         
         scheduler.start()
         return scheduler

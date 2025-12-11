@@ -5,7 +5,7 @@ repo_name: "robotics-arxiv-daily"
 show_authors: True
 show_links: True
 show_badge: False
-max_results: 20
+max_results: 100
 
 publish_readme: True
 publish_gitpage: True
@@ -39,7 +39,7 @@ keywords:
     "Manipulation":
         filters: ["Robot Manipulation", "Robotic Manipulation", "Robot Learning", "Imitation Learning", "Grasping", "Object Manipulation"]
     "Locomotion":
-        filters: ["Mobile Robot", "Navigation", "Robot Locomotion", "Legged Robot", "Walking Robot", "Mobile Navigation", "Robot Walking"]
+        filters: ["Mobile Robot", "Navigation", "Robot Locomotion", "Legged Robot", "Walking Robot", "Mobile Navigation", "Robot Walking", "Quadruped Robot", "Quadruped"]
     "Dexterous":
         filters: ["Dexterous Manipulation", "Dexterous hand", "Dexterity", "Dexterous", "Fine Manipulation", "Dexterous Robot"]
     

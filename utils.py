@@ -90,9 +90,13 @@ def should_fetch_paper(paper_date: datetime, category: Optional[str] = None, day
     """
     判断是否应该抓取这篇论文（增量更新逻辑）
     
+    修复说明：
+    - 原逻辑：如果论文日期 <= 最新日期，就跳过（有问题，因为可能某些类别还没抓取）
+    - 新逻辑：只检查时间范围（days_back），不检查日期比较（因为去重机制已经处理了）
+    
     Args:
         paper_date: 论文发布日期
-        category: 论文类别
+        category: 论文类别（保留参数，但不再使用类别日期比较）
         days_back: 只抓取最近N天的论文（默认7天）
     
     Returns:
@@ -103,13 +107,12 @@ def should_fetch_paper(paper_date: datetime, category: Optional[str] = None, day
     if paper_date < cutoff_date:
         return False
     
-    # 获取最新论文日期
-    latest_date = get_latest_paper_date(category)
-    
-    if latest_date:
-        # 如果论文日期早于或等于最新日期，跳过（已存在）
-        if paper_date.date() <= latest_date.date():
-            return False
+    # 注意：不再检查"论文日期 <= 最新日期"的逻辑
+    # 原因：
+    # 1. 不同类别的论文可能在不同日期被抓取
+    # 2. 某些日期的论文可能在之前的抓取中被跳过
+    # 3. 去重机制（ID和标题相似度）已经足够处理重复问题
+    # 4. 只依赖日期比较会导致漏抓论文
     
     return True
 

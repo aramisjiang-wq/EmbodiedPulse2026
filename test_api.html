@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>API测试页面</title>
+    <meta charset="UTF-8">
+</head>
+<body>
+    <h1>API测试页面</h1>
+    <button onclick="testStats()">测试统计API</button>
+    <button onclick="testPapers()">测试论文API</button>
+    <div id="result"></div>
+    
+    <script>
+        async function testStats() {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = '测试中...';
+            try {
+                const response = await fetch('/api/stats');
+                const data = await response.json();
+                resultDiv.innerHTML = '<pre>' + JSON.stringify(data, null, 2) + '</pre>';
+                console.log('Stats API结果:', data);
+            } catch (error) {
+                resultDiv.innerHTML = '错误: ' + error.message;
+                console.error('Stats API错误:', error);
+            }
+        }
+        
+        async function testPapers() {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = '测试中...';
+            try {
+                const response = await fetch('/api/papers');
+                const data = await response.json();
+                resultDiv.innerHTML = '<pre>Success: ' + data.success + '\nData keys: ' + Object.keys(data.data || {}).join(', ') + '</pre>';
+                console.log('Papers API结果:', data);
+            } catch (error) {
+                resultDiv.innerHTML = '错误: ' + error.message;
+                console.error('Papers API错误:', error);
+            }
+        }
+    </script>
+</body>
+</html>
+

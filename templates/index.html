@@ -7,28 +7,36 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    
+    <!-- 51LA 网站统计 -->
+    <script charset="UTF-8" id="LA_COLLECT" src="//sdk.51.la/js-sdk-pro.min.js" onerror="console.warn('51.la统计脚本加载失败，已跳过')"></script>
+    <script>
+        // 延迟初始化，确保脚本加载完成
+        if (typeof LA !== 'undefined') {
+            LA.init({id:"3OKJnG7Jx3IolNJ3",ck:"3OKJnG7Jx3IolNJ3",autoTrack:true,hashMode:true});
+        } else {
+            // 如果脚本加载失败，等待一段时间后重试
+            setTimeout(function() {
+                if (typeof LA !== 'undefined') {
+                    LA.init({id:"3OKJnG7Jx3IolNJ3",ck:"3OKJnG7Jx3IolNJ3",autoTrack:true,hashMode:true});
+                }
+            }, 1000);
+        }
+    </script>
 </head>
 <body>
     <div class="container">
+        <!-- 主体内容区域 -->
+        <div class="main-content-wrapper">
+            <div class="main-content">
         <!-- 头部 Banner -->
         <header class="header">
             <div class="header-background"></div>
             <div class="header-wrapper">
                 <div class="header-content">
-                    <div class="header-title">
-                        <i class="fas fa-robot"></i>
-                        <h1>Embodied AI ArXiv Daily</h1>
-                    </div>
+                    <h1 class="header-main-title">Embodied Pulse</h1>
                     <p class="subtitle">具身领域前沿论文每日更新</p>
                     <p class="header-description">追踪具身智能、机器人学习、视觉语言动作模型等前沿研究</p>
-                </div>
-                <div class="header-actions">
-                    <button id="refreshBtn" class="btn btn-primary">
-                        <i class="fas fa-sync-alt"></i> 刷新数据
-                    </button>
-                    <button id="fetchBtn" class="btn btn-success">
-                        <i class="fas fa-download"></i> 抓取新论文
-                    </button>
                 </div>
             </div>
         </header>
@@ -52,39 +60,44 @@
         </nav>
 
         <!-- 具身机器人研究方向结构 -->
-        <section class="research-structure">
-            <div class="structure-header">
-                <h2><i class="fas fa-sitemap"></i> 具身智能研究方向</h2>
-                <p class="structure-subtitle">Embodied AI Research Directions</p>
+        <!-- 合并模块：具身智能研究方向 + 论文数据统计 -->
+        <section class="combined-research-stats">
+            <div class="combined-header">
+                <h2><i class="fas fa-sitemap"></i> 具身论文数据仪表盘</h2>
+                <div class="combined-header-actions">
+                    <button id="refreshAllBtn" class="btn btn-primary">
+                        <i class="fas fa-sync-alt"></i> 刷新全局数据
+                    </button>
+                    <button id="fetchBtn" class="btn btn-success">
+                        <i class="fas fa-download"></i> 抓取新论文
+                    </button>
+                </div>
             </div>
             
-            <!-- 按分类组织：感知层 → 决策层 → 执行层 → 集成层 -->
-            <div class="structure-grid">
+            <div class="combined-layout">
+                <!-- 左侧：研究方向 -->
+                <div class="research-panel">
                 <!-- 感知层 -->
                 <div class="structure-category">
                     <div class="category-label">感知层</div>
                     <div class="category-cards">
                         <div class="structure-card perception">
-                            <div class="structure-icon">
-                                <i class="fas fa-camera"></i>
+                            <div class="structure-title-row">
+                                <h3>Perception</h3>
+                                <p class="structure-name">感知理解</p>
                             </div>
-                            <h3>Perception<br><span class="structure-en">感知理解</span></h3>
-                            <p class="structure-desc">视觉感知、场景理解</p>
                             <div class="structure-keywords">
-                                <span>Visual Perception</span>
-                                <span>Scene Understanding</span>
+                                <span>视觉感知、场景理解</span>
                             </div>
                         </div>
                         
                         <div class="structure-card vlm">
-                            <div class="structure-icon">
-                                <i class="fas fa-eye"></i>
+                            <div class="structure-title-row">
+                                <h3>VLM</h3>
+                                <p class="structure-name">视觉语言模型</p>
                             </div>
-                            <h3>VLM<br><span class="structure-en">视觉语言模型</span></h3>
-                            <p class="structure-desc">视觉理解、多模态学习</p>
                             <div class="structure-keywords">
-                                <span>Vision-Language</span>
-                                <span>Multimodal</span>
+                                <span>视觉理解、多模态学习</span>
                             </div>
                         </div>
                     </div>
@@ -95,26 +108,22 @@
                     <div class="category-label">决策层</div>
                     <div class="category-cards">
                         <div class="structure-card planning">
-                            <div class="structure-icon">
-                                <i class="fas fa-route"></i>
+                            <div class="structure-title-row">
+                                <h3>Planning</h3>
+                                <p class="structure-name">任务规划</p>
                             </div>
-                            <h3>Planning<br><span class="structure-en">任务规划</span></h3>
-                            <p class="structure-desc">路径规划、任务分解</p>
                             <div class="structure-keywords">
-                                <span>Task Planning</span>
-                                <span>Path Planning</span>
+                                <span>路径规划、任务分解</span>
                             </div>
                         </div>
                         
                         <div class="structure-card learning">
-                            <div class="structure-icon">
-                                <i class="fas fa-graduation-cap"></i>
+                            <div class="structure-title-row">
+                                <h3>RL/IL</h3>
+                                <p class="structure-name">强化/模仿学习</p>
                             </div>
-                            <h3>RL/IL<br><span class="structure-en">强化/模仿学习</span></h3>
-                            <p class="structure-desc">强化学习、模仿学习</p>
                             <div class="structure-keywords">
-                                <span>Reinforcement Learning</span>
-                                <span>Imitation</span>
+                                <span>强化学习、模仿学习</span>
                             </div>
                         </div>
                     </div>
@@ -125,38 +134,32 @@
                     <div class="category-label">执行层</div>
                     <div class="category-cards">
                         <div class="structure-card manipulation">
-                            <div class="structure-icon">
-                                <i class="fas fa-hand-paper"></i>
+                            <div class="structure-title-row">
+                                <h3>Manipulation</h3>
+                                <p class="structure-name">操作控制</p>
                             </div>
-                            <h3>Manipulation<br><span class="structure-en">操作控制</span></h3>
-                            <p class="structure-desc">机器人操作、抓取</p>
                             <div class="structure-keywords">
-                                <span>Robot Manipulation</span>
-                                <span>Grasping</span>
+                                <span>机器人操作、抓取</span>
                             </div>
                         </div>
                         
                         <div class="structure-card locomotion">
-                            <div class="structure-icon">
-                                <i class="fas fa-running"></i>
+                            <div class="structure-title-row">
+                                <h3>Locomotion</h3>
+                                <p class="structure-name">运动控制</p>
                             </div>
-                            <h3>Locomotion<br><span class="structure-en">运动控制</span></h3>
-                            <p class="structure-desc">移动、导航、步态规划</p>
                             <div class="structure-keywords">
-                                <span>Mobile Robot</span>
-                                <span>Navigation</span>
+                                <span>移动、导航、步态规划</span>
                             </div>
                         </div>
                         
                         <div class="structure-card dexterous">
-                            <div class="structure-icon">
-                                <i class="fas fa-fingerprint"></i>
+                            <div class="structure-title-row">
+                                <h3>Dexterous</h3>
+                                <p class="structure-name">灵巧操作</p>
                             </div>
-                            <h3>Dexterous<br><span class="structure-en">灵巧操作</span></h3>
-                            <p class="structure-desc">精细操作、触觉感知</p>
                             <div class="structure-keywords">
-                                <span>Dexterous Hand</span>
-                                <span>Tactile</span>
+                                <span>精细操作、触觉感知</span>
                             </div>
                         </div>
                     </div>
@@ -167,50 +170,38 @@
                     <div class="category-label">集成层</div>
                     <div class="category-cards">
                         <div class="structure-card vla">
-                            <div class="structure-icon">
-                                <i class="fas fa-brain"></i>
+                            <div class="structure-title-row">
+                                <h3>VLA</h3>
+                                <p class="structure-name">视觉语言动作</p>
                             </div>
-                            <h3>VLA<br><span class="structure-en">视觉语言动作</span></h3>
-                            <p class="structure-desc">端到端控制、指令跟随</p>
                             <div class="structure-keywords">
-                                <span>Vision-Language-Action</span>
-                                <span>Embodied Agent</span>
+                                <span>端到端控制、指令跟随</span>
                             </div>
                         </div>
                         
                         <div class="structure-card humanoid">
-                            <div class="structure-icon">
-                                <i class="fas fa-walking"></i>
+                            <div class="structure-title-row">
+                                <h3>Humanoid</h3>
+                                <p class="structure-name">人形机器人</p>
                             </div>
-                            <h3>Humanoid<br><span class="structure-en">人形机器人</span></h3>
-                            <p class="structure-desc">双足行走、全身协调</p>
                             <div class="structure-keywords">
-                                <span>Humanoid Robot</span>
-                                <span>Bipedal</span>
+                                <span>双足行走、全身协调</span>
                             </div>
                         </div>
                     </div>
                 </div>
-            </div>
-        </section>
-
-        <!-- 统计信息 - 总论文数+柱状图 -->
-        <section class="stats-section">
-            <div class="stats-header">
-                <h2><i class="fas fa-chart-bar"></i> 论文数据统计</h2>
-            </div>
-            <div class="stats-dashboard">
-                <div class="stats-layout">
-                    <!-- 左侧：总论文数（1/5） -->
-                    <div class="stats-total-panel">
+                </div>
+                
+                <!-- 右侧：论文数据统计 -->
+                <div class="stats-panel">
+                    <div class="stats-content">
+                        <!-- 总论文数 -->
                         <div class="total-card">
                             <div class="total-label">总论文数</div>
                             <div class="total-value" id="totalPapersValue">-</div>
                         </div>
-                    </div>
-                    
-                    <!-- 右侧：柱状图（4/5） -->
-                    <div class="stats-chart-panel">
+                        
+                        <!-- 环形图 -->
                         <div class="chart-card">
                             <div class="chart-container">
                                 <canvas id="barChart"></canvas>
@@ -223,12 +214,15 @@
 
         <!-- 论文清单 -->
         <section class="papers-list-section">
-            <div class="papers-list-header">
-                <h2><i class="fas fa-list"></i> 论文清单</h2>
-            </div>
-            
-            <!-- 搜索框 -->
-            <div class="search-section">
+            <div class="papers-list-main">
+                    <div class="papers-list-header">
+                        <h2>
+                            <i class="fas fa-list"></i> 具身论文清单
+                        </h2>
+                    </div>
+                    
+                    <!-- 搜索框 -->
+                    <div class="search-section">
                 <div class="search-container">
                     <div class="search-box">
                         <i class="fas fa-search"></i>
@@ -246,6 +240,29 @@
                 </div>
                 <div id="searchResults" class="search-results hidden"></div>
             </div>
+            
+            <!-- 筛选和排序工具栏 -->
+            <div class="filter-sort-toolbar">
+                <div class="filter-group">
+                    <label><i class="fas fa-filter"></i> 筛选：</label>
+                    <select id="venueFilter" class="filter-select">
+                        <option value="">所有发表场所</option>
+                    </select>
+                </div>
+                <div class="sort-group">
+                    <label><i class="fas fa-sort"></i> 排序：</label>
+                    <select id="sortBy" class="sort-select">
+                        <option value="date">按日期</option>
+                        <option value="citations">按被引用数量</option>
+                        <option value="title">按标题</option>
+                    </select>
+                </div>
+            </div>
+            
+            <!-- 标签页（筛选按钮） -->
+            <div class="tabs" id="tabs">
+                <!-- 标签页将通过JS动态生成 -->
+            </div>
 
             <!-- 最后更新时间 -->
             <div class="last-update-info">
@@ -255,9 +272,6 @@
 
             <!-- 论文列表 -->
             <div class="papers-section-content">
-                <div class="tabs" id="tabs">
-                    <!-- 标签页将通过JS动态生成 -->
-                </div>
                 
                 <div class="papers-container" id="papersContainer">
                     <div class="loading-spinner">
@@ -267,6 +281,164 @@
                 </div>
             </div>
         </section>
+            </div> <!-- 结束 main-content -->
+            
+            <!-- 右侧独立挂窗区域 -->
+            <aside class="side-widgets">
+                <!-- 新闻信息挂窗 -->
+                <div class="news-widget">
+                    <div class="news-widget-header">
+                        <h3><i class="fas fa-newspaper"></i> 具身24h新闻🔥</h3>
+                        <span class="news-count" id="newsCount">-</span>
+                    </div>
+                    <div class="news-widget-content scrolling" id="newsContainer">
+                        <div class="loading-spinner-small">
+                            <i class="fas fa-spinner fa-spin"></i>
+                            <p>加载新闻信息中...</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 具身运势抽签挂件 -->
+                <div class="fortune-widget">
+                    <div class="fortune-widget-header">
+                        <div class="fortune-header-left">
+                            <h3>具身运势签</h3>
+                            <span class="fortune-daily-badge">每日一抽</span>
+                        </div>
+                        <span class="fortune-date" id="fortuneDate"></span>
+                    </div>
+                    <div class="fortune-widget-content" id="fortuneContainer">
+                        <!-- 研究方向选择区域 -->
+                        <div class="fortune-category-section">
+                            <div class="fortune-category-hint">
+                                <i class="fas fa-mouse-pointer"></i>
+                                <span>选择你的研究方向，获取专属运势</span>
+                            </div>
+                            <div class="fortune-category-tags" id="fortuneCategoryTags">
+                                <div class="category-tag active" data-category="all">
+                                    <span class="tag-icon">🎯</span>
+                                    <span class="tag-text">全部</span>
+                                </div>
+                                <div class="category-tag" data-category="Perception">
+                                    <span class="tag-icon">👁️</span>
+                                    <span class="tag-text">感知</span>
+                                </div>
+                                <div class="category-tag" data-category="VLM">
+                                    <span class="tag-icon">🔍</span>
+                                    <span class="tag-text">VLM</span>
+                                </div>
+                                <div class="category-tag" data-category="Planning">
+                                    <span class="tag-icon">🗺️</span>
+                                    <span class="tag-text">规划</span>
+                                </div>
+                                <div class="category-tag" data-category="RL/IL">
+                                    <span class="tag-icon">🧠</span>
+                                    <span class="tag-text">RL/IL</span>
+                                </div>
+                                <div class="category-tag" data-category="Manipulation">
+                                    <span class="tag-icon">✋</span>
+                                    <span class="tag-text">操作</span>
+                                </div>
+                                <div class="category-tag" data-category="Locomotion">
+                                    <span class="tag-icon">🏃</span>
+                                    <span class="tag-text">运动</span>
+                                </div>
+                                <div class="category-tag" data-category="Dexterous">
+                                    <span class="tag-icon">🎯</span>
+                                    <span class="tag-text">灵巧</span>
+                                </div>
+                                <div class="category-tag" data-category="VLA">
+                                    <span class="tag-icon">🤖</span>
+                                    <span class="tag-text">VLA</span>
+                                </div>
+                                <div class="category-tag" data-category="Humanoid">
+                                    <span class="tag-icon">🚶</span>
+                                    <span class="tag-text">人形</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- 主画面区域 -->
+                        <div class="fortune-main-scene">
+                            <!-- 主抽签筒（可点击） -->
+                            <div class="fortune-tube-main clickable" id="fortuneTubeMain">
+                                <div class="tube-body">
+                                    <div class="tube-top"></div>
+                                    <div class="tube-middle">
+                                        <div class="tube-sticks" id="tubeSticks">
+                                            <!-- 竹签会在这里显示 -->
+                                        </div>
+                                        <div class="tube-click-hint">
+                                            <i class="fas fa-hand-pointer"></i>
+                                            <span>点击抽签</span>
+                                        </div>
+                                    </div>
+                                    <div class="tube-bottom"></div>
+                                </div>
+                                <div class="tube-shadow"></div>
+                            </div>
+                            
+                            <!-- 隐藏的摇签按钮（保留用于逻辑） -->
+                            <button class="fortune-shake-btn hidden" id="fortuneShakeBtn" style="display: none;">
+                                <i class="fas fa-hand-sparkles"></i>
+                                <span>摇签</span>
+                            </button>
+                            
+                            <!-- 飞出的签 -->
+                            <div class="fortune-stick-flying" id="fortuneStickFlying">
+                                <div class="stick-paper">
+                                    <div class="stick-content" id="fortuneStickContent"></div>
+                                </div>
+                            </div>
+                            
+                            <!-- 结果展示（覆盖层） -->
+                            <div class="fortune-result-overlay hidden" id="fortuneResult">
+                                <div class="fortune-result-content">
+                                    <div class="fortune-message" id="fortuneMessage"></div>
+                                    <div class="fortune-timestamp" id="fortuneTimestamp"></div>
+                                    <div class="fortune-result-bg"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 学生实习机会挂窗 -->
+                <div class="jobs-widget">
+                    <div class="jobs-widget-header">
+                        <h3><i class="fas fa-briefcase"></i> 具身岗位机会</h3>
+                        <div class="jobs-widget-header-actions">
+                            <a href="https://career.limxdynamics.com/index" target="_blank" class="jobs-header-btn">
+                                <span>LimX招聘🔥</span>
+                            </a>
+                            <span class="jobs-count" id="jobsCount">-</span>
+                        </div>
+                    </div>
+                    <div class="jobs-widget-content" id="jobsContainer">
+                        <div class="loading-spinner-small">
+                            <i class="fas fa-spinner fa-spin"></i>
+                            <p>加载招聘信息中...</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 数据集信息挂窗 -->
+                <div class="datasets-widget">
+                    <div class="datasets-widget-header">
+                        <h3><i class="fas fa-database"></i> 具身数据集☁️</h3>
+                        <span class="datasets-count" id="datasetsCount">-</span>
+                    </div>
+                    <div class="datasets-widget-content" id="datasetsContainer">
+                        <div class="loading-spinner-small">
+                            <i class="fas fa-spinner fa-spin"></i>
+                            <p>加载数据集信息中...</p>
+                        </div>
+                    </div>
+                </div>
+                
+            </aside>
+        </div> <!-- 结束 main-content-wrapper -->
 
         <!-- 抓取状态 -->
         <div id="fetchStatus" class="fetch-status hidden">
@@ -302,12 +474,17 @@
                 </div>
             </div>
             <div class="modal-footer">
-                <button class="btn btn-secondary" onclick="closeFetchModal()">取消</button>
-                <button class="btn btn-primary" onclick="confirmFetch()">开始抓取</button>
+                <button class="btn btn-secondary" onclick="closeFetchModal()">
+                    <i class="fas fa-times"></i> 取消
+                </button>
+                <button class="btn btn-fetch-primary" onclick="confirmFetch()">
+                    <i class="fas fa-rocket"></i> 开始抓取
+                </button>
             </div>
         </div>
     </div>
 
+    <script src="{{ url_for('static', filename='js/fortune_messages.js') }}"></script>
     <script src="{{ url_for('static', filename='js/app.js') }}"></script>
 </body>
 </html>
