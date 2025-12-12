@@ -2,7 +2,7 @@
 
 > 一个专注于具身智能和机器人领域的ArXiv论文自动抓取、分类和展示平台
 
-**🎯 专为具身智能研究人员打造 | 📊 4,000+ 论文 | 🔄 每小时自动更新**
+**🎯 专为具身智能研究人员打造 | 📊 6,000+ 论文 | 🔄 每小时自动更新**
 
 [![Python](https://img.shields.io/badge/Python-3.9+-blue.svg)](https://www.python.org/)
 [![Flask](https://img.shields.io/badge/Flask-3.0+-green.svg)](https://flask.palletsprojects.com/)
