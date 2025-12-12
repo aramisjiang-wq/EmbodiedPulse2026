@@ -4,7 +4,7 @@ services:
   # PostgreSQL数据库服务
   postgres:
     image: postgres:15-alpine
-    container_name: robotics-arxiv-postgres
+    container_name: embodied-pulse-postgres
     environment:
       POSTGRES_USER: robotics_user
       POSTGRES_PASSWORD: robotics_password
@@ -22,7 +22,7 @@ services:
 
   web:
     build: .
-    container_name: robotics-arxiv-web
+    container_name: embodied-pulse-web
     ports:
       - "5001:5001"
     volumes:

@@ -1,5 +1,5 @@
 """
-Flask Web Application for Robotics ArXiv Daily
+Flask Web Application for Embodied Pulse
 """
 from flask import Flask, render_template, jsonify, request
 import json

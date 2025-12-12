@@ -1,4 +1,4 @@
-# Dockerfile for Robotics ArXiv Daily
+# Dockerfile for Embodied Pulse
 FROM python:3.9-slim
 
 # 设置工作目录

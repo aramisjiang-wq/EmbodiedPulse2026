@@ -28,7 +28,7 @@ errorlog = "-"   # 输出到stderr
 loglevel = os.getenv("LOG_LEVEL", "info")
 
 # 进程命名
-proc_name = "robotics-arxiv"
+proc_name = "embodied-pulse"
 
 # 环境变量
 raw_env = [

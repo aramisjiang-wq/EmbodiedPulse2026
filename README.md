@@ -1,4 +1,4 @@
-# Robotics ArXiv Daily
+# Embodied Pulse
 
 > 一个专注于具身智能和机器人领域的ArXiv论文自动抓取、分类和展示平台
 
@@ -13,7 +13,7 @@
 
 ## 📖 产品简介
 
-**Robotics ArXiv Daily** 是一个专为具身智能和机器人领域研究人员打造的论文聚合平台。每天自动从ArXiv抓取最新论文，按9个研究方向智能分类，帮助研究人员快速发现和跟踪领域最新进展。
+**Embodied Pulse** 是一个专为具身智能和机器人领域研究人员打造的论文聚合平台。每天自动从ArXiv抓取最新论文，按9个研究方向智能分类，帮助研究人员快速发现和跟踪领域最新进展。
 
 ### 🎯 核心价值
 
@@ -82,7 +82,7 @@
 ```bash
 # 1. 克隆项目
 git clone https://github.com/aramisjiang-wq/EmbodiedPulse2026.git
-cd EmbodiedPulse2026
+cd EmbodiedPulse2026  # 或重命名后的文件夹名称
 
 # 2. 启动服务（包含PostgreSQL）
 docker-compose up -d
@@ -183,7 +183,7 @@ FLASK_ENV=production                      # 环境模式
 ## 📁 项目结构
 
 ```
-robotics_arXiv_daily/
+EmbodiedPulse2026/
 ├── app.py                      # Flask应用主入口
 ├── models.py                   # 数据库模型（论文）
 ├── jobs_models.py              # 招聘信息模型
