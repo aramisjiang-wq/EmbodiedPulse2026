@@ -81,8 +81,8 @@
 
 ```bash
 # 1. 克隆项目
-git clone <repository_url>
-cd robotics_arXiv_daily
+git clone https://github.com/aramisjiang-wq/EmbodiedPulse2026.git
+cd EmbodiedPulse2026
 
 # 2. 启动服务（包含PostgreSQL）
 docker-compose up -d
@@ -144,9 +144,9 @@ export DATABASE_URL=postgresql://robotics_user:your_password@localhost:5432/robo
 
 ### 数据统计
 
-- 当前论文总数：4,000+ 篇
-- 每日新增：~50 篇
-- 代码链接覆盖率：~70%
+- 当前论文总数：6,000+ 篇
+- 每日新增：动态更新
+- 代码链接覆盖率：持续提升
 - 数据更新频率：每小时自动更新
 
 ---
@@ -240,17 +240,24 @@ robotics_arXiv_daily/
 
 ### 研究方向分布
 
-- **VLM**（视觉语言模型）：2,000+ 篇
-- **Manipulation**（机器人操作）：1,100+ 篇
+- **VLM**（视觉语言模型）：2,100+ 篇
+- **Manipulation**（机器人操作）：1,000+ 篇
 - **VLA**（视觉语言动作）：500+ 篇
-- **Humanoid**（人形机器人）：280+ 篇
-- **其他方向**：500+ 篇
+- **RL/IL**（强化学习/模仿学习）：500+ 篇
+- **Locomotion**（运动控制）：400+ 篇
+- **Planning**（规划决策）：300+ 篇
+- **Perception**（感知理解）：300+ 篇
+- **Dexterous**（灵巧操作）：300+ 篇
+- **Humanoid**（人形机器人）：300+ 篇
 
 ### 数据更新
 
 - **更新频率**：每小时自动更新
 - **数据源**：ArXiv API、Semantic Scholar、RSS、GitHub
-- **数据量**：持续增长，当前4,000+篇论文
+- **数据量**：持续增长，当前6,000+篇论文
+- **招聘信息**：500+ 条
+- **新闻资讯**：24小时滚动更新
+- **数据集**：持续整理中
 
 ---
 
@@ -331,6 +338,12 @@ docker-compose exec postgres pg_dump -U robotics_user robotics_arxiv > backup.sq
 4. 推送到分支 (`git push origin feature/AmazingFeature`)
 5. 开启 Pull Request
 
+### 开发规范
+
+- 遵循PEP 8代码规范
+- 提交前运行测试确保功能正常
+- 更新相关文档
+
 ---
 
 ## 📧 联系方式
@@ -348,7 +361,6 @@ docker-compose exec postgres pg_dump -U robotics_user robotics_arxiv > backup.sq
 - **Semantic Scholar** - 提供论文元数据
 - **Flask** - Web框架
 - **PostgreSQL** - 数据库
-- **所有贡献者** - 感谢支持
 
 ---
 
@@ -382,9 +394,9 @@ docker-compose exec postgres pg_dump -U robotics_user robotics_arxiv > backup.sq
 
 ## 📚 更多信息
 
-- **在线演示**: [访问地址]（部署后更新）
-- **问题反馈**: 提交 [Issue](../../issues)
-- **功能建议**: 提交 [Feature Request](../../issues/new)
+- **GitHub仓库**: [EmbodiedPulse2026](https://github.com/aramisjiang-wq/EmbodiedPulse2026)
+- **问题反馈**: 提交 [Issue](https://github.com/aramisjiang-wq/EmbodiedPulse2026/issues)
+- **功能建议**: 提交 [Feature Request](https://github.com/aramisjiang-wq/EmbodiedPulse2026/issues/new)
 
 ---
 
