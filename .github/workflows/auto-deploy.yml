@@ -7,9 +7,12 @@ on:
       - main
     # 排除某些文件的变更，避免不必要的部署
     paths-ignore:
-      - 'docs/**'
+      - 'docs/项目文档/**'
+      - 'docs/**/*.md'
       - '*.md'
       - '.gitignore'
+      - 'DEPLOY*.md'
+      - '启动说明.md'
   # 也可以手动触发
   workflow_dispatch:
 
