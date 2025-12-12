@@ -81,7 +81,7 @@
 
 ```bash
 # 1. 克隆项目
-git clone https://github.com/aramisjiang-wq/EmbodiedPulse2026.git
+git clone <repository-url>
 cd EmbodiedPulse2026  # 或重命名后的文件夹名称
 
 # 2. 启动服务（包含PostgreSQL）
@@ -326,32 +326,9 @@ docker-compose exec postgres pg_dump -U robotics_user robotics_arxiv > backup.sq
 
 ---
 
-## 🤝 贡献
+## 👨‍💻 开发者
 
-欢迎提交Issue和Pull Request！
-
-### 贡献指南
-
-1. Fork 本项目
-2. 创建特性分支 (`git checkout -b feature/AmazingFeature`)
-3. 提交更改 (`git commit -m 'Add some AmazingFeature'`)
-4. 推送到分支 (`git push origin feature/AmazingFeature`)
-5. 开启 Pull Request
-
-### 开发规范
-
-- 遵循PEP 8代码规范
-- 提交前运行测试确保功能正常
-- 更新相关文档
-
----
-
-## 📧 联系方式
-
-如有问题或建议，请通过以下方式联系：
-
-- 提交 Issue
-- 发送邮件
+**开发者**: Ash
 
 ---
 
@@ -392,11 +369,6 @@ docker-compose exec postgres pg_dump -U robotics_user robotics_arxiv > backup.sq
 
 ---
 
-## 📚 更多信息
-
-- **GitHub仓库**: [EmbodiedPulse2026](https://github.com/aramisjiang-wq/EmbodiedPulse2026)
-- **问题反馈**: 提交 [Issue](https://github.com/aramisjiang-wq/EmbodiedPulse2026/issues)
-- **功能建议**: 提交 [Feature Request](https://github.com/aramisjiang-wq/EmbodiedPulse2026/issues/new)
 
 ---
 
