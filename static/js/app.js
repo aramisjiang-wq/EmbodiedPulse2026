@@ -48,7 +48,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // 后端直接返回今天新创建的论文数量，每天自动重置
         loadPapers(true); // 初始化时检查新论文
         loadCategories();
-        loadJobs();
+        // loadJobs(); // 已隐藏岗位机会挂件
         loadDatasets();
         loadNews();
         loadBilibili();
