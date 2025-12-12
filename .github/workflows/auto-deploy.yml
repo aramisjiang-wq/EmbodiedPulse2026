@@ -41,32 +41,75 @@ jobs:
             echo "=========================================="
             
             PROJECT_DIR="/opt/EmbodiedPulse"
-            cd ${PROJECT_DIR} || {
-              echo "错误: 项目目录不存在，正在创建..."
+            
+            # 确保项目目录存在
+            if [ ! -d "${PROJECT_DIR}" ]; then
+              echo "项目目录不存在，正在创建..."
               mkdir -p ${PROJECT_DIR}
               cd ${PROJECT_DIR}
               git clone https://github.com/aramisjiang-wq/EmbodiedPulse2026.git .
-            }
+            else
+              cd ${PROJECT_DIR}
+            fi
+            
+            # 确保Docker和Docker Compose已安装
+            if ! command -v docker &> /dev/null; then
+              echo "安装Docker..."
+              curl -fsSL https://get.docker.com -o get-docker.sh
+              sh get-docker.sh
+              systemctl start docker
+              systemctl enable docker
+              rm get-docker.sh
+            fi
+            
+            if ! command -v docker-compose &> /dev/null; then
+              echo "安装Docker Compose..."
+              curl -L "https://github.com/docker/compose/releases/download/v2.20.0/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+              chmod +x /usr/local/bin/docker-compose
+            fi
             
             echo "拉取最新代码..."
-            git fetch origin main
+            git fetch origin main || {
+              echo "Git fetch失败，尝试重新克隆..."
+              cd /opt
+              rm -rf EmbodiedPulse
+              git clone https://github.com/aramisjiang-wq/EmbodiedPulse2026.git EmbodiedPulse
+              cd EmbodiedPulse
+            }
             git reset --hard origin/main
             git clean -fd
             
             echo "停止旧容器..."
             docker-compose down || true
+            docker ps -a | grep -E "embodied|pulse" | awk '{print $1}' | xargs docker rm -f 2>/dev/null || true
             
             echo "构建并启动新容器..."
-            docker-compose up -d --build
+            docker-compose up -d --build || {
+              echo "构建失败，查看日志..."
+              docker-compose logs
+              exit 1
+            }
             
             echo "等待服务启动..."
-            sleep 20
+            sleep 30
+            
+            echo "检查容器状态..."
+            docker-compose ps
+            
+            echo "检查服务日志..."
+            docker-compose logs --tail=20 web
             
             echo "检查数据库..."
             docker-compose exec -T web python3 init_database.py || echo "数据库已存在，跳过初始化"
             
-            echo "检查服务状态..."
-            docker-compose ps
+            echo "测试服务..."
+            sleep 5
+            if curl -s -o /dev/null -w "%{http_code}" http://localhost:5001 | grep -q "200"; then
+              echo "✅ 服务正常运行"
+            else
+              echo "⚠️  服务可能有问题，查看日志："
+              docker-compose logs --tail=50 web
+            fi
             
             echo "=========================================="
             echo "✅ 自动部署完成！"
