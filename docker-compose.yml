@@ -1,18 +1,42 @@
 version: '3.8'
 
 services:
+  # PostgreSQL数据库服务
+  postgres:
+    image: postgres:15-alpine
+    container_name: robotics-arxiv-postgres
+    environment:
+      POSTGRES_USER: robotics_user
+      POSTGRES_PASSWORD: robotics_password
+      POSTGRES_DB: robotics_arxiv
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U robotics_user -d robotics_arxiv"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   web:
     build: .
     container_name: robotics-arxiv-web
     ports:
       - "5001:5001"
     volumes:
-      # 数据持久化
-      - ./papers.db:/app/papers.db
+      # 数据持久化（如果使用SQLite，保留这些卷）
+      # - ./papers.db:/app/papers.db
       - ./docs:/app/docs
       - ./config.yaml:/app/config.yaml
     environment:
-      - DATABASE_URL=sqlite:///./papers.db
+      # PostgreSQL连接URL（使用PostgreSQL服务）
+      - DATABASE_URL=postgresql://robotics_user:robotics_password@postgres:5432/robotics_arxiv
+      # 如果使用独立的数据库，可以分别配置
+      # - JOBS_DATABASE_URL=postgresql://robotics_user:robotics_password@postgres:5432/robotics_arxiv
+      # - NEWS_DATABASE_URL=postgresql://robotics_user:robotics_password@postgres:5432/robotics_arxiv
+      # - DATASETS_DATABASE_URL=postgresql://robotics_user:robotics_password@postgres:5432/robotics_arxiv
       - AUTO_FETCH_ENABLED=true
       - AUTO_FETCH_SCHEDULE=0 * * * *  # 每小时整点执行论文抓取（cron表达式）
       - AUTO_FETCH_NEWS_SCHEDULE=0 * * * *  # 每小时整点执行新闻抓取（cron表达式）
@@ -20,6 +44,9 @@ services:
       - AUTO_FETCH_MAX_RESULTS=100  # 每次抓取100篇论文
       - FLASK_ENV=production
       - LOG_LEVEL=info
+    depends_on:
+      postgres:
+        condition: service_healthy
     restart: always
     healthcheck:
       test: ["CMD", "python3", "-c", "import requests; requests.get('http://localhost:5001/api/stats', timeout=5)"]
@@ -27,4 +54,7 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
+
+volumes:
+  postgres_data:
 

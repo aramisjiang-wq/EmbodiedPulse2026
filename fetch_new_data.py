@@ -7,8 +7,14 @@ import os
 from daily_arxiv import load_config, demo
 from fetch_news import fetch_and_save_news
 
-def fetch_papers():
-    """抓取新论文"""
+def fetch_papers(fetch_status=None, fetch_status_lock=None):
+    """
+    抓取新论文
+    
+    Args:
+        fetch_status: 用于更新抓取进度的字典（可选）
+        fetch_status_lock: 用于线程安全更新的锁（可选）
+    """
     print("=" * 60)
     print("开始抓取新论文...")
     print("=" * 60)
@@ -22,6 +28,21 @@ def fetch_papers():
     config['fetch_semantic_scholar'] = True  # 启用Semantic Scholar数据获取
     config['publish_gitpage'] = False  # 不更新gitpage
     config['publish_wechat'] = False  # 不更新wechat
+    
+    # 传递进度更新参数（如果提供）
+    if fetch_status is not None:
+        config['fetch_status'] = fetch_status
+        config['fetch_status_lock'] = fetch_status_lock
+        # 设置总数（关键词数量）
+        keywords = config.get('keywords', {})
+        if fetch_status_lock:
+            with fetch_status_lock:
+                fetch_status['total'] = len(keywords)
+                fetch_status['message'] = f'准备抓取 {len(keywords)} 个类别...'
+        else:
+            fetch_status['total'] = len(keywords)
+            fetch_status['message'] = f'准备抓取 {len(keywords)} 个类别...'
+        print(f"📊 将抓取 {len(keywords)} 个类别的论文")
     
     try:
         demo(**config)

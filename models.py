@@ -70,11 +70,23 @@ class Paper(Base):
         }
 
 # 数据库配置
+# 支持PostgreSQL和SQLite
 DATABASE_URL = os.getenv('DATABASE_URL', 'sqlite:///./papers.db')
 
 def get_engine():
     """获取数据库引擎"""
-    return create_engine(DATABASE_URL, echo=False)
+    # PostgreSQL需要连接池配置
+    if DATABASE_URL.startswith('postgresql://') or DATABASE_URL.startswith('postgres://'):
+        return create_engine(
+            DATABASE_URL,
+            echo=False,
+            pool_size=10,
+            max_overflow=20,
+            pool_pre_ping=True  # 自动重连
+        )
+    else:
+        # SQLite配置
+        return create_engine(DATABASE_URL, echo=False)
 
 def get_session():
     """获取数据库会话"""

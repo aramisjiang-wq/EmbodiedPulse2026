@@ -8,3 +8,6 @@ gunicorn
 feedparser
 beautifulsoup4
 lxml
+bilibili-api-python
+aiohttp
+psycopg2-binary

@@ -14,6 +14,10 @@ layout: default
 |**2025-12-10**|**Simultaneous Tactile-Visual Perception for Learning Multimodal Robot Manipulation**|Yixin Zhu Team|[2512.09851](http://arxiv.org/abs/2512.09851)|null|
 |**2025-12-10**|**ViTA-Seg: Vision Transformer for Amodal Segmentation in Robotics**|Paolo Roberto Massenio Team|[2512.09510](http://arxiv.org/abs/2512.09510)|null|
 |**2025-12-10**|**Development of a Compliant Gripper for Safe Robot-Assisted Trouser Dressing-Undressing**|Yasuhisa Hasegawa Team|[2512.09462](http://arxiv.org/abs/2512.09462)|null|
+|**2025-12-10**|**H2R-Grounder: A Paired-Data-Free Paradigm for Translating Human Interaction Videos into Physically Grounded Robot Videos**|Mike Zheng Shou Team|[2512.09406](http://arxiv.org/abs/2512.09406)|null|
+|**2025-12-10**|**One-Shot Real-World Demonstration Synthesis for Scalable Bimanual Manipulation**|Kui Jia Team|[2512.09297](http://arxiv.org/abs/2512.09297)|null|
+|**2025-12-10**|**UPETrack: Unidirectional Position Estimation for Tracking Occluded Deformable Linear Objects**|Shifeng Huang Team|[2512.09283](http://arxiv.org/abs/2512.09283)|null|
+|**2025-12-09**|**Masked Generative Policy for Robotic Control**|Paul Henderson Team|[2512.09101](http://arxiv.org/abs/2512.09101)|null|
 |**2025-12-09**|**Bridging Scale Discrepancies in Robotic Control via Language-Based Action Representations**|Ting Liu Team|[2512.08548](http://arxiv.org/abs/2512.08548)|null|
 |**2025-12-09**|**Curriculum Guided Massive Multi Agent System Solving For Robust Long Horizon Tasks**|Kalathur Chenchu Kishore Kumar Team|[2512.08545](http://arxiv.org/abs/2512.08545)|null|
 |**2025-12-09**|**Learning Robot Manipulation from Audio World Models**|Michael Gienger Team|[2512.08405](http://arxiv.org/abs/2512.08405)|null|
@@ -1557,6 +1561,12 @@ layout: default
 |**2025-12-10**|**Benchmarking Document Parsers on Mathematical Formula Extraction from PDFs**|Janis Keuper Team|[2512.09874](http://arxiv.org/abs/2512.09874)|null|
 |**2025-12-10**|**An Automated Tip-and-Cue Framework for Optimized Satellite Tasking and Visual Intelligence**|Israel Cohen Team|[2512.09670](http://arxiv.org/abs/2512.09670)|null|
 |**2025-12-10**|**Building Reasonable Inference for Vision-Language Models in Blind Image Quality Assessment**|Shin'ya Nishida Team|[2512.09555](http://arxiv.org/abs/2512.09555)|null|
+|**2025-12-10**|**Defect-aware Hybrid Prompt Optimization via Progressive Tuning for Zero-Shot Multi-type Anomaly Detection and Segmentation**|Steffen Staab Team|[2512.09446](http://arxiv.org/abs/2512.09446)|null|
+|**2025-12-10**|**Representation Calibration and Uncertainty Guidance for Class-Incremental Learning based on Vision Language Model**|Ruixuan Wang Team|[2512.09441](http://arxiv.org/abs/2512.09441)|null|
+|**2025-12-10**|**COVLM-RL: Critical Object-Oriented Reasoning for Autonomous Driving Using VLM-Guided Reinforcement Learning**|Chen Lv Team|[2512.09349](http://arxiv.org/abs/2512.09349)|null|
+|**2025-12-10**|**View-on-Graph: Zero-shot 3D Visual Grounding via Vision-Language Reasoning on Scene Graphs**|Xin Yang Team|[2512.09215](http://arxiv.org/abs/2512.09215)|null|
+|**2025-12-09**|**Prompt-Based Continual Compositional Zero-Shot Learning**|Mohsen Ali Team|[2512.09172](http://arxiv.org/abs/2512.09172)|null|
+|**2025-12-09**|**ConceptPose: Training-Free Zero-Shot Object Pose Estimation using Concept Vectors**|Benjamin Busam Team|[2512.09056](http://arxiv.org/abs/2512.09056)|null|
 |**2025-12-09**|**Unified Diffusion Transformer for High-fidelity Text-Aware Image Restoration**|Seungryong Kim Team|[2512.08922](http://arxiv.org/abs/2512.08922)|null|
 |**2025-12-09**|**SATGround: A Spatially-Aware Approach for Visual Grounding in Remote Sensing**|Jiankang Deng Team|[2512.08881](http://arxiv.org/abs/2512.08881)|null|
 |**2025-12-09**|**Tri-Bench: Stress-Testing VLM Reliability on Spatial Reasoning under Camera Tilt and Object Interference**|Amit Bendkhale Team|[2512.08860](http://arxiv.org/abs/2512.08860)|**[link](https://github.com/Amiton7/Tri-Bench.)**|
@@ -4569,6 +4579,7 @@ layout: default
 | Publish Date | Title | Authors | PDF | Code |
 |:---------|:-----------------------|:---------|:------|:------|
 |**2025-12-10**|**A Hierarchical, Model-Based System for High-Performance Humanoid Soccer**|Dennis W. Hong Team|[2512.09431](http://arxiv.org/abs/2512.09431)|null|
+|**2025-11-28**|**Learning When to Ask: Simulation-Trained Humanoids for Mental-Health Diagnosis**|Longbing Cao Team|[2512.08952](http://arxiv.org/abs/2512.08952)|null|
 |**2025-12-09**|**SensHRPS: Sensing Comfortable Human-Robot Proxemics and Personal Space With Eye-Tracking**|Karsten Berns Team|[2512.08518](http://arxiv.org/abs/2512.08518)|null|
 |**2025-12-08**|**Efficient and Compliant Control Framework for Versatile Human-Humanoid Collaborative Transportation**|Panagiotis Artemiadis Team|[2512.07819](http://arxiv.org/abs/2512.07819)|null|
 |**2025-12-08**|**Gait-Adaptive Perceptive Humanoid Locomotion with Real-Time Under-Base Terrain Reconstruction**|Houqiang Li Team|[2512.07464](http://arxiv.org/abs/2512.07464)|null|
@@ -5479,6 +5490,17 @@ layout: default
 |**2025-12-10**|**Mastering Diverse, Unknown, and Cluttered Tracks for Robust Vision-Based Drone Racing**|Danping Zou Team|[2512.09571](http://arxiv.org/abs/2512.09571)|null|
 |**2025-12-10**|**Toward Closed-loop Molecular Discovery via Language Model, Property Alignment and Strategic Search**|Zexuan Zhu Team|[2512.09566](http://arxiv.org/abs/2512.09566)|null|
 |**2025-12-10**|**REASAN: Learning Reactive Safe Navigation for Legged Robots**|Kailai Li Team|[2512.09537](http://arxiv.org/abs/2512.09537)|null|
+|**2025-12-10**|**RouteRAG: Efficient Retrieval-Augmented Generation from Text and Graph via Reinforcement Learning**|Xueqi Cheng Team|[2512.09487](http://arxiv.org/abs/2512.09487)|null|
+|**2025-12-10**|**Generalizable Collaborative Search-and-Capture in Cluttered Environments via Path-Guided MAPPO and Directional Frontier Allocation**|Yihuan Liao Team|[2512.09410](http://arxiv.org/abs/2512.09410)|null|
+|**2025-12-10**|**H2R-Grounder: A Paired-Data-Free Paradigm for Translating Human Interaction Videos into Physically Grounded Robot Videos**|Mike Zheng Shou Team|[2512.09406](http://arxiv.org/abs/2512.09406)|null|
+|**2025-12-10**|**CFLight: Enhancing Safety with Traffic Signal Control through Counterfactual Learning**|Qiang Wu Team|[2512.09368](http://arxiv.org/abs/2512.09368)|null|
+|**2025-12-10**|**COVLM-RL: Critical Object-Oriented Reasoning for Autonomous Driving Using VLM-Guided Reinforcement Learning**|Chen Lv Team|[2512.09349](http://arxiv.org/abs/2512.09349)|null|
+|**2025-12-10**|**Tyche: A Hybrid Computation Framework of Illumination Pattern for Satellite Beam Hopping**|Yue Gao Team|[2512.09312](http://arxiv.org/abs/2512.09312)|null|
+|**2025-12-10**|**One-Shot Real-World Demonstration Synthesis for Scalable Bimanual Manipulation**|Kui Jia Team|[2512.09297](http://arxiv.org/abs/2512.09297)|null|
+|**2025-12-10**|**Electric Arc Furnaces Scheduling under Electricity Price Volatility with Reinforcement Learning**|Bolun Xu Team|[2512.09293](http://arxiv.org/abs/2512.09293)|null|
+|**2025-12-10**|**Exploratory Mean-Variance with Jumps: An Equilibrium Approach**|David Saunders Team|[2512.09224](http://arxiv.org/abs/2512.09224)|null|
+|**2025-12-09**|**Learning Unmasking Policies for Diffusion Language Models**|Marco Cuturi Team|[2512.09106](http://arxiv.org/abs/2512.09106)|null|
+|**2025-12-09**|**Masked Generative Policy for Robotic Control**|Paul Henderson Team|[2512.09101](http://arxiv.org/abs/2512.09101)|null|
 |**2025-12-09**|**No Labels, No Problem: Training Visual Reasoners with Multimodal Verifiers**|Georgia Gkioxari Team|[2512.08889](http://arxiv.org/abs/2512.08889)|**[link](https://glab-caltech.github.io/valor/)**|
 |**2025-12-09**|**IPPO Learns the Game, Not the Team: A Study on Generalization in Heterogeneous Agent Teams**|Jack Kolb Team|[2512.08877](http://arxiv.org/abs/2512.08877)|null|
 |**2025-12-09**|**Reinforcement Learning From State and Temporal Differences**|Jonathan Baxter Team|[2512.08855](http://arxiv.org/abs/2512.08855)|null|

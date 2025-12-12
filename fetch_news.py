@@ -164,6 +164,7 @@ def fetch_and_save_news():
     
     # 清理24小时前的旧新闻（在保存新新闻之后，避免误删新抓取的新闻）
     # 这样可以确保新抓取的新闻不会被误删，同时保持数据库整洁
+    session = None
     try:
         from datetime import datetime, timedelta
         from news_models import get_news_session, News
@@ -177,11 +178,15 @@ def fetch_and_save_news():
             )
         ).delete()
         session.commit()
-        session.close()
         if deleted > 0:
             logger.info(f"清理了 {deleted} 条24小时前的旧新闻")
     except Exception as e:
         logger.warning(f"清理旧新闻失败: {e}")
+        if session:
+            session.rollback()
+    finally:
+        if session:
+            session.close()
     
     logger.info("=" * 60)
     logger.info("新闻信息抓取完成")

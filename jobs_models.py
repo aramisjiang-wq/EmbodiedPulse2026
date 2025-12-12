@@ -52,11 +52,25 @@ class Job(Base):
         }
 
 # 招聘信息数据库配置（独立数据库）
-JOBS_DATABASE_URL = os.getenv('JOBS_DATABASE_URL', 'sqlite:///./jobs.db')
+# 支持PostgreSQL和SQLite
+# 如果使用PostgreSQL，可以通过JOBS_DATABASE_URL指定独立数据库
+# 或者使用主数据库URL + schema/database名称
+JOBS_DATABASE_URL = os.getenv('JOBS_DATABASE_URL', os.getenv('DATABASE_URL', 'sqlite:///./jobs.db'))
 
 def get_jobs_engine():
     """获取招聘信息数据库引擎"""
-    return create_engine(JOBS_DATABASE_URL, echo=False)
+    # PostgreSQL需要连接池配置
+    if JOBS_DATABASE_URL.startswith('postgresql://') or JOBS_DATABASE_URL.startswith('postgres://'):
+        return create_engine(
+            JOBS_DATABASE_URL,
+            echo=False,
+            pool_size=10,
+            max_overflow=20,
+            pool_pre_ping=True  # 自动重连
+        )
+    else:
+        # SQLite配置
+        return create_engine(JOBS_DATABASE_URL, echo=False)
 
 def get_jobs_session():
     """获取招聘信息数据库会话"""
@@ -69,5 +83,10 @@ def init_jobs_db():
     engine = get_jobs_engine()
     Base.metadata.create_all(engine)
     print("招聘信息数据库表创建成功！")
+
+
+
+
+
 
 

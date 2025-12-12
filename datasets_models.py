@@ -69,11 +69,25 @@ class Dataset(Base):
         }
 
 # 数据集数据库配置（独立数据库）
-DATASETS_DATABASE_URL = os.getenv('DATASETS_DATABASE_URL', 'sqlite:///./datasets.db')
+# 支持PostgreSQL和SQLite
+# 如果使用PostgreSQL，可以通过DATASETS_DATABASE_URL指定独立数据库
+# 或者使用主数据库URL + schema/database名称
+DATASETS_DATABASE_URL = os.getenv('DATASETS_DATABASE_URL', os.getenv('DATABASE_URL', 'sqlite:///./datasets.db'))
 
 def get_datasets_engine():
     """获取数据集数据库引擎"""
-    return create_engine(DATASETS_DATABASE_URL, echo=False)
+    # PostgreSQL需要连接池配置
+    if DATASETS_DATABASE_URL.startswith('postgresql://') or DATASETS_DATABASE_URL.startswith('postgres://'):
+        return create_engine(
+            DATASETS_DATABASE_URL,
+            echo=False,
+            pool_size=10,
+            max_overflow=20,
+            pool_pre_ping=True  # 自动重连
+        )
+    else:
+        # SQLite配置
+        return create_engine(DATASETS_DATABASE_URL, echo=False)
 
 def get_datasets_session():
     """获取数据集数据库会话"""

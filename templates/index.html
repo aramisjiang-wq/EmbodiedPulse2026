@@ -44,10 +44,7 @@
         <!-- 顶部导航栏 - Tab样式 -->
         <nav class="top-nav">
             <div class="nav-tabs">
-                <a href="https://limxdynamics.com/" target="_blank" class="nav-tab active">
-                    <span>逐际动力 LimX</span>
-                </a>
-                <a href="https://gradmotion.com/" target="_blank" class="nav-tab">
+                <a href="https://gradmotion.com/" target="_blank" class="nav-tab active">
                     <span>具身算法工具箱（GradMotion）</span>
                 </a>
                 <a href="https://paj5uamwttr.feishu.cn/wiki/GaozwfU3iiWA9Nk0LVUcUzKZnHc" target="_blank" class="nav-tab">
@@ -62,19 +59,21 @@
         <!-- 具身机器人研究方向结构 -->
         <!-- 合并模块：具身智能研究方向 + 论文数据统计 -->
         <section class="combined-research-stats">
-            <div class="combined-header">
-                <h2><i class="fas fa-sitemap"></i> 具身论文数据仪表盘</h2>
-                <div class="combined-header-actions">
-                    <button id="refreshAllBtn" class="btn btn-primary">
-                        <i class="fas fa-sync-alt"></i> 刷新全局数据
+            <div class="combined-header" id="dashboardHeader">
+                <h2 class="dashboard-title-clickable">
+                    <i class="fas fa-sitemap"></i> 具身论文数据仪表盘
+                    <button class="dashboard-toggle-btn" id="dashboardToggleBtn" title="展开/收起">
+                        <i class="fas fa-chevron-down" id="dashboardToggleIcon"></i>
                     </button>
+                </h2>
+                <div class="combined-header-actions">
                     <button id="fetchBtn" class="btn btn-success">
                         <i class="fas fa-download"></i> 抓取新论文
                     </button>
                 </div>
             </div>
             
-            <div class="combined-layout">
+            <div class="combined-layout" id="dashboardContent">
                 <!-- 左侧：研究方向 -->
                 <div class="research-panel">
                 <!-- 感知层 -->
@@ -212,6 +211,25 @@
             </div>
         </section>
 
+        <!-- 研究方向活跃度挂件 -->
+        <section class="trends-section">
+            <div class="trends-widget">
+                <div class="trends-widget-header">
+                    <h3><i class="fas fa-chart-candlestick"></i> 研究方向活跃度</h3>
+                    <div class="trends-time-selector">
+                        <button class="trends-time-btn active" data-days="7" title="近7天">7天</button>
+                        <button class="trends-time-btn" data-days="30" title="近30天">30天</button>
+                    </div>
+                </div>
+                <div class="trends-widget-content" id="trendsContainer">
+                    <div class="loading-spinner-small">
+                        <i class="fas fa-spinner fa-spin"></i>
+                        <p>加载趋势数据中...</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
         <!-- 论文清单 -->
         <section class="papers-list-section">
             <div class="papers-list-main">
@@ -289,7 +307,12 @@
                 <div class="news-widget">
                     <div class="news-widget-header">
                         <h3><i class="fas fa-newspaper"></i> 具身24h新闻🔥</h3>
-                        <span class="news-count" id="newsCount">-</span>
+                        <div class="news-header-actions">
+                            <button id="fetchNewsBtn" class="btn-refresh-news" title="刷新新闻">
+                                <i class="fas fa-sync-alt"></i>
+                            </button>
+                            <span class="news-count" id="newsCount">-</span>
+                        </div>
                     </div>
                     <div class="news-widget-content scrolling" id="newsContainer">
                         <div class="loading-spinner-small">
@@ -299,102 +322,73 @@
                     </div>
                 </div>
                 
-                <!-- 具身运势抽签挂件 -->
+                <!-- 具身赛博🙏挂件 -->
                 <div class="fortune-widget">
                     <div class="fortune-widget-header">
                         <div class="fortune-header-left">
-                            <h3>具身运势签</h3>
-                            <span class="fortune-daily-badge">每日一抽</span>
+                            <h3>具身赛博🙏</h3>
+                            <span class="fortune-daily-badge">每日一拜</span>
                         </div>
                         <span class="fortune-date" id="fortuneDate"></span>
                     </div>
                     <div class="fortune-widget-content" id="fortuneContainer">
-                        <!-- 研究方向选择区域 -->
+                        <!-- 选择今天重要的事 -->
                         <div class="fortune-category-section">
                             <div class="fortune-category-hint">
-                                <i class="fas fa-mouse-pointer"></i>
-                                <span>选择你的研究方向，获取专属运势</span>
+                                <i class="fas fa-hands-praying"></i>
+                                <span>选择近期对你很重要的事，拜拜求福</span>
                             </div>
                             <div class="fortune-category-tags" id="fortuneCategoryTags">
-                                <div class="category-tag active" data-category="all">
-                                    <span class="tag-icon">🎯</span>
-                                    <span class="tag-text">全部</span>
+                                <div class="category-tag active" data-category="coding">
+                                    <span class="tag-icon">☕</span>
+                                    <span class="tag-text">调测代码</span>
                                 </div>
-                                <div class="category-tag" data-category="Perception">
-                                    <span class="tag-icon">👁️</span>
-                                    <span class="tag-text">感知</span>
-                                </div>
-                                <div class="category-tag" data-category="VLM">
-                                    <span class="tag-icon">🔍</span>
-                                    <span class="tag-text">VLM</span>
-                                </div>
-                                <div class="category-tag" data-category="Planning">
-                                    <span class="tag-icon">🗺️</span>
-                                    <span class="tag-text">规划</span>
-                                </div>
-                                <div class="category-tag" data-category="RL/IL">
-                                    <span class="tag-icon">🧠</span>
-                                    <span class="tag-text">RL/IL</span>
-                                </div>
-                                <div class="category-tag" data-category="Manipulation">
-                                    <span class="tag-icon">✋</span>
-                                    <span class="tag-text">操作</span>
-                                </div>
-                                <div class="category-tag" data-category="Locomotion">
-                                    <span class="tag-icon">🏃</span>
-                                    <span class="tag-text">运动</span>
-                                </div>
-                                <div class="category-tag" data-category="Dexterous">
-                                    <span class="tag-icon">🎯</span>
-                                    <span class="tag-text">灵巧</span>
-                                </div>
-                                <div class="category-tag" data-category="VLA">
+                                <div class="category-tag" data-category="hardware">
                                     <span class="tag-icon">🤖</span>
-                                    <span class="tag-text">VLA</span>
+                                    <span class="tag-text">硬件联调</span>
                                 </div>
-                                <div class="category-tag" data-category="Humanoid">
-                                    <span class="tag-icon">🚶</span>
-                                    <span class="tag-text">人形</span>
+                                <div class="category-tag" data-category="paper">
+                                    <span class="tag-icon">📝</span>
+                                    <span class="tag-text">投稿论文</span>
                                 </div>
                             </div>
                         </div>
                         
                         <!-- 主画面区域 -->
                         <div class="fortune-main-scene">
-                            <!-- 主抽签筒（可点击） -->
-                            <div class="fortune-tube-main clickable" id="fortuneTubeMain">
-                                <div class="tube-body">
-                                    <div class="tube-top"></div>
-                                    <div class="tube-middle">
-                                        <div class="tube-sticks" id="tubeSticks">
-                                            <!-- 竹签会在这里显示 -->
-                                        </div>
-                                        <div class="tube-click-hint">
-                                            <i class="fas fa-hand-pointer"></i>
-                                            <span>点击抽签</span>
-                                        </div>
+                            <!-- 佛像/赛博佛像（可点击） -->
+                            <div class="fortune-buddha-main clickable" id="fortuneTubeMain">
+                                <div class="buddha-body">
+                                    <div class="buddha-click-hint">
+                                        <i class="fas fa-hands-praying"></i>
+                                        <span>拜拜求福</span>
                                     </div>
-                                    <div class="tube-bottom"></div>
                                 </div>
-                                <div class="tube-shadow"></div>
                             </div>
                             
-                            <!-- 隐藏的摇签按钮（保留用于逻辑） -->
+                            <!-- 隐藏的拜拜按钮（保留用于逻辑） -->
                             <button class="fortune-shake-btn hidden" id="fortuneShakeBtn" style="display: none;">
-                                <i class="fas fa-hand-sparkles"></i>
-                                <span>摇签</span>
+                                <i class="fas fa-hands-praying"></i>
+                                <span>拜一拜</span>
                             </button>
                             
-                            <!-- 飞出的签 -->
+                            <!-- 飞出的赐福文字 -->
                             <div class="fortune-stick-flying" id="fortuneStickFlying">
-                                <div class="stick-paper">
-                                    <div class="stick-content" id="fortuneStickContent"></div>
+                                <div class="blessing-paper">
+                                    <div class="blessing-content" id="fortuneStickContent"></div>
                                 </div>
                             </div>
                             
                             <!-- 结果展示（覆盖层） -->
                             <div class="fortune-result-overlay hidden" id="fortuneResult">
                                 <div class="fortune-result-content">
+                                    <div class="fortune-icon">
+                                        <div class="three-incense-sticks">
+                                            <div class="incense-stick"></div>
+                                            <div class="incense-stick"></div>
+                                            <div class="incense-stick"></div>
+                                        </div>
+                                    </div>
                                     <div class="fortune-message" id="fortuneMessage"></div>
                                     <div class="fortune-timestamp" id="fortuneTimestamp"></div>
                                     <div class="fortune-result-bg"></div>
@@ -404,12 +398,42 @@
                     </div>
                 </div>
                 
+                <!-- Bilibili挂件 -->
+                <div class="bilibili-widget">
+                    <div class="bilibili-widget-header">
+                        <div class="bilibili-header-title">
+                            <h3><i class="fab fa-bilibili"></i> B站</h3>
+                            <button class="bilibili-toggle-btn" id="bilibiliToggleBtn" title="展开/收起">
+                                <i class="fas fa-chevron-down"></i>
+                            </button>
+                        </div>
+                        <div class="bilibili-header-actions">
+                            <a href="https://limxdynamics.com/" target="_blank" class="limx-link-btn" title="逐际动力 LimX">
+                                <span>逐际动力 LimX</span>
+                            </a>
+                            <a href="https://space.bilibili.com/1172054289" target="_blank" class="bilibili-link" title="前往Bilibili空间">
+                                <i class="fas fa-external-link-alt"></i>
+                            </a>
+                        </div>
+                    </div>
+                    <div class="bilibili-widget-content" id="bilibiliContainer">
+                        <div class="loading-spinner-small">
+                            <i class="fas fa-spinner fa-spin"></i>
+                            <p>加载Bilibili信息中...</p>
+                        </div>
+                    </div>
+                </div>
+                
                 <!-- 学生实习机会挂窗 -->
-                <div class="jobs-widget">
-                    <div class="jobs-widget-header">
-                        <h3><i class="fas fa-briefcase"></i> 具身岗位机会</h3>
+                <div class="jobs-widget collapsed">
+                    <div class="jobs-widget-header" id="jobsWidgetHeader">
+                        <h3 class="widget-title-clickable">
+                            <i class="fas fa-briefcase"></i> 具身岗位机会
+                            <span class="update-badge hidden" id="jobsUpdateBadge" title="有新更新"></span>
+                            <i class="fas fa-chevron-down widget-toggle-icon" id="jobsToggleIcon"></i>
+                        </h3>
                         <div class="jobs-widget-header-actions">
-                            <a href="https://career.limxdynamics.com/index" target="_blank" class="jobs-header-btn">
+                            <a href="https://career.limxdynamics.com/index" target="_blank" class="jobs-header-btn" onclick="event.stopPropagation();">
                                 <span>LimX招聘🔥</span>
                             </a>
                             <span class="jobs-count" id="jobsCount">-</span>
@@ -424,9 +448,13 @@
                 </div>
                 
                 <!-- 数据集信息挂窗 -->
-                <div class="datasets-widget">
-                    <div class="datasets-widget-header">
-                        <h3><i class="fas fa-database"></i> 具身数据集☁️</h3>
+                <div class="datasets-widget collapsed">
+                    <div class="datasets-widget-header" id="datasetsWidgetHeader">
+                        <h3 class="widget-title-clickable">
+                            <i class="fas fa-database"></i> 具身数据集
+                            <span class="update-badge hidden" id="datasetsUpdateBadge" title="有新更新"></span>
+                            <i class="fas fa-chevron-down widget-toggle-icon" id="datasetsToggleIcon"></i>
+                        </h3>
                         <span class="datasets-count" id="datasetsCount">-</span>
                     </div>
                     <div class="datasets-widget-content" id="datasetsContainer">
@@ -454,37 +482,9 @@
         </div>
     </div>
 
-    <!-- 抓取配置模态框 -->
-    <div id="fetchModal" class="modal hidden">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2>抓取配置</h2>
-                <button class="modal-close" onclick="closeFetchModal()">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
-            <div class="modal-body">
-                <div class="form-group">
-                    <label for="maxResults">每类论文数量:</label>
-                    <input type="number" id="maxResults" value="20" min="1" max="100">
-                </div>
-                <div class="form-group">
-                    <label for="configPath">配置文件路径:</label>
-                    <input type="text" id="configPath" value="config.yaml">
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button class="btn btn-secondary" onclick="closeFetchModal()">
-                    <i class="fas fa-times"></i> 取消
-                </button>
-                <button class="btn btn-fetch-primary" onclick="confirmFetch()">
-                    <i class="fas fa-rocket"></i> 开始抓取
-                </button>
-            </div>
-        </div>
-    </div>
+    <!-- 抓取配置模态框已移除 - 现在直接点击按钮执行脚本 -->
 
-    <script src="{{ url_for('static', filename='js/fortune_messages.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/blessing_messages.js') }}"></script>
     <script src="{{ url_for('static', filename='js/app.js') }}"></script>
 </body>
 </html>
