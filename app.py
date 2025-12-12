@@ -15,7 +15,20 @@ from datasets_models import get_datasets_session, Dataset
 from news_models import get_news_session, News
 from bilibili_client import BilibiliClient, format_number, format_timestamp
 
-app = Flask(__name__)
+# 获取当前文件所在目录
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+TEMPLATE_DIR = os.path.join(BASE_DIR, 'templates')
+STATIC_DIR = os.path.join(BASE_DIR, 'static')
+
+# 确保目录存在
+if not os.path.exists(TEMPLATE_DIR):
+    raise FileNotFoundError(f"模板目录不存在: {TEMPLATE_DIR}")
+if not os.path.exists(STATIC_DIR):
+    raise FileNotFoundError(f"静态文件目录不存在: {STATIC_DIR}")
+
+app = Flask(__name__, 
+            template_folder=TEMPLATE_DIR,
+            static_folder=STATIC_DIR)
 app.config['JSON_AS_ASCII'] = False  # 支持中文
 
 # 配置日志
