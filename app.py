@@ -22,18 +22,31 @@ STATIC_DIR = os.path.join(BASE_DIR, 'static')
 
 # 确保目录存在
 if not os.path.exists(TEMPLATE_DIR):
-    raise FileNotFoundError(f"模板目录不存在: {TEMPLATE_DIR}")
+    raise FileNotFoundError(f"模板目录不存在: {TEMPLATE_DIR}\n当前文件路径: {__file__}\nBASE_DIR: {BASE_DIR}")
 if not os.path.exists(STATIC_DIR):
-    raise FileNotFoundError(f"静态文件目录不存在: {STATIC_DIR}")
+    raise FileNotFoundError(f"静态文件目录不存在: {STATIC_DIR}\n当前文件路径: {__file__}\nBASE_DIR: {BASE_DIR}")
+
+# 配置日志
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# 记录路径信息（用于调试）
+logger.info(f"Flask应用初始化 - 文件路径: {__file__}")
+logger.info(f"BASE_DIR: {BASE_DIR}")
+logger.info(f"TEMPLATE_DIR: {TEMPLATE_DIR}")
+logger.info(f"STATIC_DIR: {STATIC_DIR}")
+logger.info(f"模板目录存在: {os.path.exists(TEMPLATE_DIR)}")
+logger.info(f"静态目录存在: {os.path.exists(STATIC_DIR)}")
 
 app = Flask(__name__, 
             template_folder=TEMPLATE_DIR,
             static_folder=STATIC_DIR)
 app.config['JSON_AS_ASCII'] = False  # 支持中文
 
-# 配置日志
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+# 验证模板目录配置
+if not os.path.exists(app.template_folder):
+    logger.error(f"Flask模板目录不存在: {app.template_folder}")
+    raise FileNotFoundError(f"Flask模板目录不存在: {app.template_folder}")
 
 # 全局变量存储抓取状态
 fetch_status = {
@@ -164,6 +177,18 @@ def parse_paper_entry(entry_str):
 @app.route('/')
 def index():
     """主页"""
+    # 调试信息：确保模板路径正确
+    template_path = os.path.join(app.template_folder, 'index.html')
+    if not os.path.exists(template_path):
+        error_msg = (
+            f"模板文件不存在: {template_path}\n"
+            f"Flask模板目录: {app.template_folder}\n"
+            f"当前工作目录: {os.getcwd()}\n"
+            f"app.py文件路径: {__file__}"
+        )
+        logger.error(error_msg)
+        raise FileNotFoundError(error_msg)
+    logger.debug(f"渲染模板: {template_path}")
     return render_template('index.html')
 
 @app.route('/api/papers')
