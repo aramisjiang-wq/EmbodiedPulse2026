@@ -64,20 +64,39 @@ jobs:
             
             if ! command -v docker-compose &> /dev/null; then
               echo "安装Docker Compose..."
-              curl -L "https://github.com/docker/compose/releases/download/v2.20.0/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+              curl -L "https://github.com/docker/compose/releases/download/v2.24.0/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+              chmod +x /usr/local/bin/docker-compose
+            else
+              # 修复权限（如果之前有问题）
               chmod +x /usr/local/bin/docker-compose
             fi
             
             echo "拉取最新代码..."
-            git fetch origin main || {
-              echo "Git fetch失败，尝试重新克隆..."
+            # 确保Git已安装
+            if ! command -v git &> /dev/null; then
+              echo "安装Git..."
+              apt update && apt install -y git
+            fi
+            
+            # 检查是否为Git仓库
+            if [ ! -d ".git" ]; then
+              echo "不是Git仓库，重新克隆..."
               cd /opt
               rm -rf EmbodiedPulse
               git clone https://github.com/aramisjiang-wq/EmbodiedPulse2026.git EmbodiedPulse
               cd EmbodiedPulse
-            }
-            git reset --hard origin/main
-            git clean -fd
+            else
+              # 拉取最新代码
+              git fetch origin main || {
+                echo "Git fetch失败，尝试重新克隆..."
+                cd /opt
+                rm -rf EmbodiedPulse
+                git clone https://github.com/aramisjiang-wq/EmbodiedPulse2026.git EmbodiedPulse
+                cd EmbodiedPulse
+              }
+              git reset --hard origin/main
+              git clean -fd
+            fi
             
             echo "停止旧容器..."
             docker-compose down || true
