@@ -1,0 +1,1766 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>具身视频Hub - Embodied Pulse</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    
+    <style>
+        /* B站主题色 */
+        :root {
+            --bilibili-pink: #FB7299;
+            --bilibili-blue: #00A1D6;
+            --bilibili-dark: #181818;
+            --bilibili-light-bg: #F4F4F4;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #f5f7fa 0%, #e8ecf1 100%);
+            min-height: 100vh;
+        }
+        
+        .bilibili-page-container {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 24px;
+        }
+        
+        /* 页面头部 - B站风格 */
+        .bilibili-page-header {
+            text-align: center;
+            margin-bottom: 40px;
+            padding: 40px 20px;
+            background: linear-gradient(135deg, var(--bilibili-pink) 0%, var(--bilibili-blue) 100%);
+            border-radius: 16px;
+            box-shadow: 0 8px 32px rgba(251, 114, 153, 0.3);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .bilibili-page-header::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, transparent 70%);
+            animation: rotate 20s linear infinite;
+        }
+        
+        @keyframes rotate {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        
+        .bilibili-page-header h1 {
+            font-size: 3rem;
+            color: #ffffff;
+            margin-bottom: 12px;
+            font-weight: 700;
+            text-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+            position: relative;
+            z-index: 1;
+        }
+        
+        .bilibili-page-header h1 i {
+            color: #ffffff;
+            margin-right: 12px;
+            font-size: 3.2rem;
+        }
+        
+        .bilibili-page-header p {
+            color: rgba(255, 255, 255, 0.95);
+            font-size: 1.2rem;
+            position: relative;
+            z-index: 1;
+        }
+        
+        /* 趋势图模块 - 现代化设计 */
+        .bilibili-trends-section {
+            background: #ffffff;
+            border-radius: 16px;
+            padding: 32px;
+            margin-bottom: 32px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            border: 1px solid rgba(251, 114, 153, 0.1);
+        }
+        
+        /* 月度播放量统计对比模块 - 与上方保持间距 */
+        .bilibili-trends-section.monthly-stats {
+            margin-top: 32px;
+        }
+        
+        .bilibili-trends-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+        
+        .bilibili-trends-title {
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: #2d3748;
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .bilibili-trends-title i {
+            color: var(--bilibili-pink);
+        }
+        
+        .bilibili-trends-controls {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        
+        /* 公司选择图例 - 优化为复选框样式 */
+        .bilibili-trends-legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-bottom: 24px;
+            padding: 16px;
+            background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+            border-radius: 12px;
+            border: 2px solid rgba(251, 114, 153, 0.1);
+        }
+        
+        .bilibili-trends-legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            padding: 8px 16px;
+            border-radius: 8px;
+            transition: all 0.3s;
+            font-size: 0.9rem;
+            font-weight: 500;
+            border: 2px solid transparent;
+            background: #ffffff;
+            position: relative;
+        }
+        
+        .bilibili-trends-legend-item:hover {
+            background: rgba(251, 114, 153, 0.05);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+        
+        .bilibili-trends-legend-item.selected {
+            background: rgba(251, 114, 153, 0.1);
+            border-color: var(--bilibili-pink);
+        }
+        
+        .bilibili-trends-legend-item.disabled {
+            opacity: 0.4;
+            background: #f0f0f0;
+        }
+        
+        .bilibili-trends-legend-item.disabled:hover {
+            transform: none;
+            box-shadow: none;
+        }
+        
+        .bilibili-trends-legend-checkbox {
+            width: 18px;
+            height: 18px;
+            border: 2px solid #cbd5e0;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            flex-shrink: 0;
+        }
+        
+        .bilibili-trends-legend-item.selected .bilibili-trends-legend-checkbox {
+            background: var(--bilibili-pink);
+            border-color: var(--bilibili-pink);
+        }
+        
+        .bilibili-trends-legend-checkbox i {
+            color: white;
+            font-size: 0.7rem;
+            display: none;
+        }
+        
+        .bilibili-trends-legend-item.selected .bilibili-trends-legend-checkbox i {
+            display: block;
+        }
+        
+        .bilibili-trends-legend-color {
+            width: 20px;
+            height: 20px;
+            border-radius: 4px;
+            border: 2px solid;
+            flex-shrink: 0;
+        }
+        
+        .bilibili-trends-chart {
+            position: relative;
+            height: 500px;
+            margin-bottom: 24px;
+            background: linear-gradient(135deg, #fafbfc 0%, #ffffff 100%);
+            border-radius: 12px;
+            padding: 16px;
+            border: 1px solid rgba(148, 163, 184, 0.1);
+        }
+        
+        .bilibili-trends-info {
+            padding: 16px;
+            background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+            border-left: 4px solid var(--bilibili-blue);
+            border-radius: 8px;
+            font-size: 0.9rem;
+            color: #1e40af;
+        }
+        
+        .bilibili-trends-info-title {
+            font-weight: 600;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .bilibili-trends-info-title i {
+            color: var(--bilibili-blue);
+        }
+        
+        .bilibili-trends-info-content {
+            color: #1e40af;
+            line-height: 1.6;
+        }
+        
+        .btn-refresh {
+            padding: 10px 20px;
+            background: linear-gradient(135deg, var(--bilibili-pink) 0%, var(--bilibili-blue) 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.3s;
+            box-shadow: 0 4px 12px rgba(251, 114, 153, 0.3);
+        }
+        
+        .btn-refresh:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(251, 114, 153, 0.4);
+        }
+        
+        .btn-refresh:disabled {
+            background: #cbd5e0;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        
+        /* 公司卡片模块 */
+        .bilibili-cards-section {
+            background: #ffffff;
+            border-radius: 16px;
+            padding: 32px;
+            margin-top: 32px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            border: 1px solid rgba(251, 114, 153, 0.1);
+        }
+        
+        .bilibili-cards-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+        
+        .bilibili-cards-title {
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: #2d3748;
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .bilibili-cards-title i {
+            color: var(--bilibili-pink);
+        }
+        
+        .bilibili-cards-filter {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        
+        .bilibili-filter-input {
+            padding: 10px 16px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            min-width: 200px;
+            transition: all 0.3s;
+        }
+        
+        .bilibili-filter-input:focus {
+            outline: none;
+            border-color: var(--bilibili-pink);
+            box-shadow: 0 0 0 3px rgba(251, 114, 153, 0.1);
+        }
+        
+        .bilibili-filter-input::placeholder {
+            color: #a0aec0;
+        }
+        
+        .bilibili-select {
+            padding: 10px 16px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            min-width: 200px;
+            background: white;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .bilibili-select:focus {
+            outline: none;
+            border-color: var(--bilibili-pink);
+            box-shadow: 0 0 0 3px rgba(251, 114, 153, 0.1);
+        }
+        
+        .bilibili-cards-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+        }
+        
+        @media (max-width: 1400px) {
+            .bilibili-cards-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+        
+        @media (max-width: 1024px) {
+            .bilibili-cards-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .bilibili-cards-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        /* B站风格卡片设计 - 紧凑版 */
+        .bilibili-card {
+            background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+            border-radius: 12px;
+            padding: 16px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+            transition: all 0.3s;
+            border: 2px solid transparent;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .bilibili-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--bilibili-pink) 0%, var(--bilibili-blue) 100%);
+            transform: scaleX(0);
+            transition: transform 0.3s;
+        }
+        
+        .bilibili-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 16px rgba(251, 114, 153, 0.15);
+            border-color: var(--bilibili-pink);
+        }
+        
+        .bilibili-card:hover::before {
+            transform: scaleX(1);
+        }
+        
+        .bilibili-card-header {
+            margin-bottom: 12px;
+            position: relative;
+        }
+        
+        .bilibili-card-name {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: #2d3748;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            line-height: 1.3;
+        }
+        
+        .bilibili-card-name::before {
+            content: '';
+            width: 3px;
+            height: 16px;
+            background: linear-gradient(180deg, var(--bilibili-pink) 0%, var(--bilibili-blue) 100%);
+            border-radius: 2px;
+            flex-shrink: 0;
+        }
+        
+        .bilibili-card-stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            margin-bottom: 12px;
+            padding: 12px;
+            background: linear-gradient(135deg, rgba(251, 114, 153, 0.05) 0%, rgba(0, 161, 214, 0.05) 100%);
+            border-radius: 8px;
+        }
+        
+        .bilibili-card-stat {
+            text-align: center;
+            padding: 4px;
+        }
+        
+        .bilibili-card-stat-value {
+            font-size: 1rem;
+            font-weight: 700;
+            color: var(--bilibili-pink);
+            margin-bottom: 2px;
+            line-height: 1.2;
+        }
+        
+        .bilibili-card-stat-label {
+            font-size: 0.7rem;
+            color: #718096;
+            font-weight: 500;
+        }
+        
+        .bilibili-card-videos {
+            margin-top: 12px;
+            flex: 1;
+        }
+        
+        .bilibili-card-videos-title {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #2d3748;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .bilibili-card-videos-title i {
+            color: var(--bilibili-blue);
+            font-size: 0.8rem;
+        }
+        
+        .bilibili-video-item {
+            display: block;
+            padding: 8px;
+            margin-bottom: 6px;
+            background: #ffffff;
+            border-radius: 6px;
+            text-decoration: none;
+            color: inherit;
+            transition: all 0.2s;
+            border: 1px solid #e2e8f0;
+        }
+        
+        .bilibili-video-item:hover {
+            background: rgba(251, 114, 153, 0.05);
+            border-color: var(--bilibili-pink);
+            transform: translateX(2px);
+        }
+        
+        .bilibili-video-title {
+            font-size: 0.8rem;
+            font-weight: 500;
+            color: #2d3748;
+            margin-bottom: 4px;
+            display: -webkit-box;
+            line-clamp: 2;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            line-height: 1.3;
+        }
+        
+        .bilibili-video-meta {
+            display: flex;
+            gap: 8px;
+            font-size: 0.7rem;
+            color: #718096;
+        }
+        
+        .bilibili-video-meta i {
+            color: var(--bilibili-blue);
+            font-size: 0.65rem;
+        }
+        
+        .bilibili-card-error {
+            padding: 16px;
+            background: #fff3cd;
+            border: 2px solid #ffc107;
+            border-radius: 8px;
+            color: #856404;
+            font-size: 0.9rem;
+            text-align: center;
+        }
+        
+        .bilibili-card-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            color: var(--bilibili-pink);
+            text-decoration: none;
+            font-size: 0.8rem;
+            font-weight: 600;
+            margin-top: 12px;
+            padding: 6px 12px;
+            background: rgba(251, 114, 153, 0.1);
+            border-radius: 6px;
+            transition: all 0.2s;
+            justify-content: center;
+        }
+        
+        .bilibili-card-link:hover {
+            background: rgba(251, 114, 153, 0.2);
+            transform: translateX(2px);
+        }
+        
+        .bilibili-card-link i {
+            font-size: 0.75rem;
+        }
+        
+        .loading-container {
+            text-align: center;
+            padding: 80px 20px;
+        }
+        
+        .loading-spinner {
+            display: inline-block;
+            width: 50px;
+            height: 50px;
+            border: 4px solid #e2e8f0;
+            border-top-color: var(--bilibili-pink);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #718096;
+        }
+        
+        .empty-state i {
+            font-size: 4rem;
+            color: #cbd5e0;
+            margin-bottom: 16px;
+        }
+        
+        /* 响应式设计 */
+        @media (max-width: 768px) {
+            .bilibili-page-header h1 {
+                font-size: 2rem;
+            }
+            
+            .bilibili-trends-chart {
+                height: 300px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- 顶部导航栏 - 全屏宽度 -->
+        <div class="top-nav-fullwidth-wrapper">
+            <nav class="top-nav">
+                <div class="nav-tabs">
+                    <a href="/" class="nav-logo">
+                        <img src="{{ url_for('static', filename='images/LimX logo.svg') }}" alt="LimX Logo" class="logo-img">
+                    </a>
+                    <a href="/" class="nav-tab">
+                        <span>具身论文（Embodied Pulse）</span>
+                    </a>
+                    <a href="/bilibili" class="nav-tab active">
+                        <span>具身视频Hub</span>
+                    </a>
+                    <a href="https://gradmotion.com/" target="_blank" class="nav-tab">
+                        <span>具身算法工具箱（GradMotion）</span>
+                    </a>
+                    <a href="https://paj5uamwttr.feishu.cn/wiki/GaozwfU3iiWA9Nk0LVUcUzKZnHc" target="_blank" class="nav-tab">
+                        <span>具身知识库</span>
+                    </a>
+                    <a href="https://paj5uamwttr.feishu.cn/share/base/form/shrcnYlYb0NorOBVv2P8xRAArDe" target="_blank" class="nav-tab">
+                        <span>产品反馈</span>
+                    </a>
+                </div>
+            </nav>
+        </div>
+
+        <div class="bilibili-page-container">
+            <!-- 页面头部 -->
+            <div class="bilibili-page-header">
+                <h1><i class="fab fa-bilibili"></i> 具身视频Hub</h1>
+                <p>追踪具身智能领域的优质视频内容</p>
+            </div>
+
+            <!-- 视频发布趋势 + 右侧（最新视频 + Top5） -->
+            <div class="bilibili-trends-grid">
+                <div class="bilibili-trends-section">
+                    <div class="bilibili-trends-header">
+                        <div class="bilibili-trends-title">
+                            <i class="fas fa-chart-area"></i> 视频发布数量趋势（近30天）
+                        </div>
+                        <div class="bilibili-trends-controls">
+                            <button id="refreshBilibiliBtn" class="btn-refresh" onclick="refreshBilibiliData()">
+                                <i class="fas fa-sync-alt" id="refreshIcon"></i>
+                                <span>刷新数据</span>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div id="trendsLegend" class="bilibili-trends-legend" style="display: none;">
+                        <!-- 图例将通过JS动态生成 -->
+                    </div>
+                    
+                    <div class="bilibili-trends-chart">
+                        <canvas id="videoTrendsChart"></canvas>
+                    </div>
+                    
+                    <div class="bilibili-trends-info">
+                        <div class="bilibili-trends-info-title">
+                            <i class="fas fa-info-circle"></i> 数据刷新规则
+                        </div>
+                        <div class="bilibili-trends-info-content">
+                            <strong>自动刷新：</strong>数据缓存10分钟，10分钟内访问会使用缓存数据，避免频繁请求B站API。<br>
+                            <strong>手动刷新：</strong>点击"刷新数据"按钮可立即获取最新数据（会清除缓存）。<br>
+                            <strong>趋势图说明：</strong>显示最近30天每日发布量（非累计），可通过图例切换公司。<br>
+                            <strong>最新视频：</strong>右侧挂件展示最近7天最新视频。
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bilibili-right-stack">
+                    <aside class="bilibili-latest-videos">
+                        <div class="bilibili-latest-header">
+                            <div class="bilibili-latest-title">
+                                <i class="fas fa-bolt"></i> 7天内最新视频
+                            </div>
+                            <div class="bilibili-latest-subtitle">按发布时间倒序 · 近7天（每日刷新）</div>
+                        </div>
+                        <div id="latestVideosContainer" class="bilibili-latest-list">
+                            <div class="loading-container">
+                                <div class="loading-spinner"></div>
+                                <p style="margin-top: 8px; color: #718096;">加载最新视频...</p>
+                            </div>
+                        </div>
+                    </aside>
+
+                    <div class="bilibili-top-section">
+                        <div class="bilibili-trends-header">
+                            <div class="bilibili-trends-title">
+                                <i class="fas fa-crown"></i> Top 5（近30天发布数量）
+                            </div>
+                        </div>
+                        <div class="bilibili-top-chart">
+                            <canvas id="topCompaniesChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 月度播放量统计对比 -->
+            <div class="bilibili-trends-section monthly-stats">
+                <div class="bilibili-trends-header">
+                    <div class="bilibili-trends-title">
+                        <i class="fas fa-chart-bar"></i> 月度播放量统计对比
+                    </div>
+                </div>
+                
+                <div class="bilibili-trends-chart" style="min-height: 500px;">
+                    <canvas id="monthlyStatsChart"></canvas>
+                </div>
+                
+                <div class="bilibili-trends-info">
+                    <div class="bilibili-trends-info-title">
+                        <i class="fas fa-info-circle"></i> 统计说明
+                    </div>
+                    <div class="bilibili-trends-info-content">
+                        <strong>数据来源：</strong>基于各公司B站账号发布的视频播放量，按月汇总统计。<br>
+                        <strong>统计方式：</strong>各公司当月发布的所有视频的播放量合计对比。<br>
+                        <strong>统计范围：</strong>显示最近6个月的播放量数据（基于已获取的视频）。
+                    </div>
+                </div>
+            </div>
+
+            <!-- 公司卡片模块 -->
+            <div class="bilibili-cards-section">
+                <div class="bilibili-cards-header">
+                    <div class="bilibili-cards-title">
+                        <i class="fas fa-users"></i> 公司列表
+                    </div>
+                    <div class="bilibili-cards-filter">
+                        <input type="text" id="companyFilterInput" class="bilibili-filter-input" placeholder="搜索公司名称...">
+                    </div>
+                </div>
+                
+                <div id="bilibiliCardsContainer">
+                    <div class="loading-container">
+                        <div class="loading-spinner"></div>
+                        <p style="margin-top: 16px; color: #718096;">加载B站视频数据中...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let trendsChart = null;
+        let topCompaniesChart = null;
+        let allCardsData = [];
+        let selectedCompanies = new Set(); // 选中的公司集合
+        let filteredCardsData = []; // 筛选后的卡片数据
+        const FETCH_TIMEOUT = 8000; // ms
+
+        async function fetchWithTimeout(url, options = {}, timeout = FETCH_TIMEOUT) {
+            const controller = new AbortController();
+            const id = setTimeout(() => controller.abort(), timeout);
+            try {
+                const resp = await fetch(url, { ...options, signal: controller.signal });
+                clearTimeout(id);
+                return resp;
+            } catch (err) {
+                clearTimeout(id);
+                throw err;
+            }
+        }
+        
+        // 现代粉蓝系调色板（高区分度）
+        function generatePalette(n) {
+            const base = [
+                { border: '#4F46E5', fill: 'rgba(79,70,229,0.20)' },   // 靛蓝
+                { border: '#F472B6', fill: 'rgba(244,114,182,0.20)' }, // 粉
+                { border: '#22D3EE', fill: 'rgba(34,211,238,0.20)' },  // 青蓝
+                { border: '#10B981', fill: 'rgba(16,185,129,0.20)' },  // 翠绿
+                { border: '#F59E0B', fill: 'rgba(245,158,11,0.20)' },  // 橙黄
+                { border: '#A855F7', fill: 'rgba(168,85,247,0.20)' },  // 紫
+                { border: '#0EA5E9', fill: 'rgba(14,165,233,0.20)' },  // 天蓝
+                { border: '#EC4899', fill: 'rgba(236,72,153,0.20)' },  // 玫红
+            ];
+            const palette = [];
+            for (let i = 0; i < n; i++) {
+                palette.push(base[i % base.length]);
+            }
+            return palette;
+        }
+        
+        function generateTrendsData(cards) {
+            // 近30天，按周聚合（周粒度）
+            const today = new Date();
+            const start = new Date(today);
+            start.setDate(start.getDate() - 29);
+
+            // 生成周区间（7天一组）
+            const weeks = [];
+            let cursor = new Date(start);
+            while (cursor <= today) {
+                const weekStart = new Date(cursor);
+                const weekEnd = new Date(cursor);
+                weekEnd.setDate(weekEnd.getDate() + 6);
+                if (weekEnd > today) weekEnd.setTime(today.getTime());
+                weeks.push({ start: new Date(weekStart), end: new Date(weekEnd) });
+                cursor.setDate(cursor.getDate() + 7);
+            }
+
+            const labels = weeks.map(w => {
+                const s = `${w.start.getMonth() + 1}/${w.start.getDate()}`;
+                const e = `${w.end.getMonth() + 1}/${w.end.getDate()}`;
+                return `${s}-${e}`;
+            });
+
+            const datasets = [];
+            const palette = generatePalette(cards.length || 1);
+            
+            cards.forEach((card, index) => {
+                if (card.error || !card.videos || card.videos.length === 0) {
+                    return;
+                }
+                
+                const userInfo = card.user_info || {};
+                const userName = userInfo.name || `UP主${userInfo.mid}`;
+                
+                // 只显示选中的公司
+                if (selectedCompanies.size > 0 && !selectedCompanies.has(userName)) {
+                    return;
+                }
+                
+                const weekCounts = new Array(labels.length).fill(0);
+
+                card.videos.forEach(video => {
+                    if (video.pubdate_raw) {
+                        const pubDate = new Date(video.pubdate_raw * 1000);
+                        // 只考虑最近30天
+                        if (pubDate < start || pubDate > today) return;
+                        const idx = weeks.findIndex(w => pubDate >= w.start && pubDate <= w.end);
+                        if (idx >= 0) {
+                            weekCounts[idx] += 1;
+                        }
+                    }
+                });
+                
+                const colorIndex = index % palette.length;
+                const baseColor = palette[colorIndex].border;
+                const bgColor = palette[colorIndex].fill;
+                
+                datasets.push({
+                    label: userName,
+                    data: weekCounts,
+                    borderColor: baseColor,
+                    backgroundColor: bgColor,
+                    fill: {
+                        target: 'origin',
+                        above: bgColor,
+                    },
+                    tension: 0.35,
+                    borderWidth: 2.5,
+                    pointRadius: 2,
+                    pointHoverRadius: 6,
+                    pointHoverBorderWidth: 2,
+                    pointHoverBackgroundColor: baseColor,
+                    pointHoverBorderColor: '#ffffff',
+                });
+            });
+            
+            return { labels, datasets };
+        }
+        
+        function renderTrendsLegend(cards) {
+            const legendContainer = document.getElementById('trendsLegend');
+            if (!legendContainer) {
+                console.warn('找不到trendsLegend容器');
+                return;
+            }
+            
+            if (!cards || cards.length === 0) {
+                legendContainer.style.display = 'none';
+                return;
+            }
+            
+            const validCards = cards.filter(card => !card.error && card.videos && card.videos.length > 0);
+            
+            if (validCards.length === 0) {
+                legendContainer.style.display = 'none';
+                return;
+            }
+            
+            legendContainer.style.display = 'flex';
+            let html = '';
+            
+            const palette = generatePalette(validCards.length || 1);
+            validCards.forEach((card, index) => {
+                try {
+                    const userInfo = card.user_info || {};
+                    const userName = escapeHtml(userInfo.name || `UP主${userInfo.mid}`);
+                    const escapedUserName = escapeJsString(userName);
+                    const isSelected = selectedCompanies.size === 0 || selectedCompanies.has(userInfo.name || `UP主${userInfo.mid}`);
+                    const color = palette[index % palette.length].border;
+                    
+                    html += `
+                        <div class="bilibili-trends-legend-item ${isSelected ? 'selected' : ''}" 
+                             onclick="toggleCompany('${escapedUserName}', ${index})"
+                             data-company="${escapedUserName}">
+                            <div class="bilibili-trends-legend-checkbox">
+                                <i class="fas fa-check"></i>
+                            </div>
+                            <div class="bilibili-trends-legend-color" style="background-color: ${color}; border-color: ${color};"></div>
+                            <span>${userName}</span>
+                        </div>
+                    `;
+                } catch (e) {
+                    console.error(`渲染图例项 ${index} 失败:`, e);
+                }
+            });
+            
+            legendContainer.innerHTML = html;
+        }
+        
+        function toggleCompany(companyName, index) {
+            if (selectedCompanies.has(companyName)) {
+                selectedCompanies.delete(companyName);
+            } else {
+                selectedCompanies.add(companyName);
+            }
+            
+            // 如果所有公司都被取消选择，则显示所有
+            if (selectedCompanies.size === 0) {
+                allCardsData.forEach((card, idx) => {
+                    if (!card.error && card.videos && card.videos.length > 0) {
+                        const userInfo = card.user_info || {};
+                        const userName = userInfo.name || `UP主${userInfo.mid}`;
+                        selectedCompanies.add(userName);
+                    }
+                });
+            }
+            
+            // 更新图例显示
+            renderTrendsLegend(allCardsData);
+            
+            // 重新渲染图表
+            renderTrendsChart(allCardsData);
+        }
+        
+        async function refreshBilibiliData() {
+            const refreshBtn = document.getElementById('refreshBilibiliBtn');
+            const refreshIcon = document.getElementById('refreshIcon');
+            
+            if (refreshBtn && refreshBtn.disabled) {
+                return;
+            }
+            
+            if (refreshBtn) {
+                refreshBtn.disabled = true;
+                refreshIcon.className = 'fas fa-sync-alt fa-spin';
+            }
+            
+            try {
+                const timestamp = new Date().getTime();
+                const response = await fetchWithTimeout(`/api/bilibili/all?t=${timestamp}`);
+                const result = await response.json();
+                
+                if (result.success && result.data) {
+                    allCardsData = result.data;
+                    selectedCompanies.clear();
+                    
+                    await loadAllBilibiliCards();
+                } else {
+                    throw new Error(result.error || '刷新失败');
+                }
+            } catch (error) {
+                console.error('刷新数据失败:', error);
+                alert('刷新数据失败: ' + error.message);
+            } finally {
+                if (refreshBtn) {
+                    refreshBtn.disabled = false;
+                    refreshIcon.className = 'fas fa-sync-alt';
+                }
+            }
+        }
+        
+        function renderTrendsChart(cards) {
+            const ctx = document.getElementById('videoTrendsChart');
+            if (!ctx) return;
+            
+            const chartData = generateTrendsData(cards);
+            
+            if (trendsChart) {
+                trendsChart.destroy();
+            }
+            
+            trendsChart = new Chart(ctx, {
+                type: 'line',
+                data: chartData,
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        mode: 'nearest',
+                        intersect: false,
+                    },
+                    layout: {
+                        padding: {
+                            top: 10,
+                            right: 10,
+                            bottom: 10,
+                            left: 10
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false,
+                        },
+                        tooltip: {
+                            enabled: true,
+                            backgroundColor: 'rgba(15, 23, 42, 0.95)',
+                            padding: {
+                                top: 12,
+                                bottom: 12,
+                                left: 16,
+                                right: 16
+                            },
+                            titleFont: {
+                                size: 13,
+                                weight: '600',
+                                family: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
+                            },
+                            bodyFont: {
+                                size: 12,
+                                weight: '500',
+                                family: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
+                            },
+                            titleColor: '#f1f5f9',
+                            bodyColor: '#e2e8f0',
+                            borderColor: 'rgba(148, 163, 184, 0.2)',
+                            borderWidth: 1,
+                            cornerRadius: 8,
+                            displayColors: true,
+                            boxPadding: 6,
+                            callbacks: {
+                                title: function(context) {
+                                    return '日期: ' + context[0].label;
+                                },
+                                label: function(context) {
+                                    const label = context.dataset.label || '';
+                                    const value = context.parsed.y || 0;
+                                    return `${label}: ${value} 条`;
+                                },
+                                labelColor: function(context) {
+                                    return {
+                                        borderColor: context.dataset.borderColor,
+                                        backgroundColor: context.dataset.borderColor,
+                                        borderWidth: 2,
+                                        borderRadius: 2
+                                    };
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            display: true,
+                            title: {
+                                display: true,
+                                text: '周区间',
+                                font: {
+                                    size: 13,
+                                    weight: '600',
+                                    family: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
+                                },
+                                color: '#475569',
+                                padding: {
+                                    top: 8
+                                }
+                            },
+                            grid: {
+                                display: true,
+                                color: 'rgba(148, 163, 184, 0.1)',
+                                drawBorder: false,
+                                drawOnChartArea: true,
+                                drawTicks: true,
+                                lineWidth: 1,
+                                tickLength: 5
+                            },
+                            ticks: {
+                                font: {
+                                    size: 11,
+                                    family: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
+                                },
+                                color: '#64748b',
+                                maxRotation: 45,
+                                minRotation: 0,
+                                padding: 8
+                            },
+                            border: {
+                                display: true,
+                                color: 'rgba(148, 163, 184, 0.2)',
+                                width: 1
+                            }
+                        },
+                        y: {
+                            display: true,
+                            title: {
+                                display: true,
+                                text: '累计视频数量',
+                                font: {
+                                    size: 13,
+                                    weight: '600',
+                                    family: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
+                                },
+                                color: '#475569',
+                                padding: {
+                                    right: 8
+                                }
+                            },
+                            beginAtZero: true,
+                            grid: {
+                                display: true,
+                                color: 'rgba(148, 163, 184, 0.1)',
+                                drawBorder: false,
+                                drawOnChartArea: true,
+                                drawTicks: false,
+                                lineWidth: 1
+                            },
+                            ticks: {
+                                font: {
+                                    size: 11,
+                                    family: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
+                                },
+                                color: '#64748b',
+                                precision: 0,
+                                padding: 8,
+                                callback: function(value) {
+                                    return value;
+                                }
+                            },
+                            border: {
+                                display: true,
+                                color: 'rgba(148, 163, 184, 0.2)',
+                                width: 1
+                            }
+                        }
+                    },
+                    interaction: {
+                        mode: 'index',
+                        axis: 'x',
+                        intersect: false
+                    },
+                    elements: {
+                        line: {
+                            borderCapStyle: 'round',
+                            borderJoinStyle: 'round',
+                            tension: 0.5
+                        },
+                        point: {
+                            hoverRadius: 6,
+                            hoverBorderWidth: 3,
+                            radius: 0,
+                            hoverBackgroundColor: function(context) {
+                                return context.dataset.borderColor;
+                            },
+                            hoverBorderColor: '#ffffff'
+                        }
+                    },
+                    animation: {
+                        duration: 1000,
+                        easing: 'easeInOutQuart'
+                    }
+                }
+            });
+        }
+        
+        function filterCards(searchTerm) {
+            if (!searchTerm || searchTerm.trim() === '') {
+                filteredCardsData = allCardsData;
+            } else {
+                const term = searchTerm.toLowerCase().trim();
+                filteredCardsData = allCardsData.filter(card => {
+                    const userInfo = card.user_info || {};
+                    const userName = (userInfo.name || '').toLowerCase();
+                    const sign = (userInfo.sign || '').toLowerCase();
+                    return userName.includes(term) || sign.includes(term);
+                });
+            }
+            
+            renderCards(filteredCardsData);
+            renderHeatmap(filteredCardsData);
+            renderTopCompanies(filteredCardsData);
+        }
+        
+        function renderCards(cards) {
+            const container = document.getElementById('bilibiliCardsContainer');
+            
+            if (!container) {
+                console.error('找不到容器元素: bilibiliCardsContainer');
+                return;
+            }
+            
+            if (!cards || cards.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-search"></i>
+                        <p>未找到匹配的公司</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            console.log('渲染卡片，数量:', cards.length);
+            
+            let html = '<div class="bilibili-cards-grid">';
+            
+            cards.forEach((card, index) => {
+                try {
+                    const userInfo = card.user_info || {};
+                    const userStat = card.user_stat || {};
+                    const videos = card.videos || [];
+                    const hasError = card.error;
+                
+                const companyName = escapeHtml(userInfo.name || '未知UP主');
+                const errorMsg = escapeHtml(card.error_message || '数据获取失败');
+                const fansValue = escapeHtml(userInfo.fans || '0');
+                const viewsValue = escapeHtml(userStat.views || '0');
+                
+                html += `
+                    <div class="bilibili-card">
+                        <div class="bilibili-card-header">
+                            <div class="bilibili-card-name">${companyName}</div>
+                        </div>
+                        
+                        ${hasError ? `
+                            <div class="bilibili-card-error">
+                                <i class="fas fa-exclamation-triangle"></i> ${errorMsg}
+                            </div>
+                        ` : `
+                            <div class="bilibili-card-stats">
+                                <div class="bilibili-card-stat">
+                                    <div class="bilibili-card-stat-value">${viewsValue}</div>
+                                    <div class="bilibili-card-stat-label">总播放</div>
+                                </div>
+                                <div class="bilibili-card-stat">
+                                    <div class="bilibili-card-stat-value">${fansValue}</div>
+                                    <div class="bilibili-card-stat-label">粉丝</div>
+                                </div>
+                            </div>
+                            
+                            ${videos.length > 0 ? `
+                                <div class="bilibili-card-videos">
+                                    <div class="bilibili-card-videos-title">
+                                        <i class="fas fa-video"></i> 最新视频
+                                    </div>
+                                    ${videos.slice(0, 5).map(video => {
+                                        const playValue = video.play_raw || video.play || 0;
+                                        const playFormatted = typeof playValue === 'number' ? formatNumber(playValue) : escapeHtml(video.play || '0');
+                                        const videoTitle = escapeHtml(video.title || '无标题');
+                                        const videoUrl = video.url || '#';
+                                        const videoPubdate = escapeHtml(video.pubdate || '');
+                                        return `
+                                        <a href="${videoUrl}" target="_blank" class="bilibili-video-item">
+                                            <div class="bilibili-video-title">${videoTitle}</div>
+                                            <div class="bilibili-video-meta">
+                                                <span><i class="fas fa-play"></i> ${playFormatted}</span>
+                                                <span><i class="fas fa-clock"></i> ${videoPubdate}</span>
+                                            </div>
+                                        </a>
+                                        `;
+                                    }).join('')}
+                                </div>
+                            ` : '<div class="bilibili-card-videos"><p style="color: #718096; font-size: 0.75rem; text-align: center;">暂无视频</p></div>'}
+                        `}
+                        
+                        <a href="${card.space_url || '#'}" target="_blank" class="bilibili-card-link">
+                            <i class="fab fa-bilibili"></i> 前往B站空间
+                        </a>
+                    </div>
+                `;
+                } catch (e) {
+                    console.error(`渲染卡片 ${index} 失败:`, e, card);
+                    html += `
+                        <div class="bilibili-card">
+                            <div class="bilibili-card-error">
+                                <i class="fas fa-exclamation-triangle"></i> 渲染失败: ${e.message}
+                            </div>
+                        </div>
+                    `;
+                }
+            });
+            
+            html += '</div>';
+            container.innerHTML = html;
+            console.log('卡片渲染完成');
+        }
+
+        // TOP5 公司（近30天发布量）
+        function renderTopCompanies(cards) {
+            const ctx = document.getElementById('topCompaniesChart');
+            if (!ctx) return;
+
+            const now = Date.now();
+            const counts = {};
+
+            cards.forEach(card => {
+                if (card.error || !card.videos) return;
+                const user = card.user_info || {};
+                const userName = user.name || `UP主${user.mid}`;
+                card.videos.forEach(video => {
+                    if (!video.pubdate_raw) return;
+                    const pubMs = video.pubdate_raw * 1000;
+                    if (now - pubMs > 30 * 24 * 3600 * 1000) return;
+                    counts[userName] = (counts[userName] || 0) + 1;
+                });
+            });
+
+            const entries = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 5);
+            if (entries.length === 0) {
+                const container = document.getElementById('topCompaniesChart')?.parentElement;
+                if (container) {
+                    container.innerHTML = '<div class="loading-container"><p style="color:#718096;">近30天暂无数据</p></div>';
+                }
+                return;
+            }
+
+            // 维持降序，第一行即最高值
+            const labels = entries.map(e => e[0]);
+            const data = entries.map(e => e[1]);
+
+            const palette = generatePalette(data.length);
+            const border = data.map((_, i) => palette[i % palette.length].border);
+            const fill = data.map((_, i) => palette[i % palette.length].fill);
+
+            if (topCompaniesChart) topCompaniesChart.destroy();
+            topCompaniesChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels,
+                    datasets: [{
+                        data,
+                        backgroundColor: fill,
+                        borderColor: border,
+                        borderWidth: 2,
+                        borderRadius: 8,
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            beginAtZero: true,
+                            ticks: { color: '#475569' },
+                            grid: { color: 'rgba(148,163,184,0.2)' }
+                        },
+                        y: {
+                            ticks: { color: '#0f172a', font: { weight: '600' } },
+                            grid: { display: false }
+                        }
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: ctx => `${ctx.parsed.x} 条`
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        
+        // 渲染最新视频（最近7天，按日刷新）
+        function renderLatestVideos(cards) {
+            const container = document.getElementById('latestVideosContainer');
+            if (!container) return;
+
+            const now = Date.now();
+            const latest = [];
+
+            cards.forEach(card => {
+                if (card.error || !card.videos) return;
+                const user = card.user_info || {};
+                const userName = user.name || `UP主${user.mid}`;
+                card.videos.forEach(video => {
+                    if (!video.pubdate_raw) return;
+                    const pubMs = video.pubdate_raw * 1000;
+                    // 7天内
+                    if (now - pubMs <= 7 * 24 * 3600 * 1000) {
+                        latest.push({
+                            ...video,
+                            user: userName,
+                            pubMs
+                        });
+                    }
+                });
+            });
+
+            latest.sort((a, b) => b.pubMs - a.pubMs);
+
+            if (latest.length === 0) {
+                container.innerHTML = '<div class="loading-container"><p style="color:#718096;">近7天暂无新视频</p></div>';
+                return;
+            }
+
+            let html = '';
+            latest.slice(0, 20).forEach(video => {
+                const videoTitle = escapeHtml(video.title || '无标题');
+                const videoUrl = video.url || '#';
+                const videoUser = escapeHtml(video.user || '');
+                const videoPubdate = escapeHtml(video.pubdate || '');
+                const videoPlay = escapeHtml(video.play || '0');
+                html += `
+                    <a class="latest-video-item" href="${videoUrl}" target="_blank">
+                        <div class="latest-video-title">${videoTitle}</div>
+                        <div class="latest-video-meta">
+                            <span><i class="fas fa-user"></i> ${videoUser}</span>
+                            <span><i class="fas fa-clock"></i> ${videoPubdate}</span>
+                            <span><i class="fas fa-play"></i> ${videoPlay}</span>
+                        </div>
+                    </a>
+                `;
+            });
+
+            container.innerHTML = html;
+        }
+
+        function formatNumber(num) {
+            if (num >= 10000) {
+                return (num / 10000).toFixed(1) + '万';
+            }
+            return num.toString();
+        }
+        
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        function escapeJsString(str) {
+            if (!str) return '';
+            return String(str)
+                .replace(/\\/g, '\\\\')
+                .replace(/'/g, "\\'")
+                .replace(/"/g, '\\"')
+                .replace(/\n/g, '\\n')
+                .replace(/\r/g, '\\r')
+                .replace(/\t/g, '\\t');
+        }
+        
+        async function loadAllBilibiliCards() {
+            const container = document.getElementById('bilibiliCardsContainer');
+            
+            if (!container) {
+                console.error('找不到容器元素: bilibiliCardsContainer');
+                return;
+            }
+            
+            console.log('开始加载B站数据...');
+            
+            try {
+                console.log('发送API请求: /api/bilibili/all');
+                const response = await fetchWithTimeout('/api/bilibili/all');
+                console.log('API响应状态:', response.status, response.statusText);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP错误: ${response.status} ${response.statusText}`);
+                }
+                
+                const result = await response.json();
+                console.log('API返回数据:', result);
+                
+                console.log('B站数据加载结果:', {
+                    success: result.success,
+                    total: result.total,
+                    dataCount: result.data ? result.data.length : 0,
+                    firstCard: result.data && result.data.length > 0 ? {
+                        name: (result.data[0].user_info || {}).name,
+                        videosCount: (result.data[0].videos || []).length,
+                        hasError: result.data[0].error
+                    } : null
+                });
+                
+                if (result.success && result.data && result.data.length > 0) {
+                    const cards = result.data.map(card => {
+                        // 限制视频列表规模：仅保留近30天的前200条
+                        const now = Date.now();
+                        let safeVideos = (card.videos || [])
+                            .filter(v => v.pubdate_raw && (now - v.pubdate_raw * 1000) <= 30 * 24 * 3600 * 1000)
+                            .slice(0, 200);
+                        // 如果近30天无视频，回退展示最近的前5条，避免公司“空白”
+                        if (!safeVideos.length && card.videos) {
+                            safeVideos = [...card.videos].slice(0, 5);
+                        }
+                        return { ...card, videos: safeVideos };
+                    });
+                    allCardsData = cards;
+                    filteredCardsData = cards;
+                    
+                    // 初始化：默认选择所有公司（即使没有视频也选择）
+                    if (selectedCompanies.size === 0) {
+                        cards.forEach(card => {
+                            if (!card.error) {
+                                const userInfo = card.user_info || {};
+                                const userName = userInfo.name || `UP主${userInfo.mid}`;
+                                selectedCompanies.add(userName);
+                            }
+                        });
+                    }
+                    
+                    // 渲染图例
+                    try {
+                        renderTrendsLegend(cards);
+                    } catch (e) {
+                        console.error('渲染图例失败:', e);
+                    }
+                    
+                    // 渲染趋势图
+                    try {
+                        renderTrendsChart(cards);
+                    } catch (e) {
+                        console.error('渲染趋势图失败:', e);
+                    }
+                    
+                    // 渲染卡片
+                    try {
+                        renderCards(cards);
+                    } catch (e) {
+                        console.error('渲染卡片失败:', e);
+                        container.innerHTML = `
+                            <div class="loading-container">
+                                <i class="fas fa-exclamation-triangle" style="font-size: 3rem; color: #f56565; margin-bottom: 16px;"></i>
+                                <p style="color: #718096;">渲染卡片失败: ${e.message}</p>
+                            </div>
+                        `;
+                    }
+                    
+                    // 渲染最新视频
+                    try {
+                        renderLatestVideos(cards);
+                    } catch (e) {
+                        console.error('渲染最新视频失败:', e);
+                    }
+                    
+                    // 渲染 TOP5
+                    try {
+                        renderTopCompanies(cards);
+                    } catch (e) {
+                        console.error('渲染TOP5失败:', e);
+                    }
+                    
+                    // 加载月度播放量统计
+                    try {
+                        loadMonthlyStats();
+                    } catch (e) {
+                        console.error('加载月度统计失败:', e);
+                    }
+                } else {
+                    throw new Error(result.error || '获取数据失败');
+                }
+            } catch (error) {
+                console.error('加载B站卡片失败:', error);
+                console.error('错误堆栈:', error.stack);
+                
+                const errorMsg = error.message || '未知错误';
+                const isTimeout = errorMsg.includes('AbortError') || errorMsg.includes('timeout');
+                
+                container.innerHTML = `
+                    <div class="loading-container">
+                        <i class="fas fa-exclamation-triangle" style="font-size: 3rem; color: #f56565; margin-bottom: 16px;"></i>
+                        <p style="color: #718096; font-size: 1rem; margin-bottom: 8px;">
+                            <strong>加载失败:</strong> ${isTimeout ? '请求超时，请重试' : errorMsg}
+                        </p>
+                        <p style="color: #a0aec0; font-size: 0.85rem;">
+                            如果持续失败，可能是B站API风控导致。请稍后重试或检查网络连接。
+                        </p>
+                        <button onclick="loadAllBilibiliCards()" style="margin-top: 16px; padding: 10px 20px; background: linear-gradient(135deg, #FB7299 0%, #00A1D6 100%); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;">
+                            <i class="fas fa-sync-alt"></i> 重试
+                        </button>
+                    </div>
+                `;
+            }
+        }
+        
+        let monthlyStatsChart = null;
+        let monthlyStatsData = null;
+
+        async function loadMonthlyStats() {
+            try {
+                console.log('开始加载月度统计数据...');
+                const response = await fetchWithTimeout('/api/bilibili/monthly_stats');
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP错误: ${response.status} ${response.statusText}`);
+                }
+                
+                const result = await response.json();
+                console.log('月度统计数据:', result);
+                
+                if (result.success && result.data) {
+                    monthlyStatsData = result.data;
+                    console.log('月度统计数据详情:', {
+                        months: monthlyStatsData.months?.length || 0,
+                        companies: monthlyStatsData.companies?.length || 0,
+                        firstMonth: monthlyStatsData.months?.[0]
+                    });
+                    updateMonthlyStatsChart();
+                } else {
+                    console.warn('月度统计数据格式不正确:', result);
+                    const ctx = document.getElementById('monthlyStatsChart');
+                    if (ctx && ctx.parentElement) {
+                        ctx.parentElement.innerHTML = '<div class="loading-container"><p style="color:#718096;">加载月度统计数据失败</p></div>';
+                    }
+                }
+            } catch (error) {
+                console.error('加载月度统计数据失败:', error);
+                const ctx = document.getElementById('monthlyStatsChart');
+                if (ctx && ctx.parentElement) {
+                    ctx.parentElement.innerHTML = '<div class="loading-container"><p style="color:#f56565;">加载失败: ' + error.message + '</p></div>';
+                }
+            }
+        }
+
+        function updateMonthlyStatsChart() {
+            const ctx = document.getElementById('monthlyStatsChart');
+            if (!ctx) return;
+            
+            if (!monthlyStatsData || !monthlyStatsData.months || !monthlyStatsData.companies) {
+                // 显示空数据提示
+                const container = ctx.parentElement;
+                if (container) {
+                    container.innerHTML = '<div class="loading-container"><p style="color:#718096;">暂无月度统计数据</p></div>';
+                }
+                return;
+            }
+            
+            const months = monthlyStatsData.months.reverse(); // 从旧到新
+            const companies = monthlyStatsData.companies;
+            const labels = months.map(m => m.month);
+            
+            // 检查是否有数据
+            let hasData = false;
+            for (const month of months) {
+                for (const company of companies) {
+                    if (month.companies[company]?.play_count > 0) {
+                        hasData = true;
+                        break;
+                    }
+                }
+                if (hasData) break;
+            }
+            
+            if (!hasData) {
+                // 显示空数据提示
+                const container = ctx.parentElement;
+                if (container) {
+                    container.innerHTML = '<div class="loading-container"><p style="color:#718096;">暂无播放量数据（可能视频数据尚未加载）</p></div>';
+                }
+                return;
+            }
+            
+            // 生成调色板
+            const palette = generatePalette(companies.length);
+            
+            // 为每个公司创建数据集
+            const datasets = companies.map((company, index) => {
+                const data = months.map(month => {
+                    return month.companies[company]?.play_count || 0;
+                });
+                
+                return {
+                    label: company,
+                    data: data,
+                    backgroundColor: palette[index % palette.length].fill,
+                    borderColor: palette[index % palette.length].border,
+                    borderWidth: 2,
+                    borderRadius: 6,
+                };
+            });
+            
+            if (monthlyStatsChart) {
+                monthlyStatsChart.destroy();
+            }
+            
+            // 重新获取canvas元素（因为可能被替换了）
+            const ctx = document.getElementById('monthlyStatsChart');
+            if (!ctx) return;
+            
+            monthlyStatsChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: datasets
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top',
+                            labels: {
+                                boxWidth: 12,
+                                padding: 10,
+                                font: {
+                                    size: 12
+                                }
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const value = context.parsed.y;
+                                    const formatted = value >= 10000 
+                                        ? (value / 10000).toFixed(1) + '万' 
+                                        : value.toString();
+                                    return `${context.dataset.label}: ${formatted}`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            stacked: false,
+                            ticks: {
+                                font: {
+                                    size: 11
+                                }
+                            }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            stacked: false,
+                            ticks: {
+                                callback: function(value) {
+                                    if (value >= 10000) {
+                                        return (value / 10000).toFixed(1) + '万';
+                                    }
+                                    return value;
+                                },
+                                font: {
+                                    size: 11
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // 页面加载时获取数据
+        document.addEventListener('DOMContentLoaded', () => {
+            loadAllBilibiliCards();
+            
+            // 绑定搜索框事件
+            const filterInput = document.getElementById('companyFilterInput');
+            if (filterInput) {
+                filterInput.addEventListener('input', (e) => {
+                    filterCards(e.target.value);
+                });
+            }
+        });
+    </script>
+</body>
+</html>
+
+

@@ -26,6 +26,32 @@
 </head>
 <body>
     <div class="container">
+        <!-- 顶部导航栏 - Tab样式 - 全屏宽度 -->
+        <div class="top-nav-fullwidth-wrapper">
+            <nav class="top-nav">
+                <div class="nav-tabs">
+                    <a href="/" class="nav-logo">
+                        <img src="{{ url_for('static', filename='images/LimX logo.svg') }}" alt="LimX Logo" class="logo-img">
+                    </a>
+                    <a href="/" class="nav-tab active">
+                        <span>具身论文（Embodied Pulse）</span>
+                    </a>
+                    <a href="/bilibili" class="nav-tab">
+                        <span>具身视频Hub</span>
+                    </a>
+                    <a href="https://gradmotion.com/" target="_blank" class="nav-tab">
+                        <span>具身算法工具箱（GradMotion）</span>
+                    </a>
+                    <a href="https://paj5uamwttr.feishu.cn/wiki/GaozwfU3iiWA9Nk0LVUcUzKZnHc" target="_blank" class="nav-tab">
+                        <span>具身知识库</span>
+                    </a>
+                    <a href="https://paj5uamwttr.feishu.cn/share/base/form/shrcnYlYb0NorOBVv2P8xRAArDe" target="_blank" class="nav-tab">
+                        <span>产品反馈</span>
+                    </a>
+                </div>
+            </nav>
+        </div>
+
         <!-- 主体内容区域 -->
         <div class="main-content-wrapper">
             <div class="main-content">
@@ -38,197 +64,15 @@
                     <p class="subtitle">具身领域前沿论文每日更新</p>
                     <p class="header-description">追踪具身智能、机器人学习、视觉语言动作模型等前沿研究</p>
                 </div>
-            </div>
-        </header>
-
-        <!-- 顶部导航栏 - Tab样式 -->
-        <nav class="top-nav">
-            <div class="nav-tabs">
-                <a href="https://gradmotion.com/" target="_blank" class="nav-tab active">
-                    <span>具身算法工具箱（GradMotion）</span>
-                </a>
-                <a href="https://paj5uamwttr.feishu.cn/wiki/GaozwfU3iiWA9Nk0LVUcUzKZnHc" target="_blank" class="nav-tab">
-                    <span>具身知识库</span>
-                </a>
-                <a href="https://paj5uamwttr.feishu.cn/share/base/form/shrcnYlYb0NorOBVv2P8xRAArDe" target="_blank" class="nav-tab">
-                    <span>需求反馈</span>
-                </a>
-            </div>
-        </nav>
-
-        <!-- 具身机器人研究方向结构 -->
-        <!-- 合并模块：具身智能研究方向 + 论文数据统计 -->
-        <section class="combined-research-stats">
-            <div class="combined-header" id="dashboardHeader">
-                <h2 class="dashboard-title-clickable">
-                    <i class="fas fa-sitemap"></i> 具身论文数据仪表盘
-                    <button class="dashboard-toggle-btn" id="dashboardToggleBtn" title="展开/收起">
-                        <i class="fas fa-chevron-down" id="dashboardToggleIcon"></i>
-                    </button>
-                </h2>
-                <div class="combined-header-actions">
-                    <button id="fetchBtn" class="btn btn-success">
+                <div class="header-actions">
+                    <button id="fetchBtnBanner" class="btn btn-banner-primary">
                         <i class="fas fa-download"></i> 抓取新论文
                     </button>
                 </div>
             </div>
-            
-            <div class="combined-layout" id="dashboardContent">
-                <!-- 左侧：研究方向 -->
-                <div class="research-panel">
-                <!-- 感知层 -->
-                <div class="structure-category">
-                    <div class="category-label">感知层</div>
-                    <div class="category-cards">
-                        <div class="structure-card perception">
-                            <div class="structure-title-row">
-                                <h3>Perception</h3>
-                                <p class="structure-name">感知理解</p>
-                            </div>
-                            <div class="structure-keywords">
-                                <span>视觉感知、场景理解</span>
-                            </div>
-                        </div>
-                        
-                        <div class="structure-card vlm">
-                            <div class="structure-title-row">
-                                <h3>VLM</h3>
-                                <p class="structure-name">视觉语言模型</p>
-                            </div>
-                            <div class="structure-keywords">
-                                <span>视觉理解、多模态学习</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- 决策层 -->
-                <div class="structure-category">
-                    <div class="category-label">决策层</div>
-                    <div class="category-cards">
-                        <div class="structure-card planning">
-                            <div class="structure-title-row">
-                                <h3>Planning</h3>
-                                <p class="structure-name">任务规划</p>
-                            </div>
-                            <div class="structure-keywords">
-                                <span>路径规划、任务分解</span>
-                            </div>
-                        </div>
-                        
-                        <div class="structure-card learning">
-                            <div class="structure-title-row">
-                                <h3>RL/IL</h3>
-                                <p class="structure-name">强化/模仿学习</p>
-                            </div>
-                            <div class="structure-keywords">
-                                <span>强化学习、模仿学习</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- 执行层 -->
-                <div class="structure-category">
-                    <div class="category-label">执行层</div>
-                    <div class="category-cards">
-                        <div class="structure-card manipulation">
-                            <div class="structure-title-row">
-                                <h3>Manipulation</h3>
-                                <p class="structure-name">操作控制</p>
-                            </div>
-                            <div class="structure-keywords">
-                                <span>机器人操作、抓取</span>
-                            </div>
-                        </div>
-                        
-                        <div class="structure-card locomotion">
-                            <div class="structure-title-row">
-                                <h3>Locomotion</h3>
-                                <p class="structure-name">运动控制</p>
-                            </div>
-                            <div class="structure-keywords">
-                                <span>移动、导航、步态规划</span>
-                            </div>
-                        </div>
-                        
-                        <div class="structure-card dexterous">
-                            <div class="structure-title-row">
-                                <h3>Dexterous</h3>
-                                <p class="structure-name">灵巧操作</p>
-                            </div>
-                            <div class="structure-keywords">
-                                <span>精细操作、触觉感知</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- 集成层 -->
-                <div class="structure-category">
-                    <div class="category-label">集成层</div>
-                    <div class="category-cards">
-                        <div class="structure-card vla">
-                            <div class="structure-title-row">
-                                <h3>VLA</h3>
-                                <p class="structure-name">视觉语言动作</p>
-                            </div>
-                            <div class="structure-keywords">
-                                <span>端到端控制、指令跟随</span>
-                            </div>
-                        </div>
-                        
-                        <div class="structure-card humanoid">
-                            <div class="structure-title-row">
-                                <h3>Humanoid</h3>
-                                <p class="structure-name">人形机器人</p>
-                            </div>
-                            <div class="structure-keywords">
-                                <span>双足行走、全身协调</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                </div>
-                
-                <!-- 右侧：论文数据统计 -->
-                <div class="stats-panel">
-                    <div class="stats-content">
-                        <!-- 总论文数 -->
-                        <div class="total-card">
-                            <div class="total-label">总论文数</div>
-                            <div class="total-value" id="totalPapersValue">-</div>
-                        </div>
-                        
-                        <!-- 环形图 -->
-                        <div class="chart-card">
-                            <div class="chart-container">
-                                <canvas id="barChart"></canvas>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </section>
+        </header>
 
-        <!-- 研究方向活跃度挂件 -->
-        <section class="trends-section">
-            <div class="trends-widget">
-                <div class="trends-widget-header">
-                    <h3><i class="fas fa-chart-candlestick"></i> 研究方向活跃度</h3>
-                    <div class="trends-time-selector">
-                        <button class="trends-time-btn active" data-days="7" title="近7天">7天</button>
-                        <button class="trends-time-btn" data-days="30" title="近30天">30天</button>
-                    </div>
-                </div>
-                <div class="trends-widget-content" id="trendsContainer">
-                    <div class="loading-spinner-small">
-                        <i class="fas fa-spinner fa-spin"></i>
-                        <p>加载趋势数据中...</p>
-                    </div>
-                </div>
-            </div>
-        </section>
+        <!-- 数据仪表盘与趋势模块已下线 -->
 
         <!-- 论文清单 -->
         <section class="papers-list-section">
@@ -276,7 +120,7 @@
                     </select>
                 </div>
             </div>
-            
+
             <!-- 标签页（筛选按钮） -->
             <div class="tabs" id="tabs">
                 <!-- 标签页将通过JS动态生成 -->
@@ -303,103 +147,34 @@
             
             <!-- 右侧独立挂窗区域 -->
             <aside class="side-widgets">
-                <!-- 新闻信息挂窗 -->
-                <div class="news-widget">
-                    <div class="news-widget-header">
-                        <h3><i class="fas fa-newspaper"></i> 具身24h新闻🔥</h3>
-                        <div class="news-header-actions">
-                            <button id="fetchNewsBtn" class="btn-refresh-news" title="刷新新闻">
-                                <i class="fas fa-sync-alt"></i>
-                            </button>
-                            <span class="news-count" id="newsCount">-</span>
+                <!-- 活跃作者排行榜挂件 -->
+                <div class="author-ranking-widget">
+                    <div class="author-ranking-widget-header">
+                        <h3><i class="fas fa-trophy"></i> 活跃作者排行榜</h3>
+                    </div>
+                    
+                    <div class="author-ranking-controls">
+                        <div class="author-ranking-filters">
+                            <select id="authorRankingDays" class="author-ranking-select">
+                                <option value="7">近7天</option>
+                                <option value="30">近30天</option>
+                            </select>
+                            <select id="authorRankingCategory" class="author-ranking-select">
+                                <option value="">全部领域</option>
+                            </select>
                         </div>
                     </div>
-                    <div class="news-widget-content scrolling" id="newsContainer">
+                    
+                    <div id="authorRankingContainer" class="author-ranking-widget-content">
                         <div class="loading-spinner-small">
                             <i class="fas fa-spinner fa-spin"></i>
-                            <p>加载新闻信息中...</p>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- 具身赛博🙏挂件 -->
-                <div class="fortune-widget">
-                    <div class="fortune-widget-header">
-                        <div class="fortune-header-left">
-                            <h3>具身赛博🙏</h3>
-                            <span class="fortune-daily-badge">每日一拜</span>
-                        </div>
-                        <span class="fortune-date" id="fortuneDate"></span>
-                    </div>
-                    <div class="fortune-widget-content" id="fortuneContainer">
-                        <!-- 选择今天重要的事 -->
-                        <div class="fortune-category-section">
-                            <div class="fortune-category-hint">
-                                <i class="fas fa-hands-praying"></i>
-                                <span>选择近期对你很重要的事，拜拜求福</span>
-                            </div>
-                            <div class="fortune-category-tags" id="fortuneCategoryTags">
-                                <div class="category-tag active" data-category="coding">
-                                    <span class="tag-icon">☕</span>
-                                    <span class="tag-text">调测代码</span>
-                                </div>
-                                <div class="category-tag" data-category="hardware">
-                                    <span class="tag-icon">🤖</span>
-                                    <span class="tag-text">硬件联调</span>
-                                </div>
-                                <div class="category-tag" data-category="paper">
-                                    <span class="tag-icon">📝</span>
-                                    <span class="tag-text">投稿论文</span>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <!-- 主画面区域 -->
-                        <div class="fortune-main-scene">
-                            <!-- 佛像/赛博佛像（可点击） -->
-                            <div class="fortune-buddha-main clickable" id="fortuneTubeMain">
-                                <div class="buddha-body">
-                                    <div class="buddha-click-hint">
-                                        <i class="fas fa-hands-praying"></i>
-                                        <span>拜拜求福</span>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <!-- 隐藏的拜拜按钮（保留用于逻辑） -->
-                            <button class="fortune-shake-btn hidden" id="fortuneShakeBtn" style="display: none;">
-                                <i class="fas fa-hands-praying"></i>
-                                <span>拜一拜</span>
-                            </button>
-                            
-                            <!-- 飞出的赐福文字 -->
-                            <div class="fortune-stick-flying" id="fortuneStickFlying">
-                                <div class="blessing-paper">
-                                    <div class="blessing-content" id="fortuneStickContent"></div>
-                                </div>
-                            </div>
-                            
-                            <!-- 结果展示（覆盖层） -->
-                            <div class="fortune-result-overlay hidden" id="fortuneResult">
-                                <div class="fortune-result-content">
-                                    <div class="fortune-icon">
-                                        <div class="three-incense-sticks">
-                                            <div class="incense-stick"></div>
-                                            <div class="incense-stick"></div>
-                                            <div class="incense-stick"></div>
-                                        </div>
-                                    </div>
-                                    <div class="fortune-message" id="fortuneMessage"></div>
-                                    <div class="fortune-timestamp" id="fortuneTimestamp"></div>
-                                    <div class="fortune-result-bg"></div>
-                                </div>
-                            </div>
+                            <p>加载作者排行榜中...</p>
                         </div>
                     </div>
                 </div>
                 
                 <!-- Bilibili挂件 -->
-                <div class="bilibili-widget">
+                <div class="bilibili-widget" style="display: none;">
                     <div class="bilibili-widget-header">
                         <div class="bilibili-header-title">
                             <h3><i class="fab fa-bilibili"></i> B站</h3>
@@ -443,24 +218,6 @@
                         <div class="loading-spinner-small">
                             <i class="fas fa-spinner fa-spin"></i>
                             <p>加载招聘信息中...</p>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- 数据集信息挂窗 -->
-                <div class="datasets-widget collapsed">
-                    <div class="datasets-widget-header" id="datasetsWidgetHeader">
-                        <h3 class="widget-title-clickable">
-                            <i class="fas fa-database"></i> 具身数据集
-                            <span class="update-badge hidden" id="datasetsUpdateBadge" title="有新更新"></span>
-                            <i class="fas fa-chevron-down widget-toggle-icon" id="datasetsToggleIcon"></i>
-                        </h3>
-                        <span class="datasets-count" id="datasetsCount">-</span>
-                    </div>
-                    <div class="datasets-widget-content" id="datasetsContainer">
-                        <div class="loading-spinner-small">
-                            <i class="fas fa-spinner fa-spin"></i>
-                            <p>加载数据集信息中...</p>
                         </div>
                     </div>
                 </div>

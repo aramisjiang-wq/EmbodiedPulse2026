@@ -7,6 +7,19 @@ import os
 import threading
 import logging
 from datetime import datetime
+
+# 尝试加载.env文件
+try:
+    from dotenv import load_dotenv
+    env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '.env')
+    if os.path.exists(env_path):
+        load_dotenv(env_path)
+        logger = logging.getLogger(__name__)
+        logger.debug(f"已加载 .env 文件: {env_path}")
+except ImportError:
+    pass  # python-dotenv未安装，跳过
+except Exception as e:
+    pass  # 加载失败，跳过
 from daily_arxiv import load_config, demo, get_daily_papers
 from models import init_db, get_session, Paper
 from sqlalchemy import func, or_, and_, desc
@@ -14,6 +27,15 @@ from jobs_models import get_jobs_session, Job
 from datasets_models import get_datasets_session, Dataset
 from news_models import get_news_session, News
 from bilibili_client import BilibiliClient, format_number, format_timestamp
+from taxonomy import (
+    CATEGORY_DISPLAY,
+    CATEGORY_ORDER,
+    build_nested_from_flat,
+    display_category,
+    get_category_meta,
+    normalize_category,
+    split_leaf_key,
+)
 
 # 获取当前文件所在目录
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -42,6 +64,8 @@ app = Flask(__name__,
             template_folder=TEMPLATE_DIR,
             static_folder=STATIC_DIR)
 app.config['JSON_AS_ASCII'] = False  # 支持中文
+
+# 标签体系由 taxonomy.py 提供，避免多处定义
 
 # 验证模板目录配置
 if not os.path.exists(app.template_folder):
@@ -73,8 +97,10 @@ news_fetch_status_lock = threading.Lock()
 
 # Bilibili数据缓存
 bilibili_cache = {
-    'data': None,
-    'expires_at': None
+    'data': None,  # 单个UP主数据缓存
+    'expires_at': None,
+    'all_data': None,  # 所有UP主数据缓存
+    'all_expires_at': None
 }
 bilibili_cache_lock = threading.Lock()
 BILIBILI_CACHE_DURATION = 600  # 缓存10分钟（600秒）
@@ -117,9 +143,12 @@ def load_papers_data(json_path='./docs/cv-arxiv-daily.json', use_db=True):
             # 按类别组织数据
             result = {}
             for paper in papers:
-                if paper.category not in result:
-                    result[paper.category] = {}
-                result[paper.category][paper.id] = paper.to_dict()
+                norm_cat = normalize_category(paper.category)
+                paper_dict = paper.to_dict()
+                paper_dict['category'] = norm_cat
+                if norm_cat not in result:
+                    result[norm_cat] = {}
+                result[norm_cat][paper.id] = paper_dict
             
             return result
         except Exception as e:
@@ -174,6 +203,37 @@ def parse_paper_entry(entry_str):
         logger.error(f"解析论文条目失败: {e}, 条目: {entry_str[:100]}")
     return None
 
+
+def build_nested_papers(papers):
+    """将论文列表组织为 level1->level2->leaf 的嵌套结构"""
+    nested = {}
+    for paper in papers:
+        norm_cat = normalize_category(paper.category)
+        l1, l2, leaf = split_leaf_key(norm_cat)
+        paper_dict = paper.to_dict()
+        paper_dict['category'] = leaf
+        nested.setdefault(l1, {}).setdefault(l2, {}).setdefault(leaf, []).append(paper_dict)
+    return nested
+
+
+def build_nested_stats_from_papers(papers):
+    """从论文列表构建嵌套统计"""
+    flat_counts = {}
+    for (cat,) in papers:
+        norm_cat = normalize_category(cat)
+        flat_counts[norm_cat] = flat_counts.get(norm_cat, 0) + 1
+    return build_nested_from_flat(flat_counts)
+
+
+@app.route('/api/categories/meta')
+def get_category_meta_api():
+    """提供标签体系的配置，前端可用来对齐顺序/显示名"""
+    meta = get_category_meta()
+    return jsonify({
+        'success': True,
+        'data': meta
+    })
+
 @app.route('/')
 def index():
     """主页"""
@@ -190,6 +250,16 @@ def index():
         raise FileNotFoundError(error_msg)
     logger.debug(f"渲染模板: {template_path}")
     return render_template('index.html')
+
+@app.route('/bilibili')
+def bilibili_page():
+    """B站视频页面"""
+    template_path = os.path.join(app.template_folder, 'bilibili.html')
+    if not os.path.exists(template_path):
+        # 如果模板不存在，返回404或使用index.html
+        logger.warning(f"B站页面模板不存在: {template_path}，使用index.html")
+        return render_template('index.html')
+    return render_template('bilibili.html')
 
 @app.route('/api/papers')
 def get_papers():
@@ -223,19 +293,15 @@ def get_papers():
         
         logger.info(f"昨天新论文查询: yesterday={yesterday}, yesterday_start={yesterday_start}, today_start={today_start}, new_count={new_papers_count} (使用created_at判断，今天看昨天的新论文)")
         
-        # 按类别组织数据
-        result = {}
-        for paper in papers:
-            if paper.category not in result:
-                result[paper.category] = []
-            result[paper.category].append(paper.to_dict())
+        # 按三层标签组织数据
+        nested = build_nested_papers(papers)
         
         # 计算总数
         total_count = len(papers)
         
         return jsonify({
             'success': True,
-            'data': result,
+            'data': nested,
             'last_update': last_update,
             'total_count': total_count,
             'new_papers_count': new_papers_count  # 新增论文数量
@@ -245,7 +311,7 @@ def get_papers():
         # 如果数据库失败，回退到JSON
         try:
             data = load_papers_data(use_db=False)
-            result = {}
+            flat_result = {}
             
             for keyword, papers in data.items():
                 parsed_papers = []
@@ -256,14 +322,17 @@ def get_papers():
                         parsed_papers.append(parsed)
                 
                 parsed_papers.sort(key=lambda x: x['date'], reverse=True)
-                result[keyword] = parsed_papers
+                norm_key = normalize_category(keyword)
+                flat_result[norm_key] = parsed_papers
+            
+            nested = build_nested_from_flat(flat_result)
             
             # 回退到JSON时，无法计算新论文数量，返回0
             return jsonify({
                 'success': True,
-                'data': result,
+                'data': nested,
                 'last_update': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-                'total_count': sum(len(papers) for papers in result.values()),
+                'total_count': sum(len(papers) for papers in flat_result.values()),
                 'new_papers_count': 0,  # JSON回退时无法计算，返回0
                 'warning': '使用JSON文件作为数据源'
             })
@@ -293,12 +362,36 @@ def get_trends():
         end_date = datetime.now().date()
         start_date = end_date - timedelta(days=days)
         
-        # 获取所有研究方向
-        categories = session.query(Paper.category).distinct().all()
-        categories = [cat[0] for cat in categories if cat[0]]  # 过滤None值
-        
+        # 获取时间范围内的所有论文，统一按新标签归类
+        papers = session.query(Paper).filter(
+            or_(
+                and_(Paper.publish_date.isnot(None), Paper.publish_date >= start_date, Paper.publish_date <= end_date),
+                and_(Paper.publish_date.is_(None),
+                     func.date(Paper.created_at) >= start_date,
+                     func.date(Paper.created_at) <= end_date)
+            )
+        ).all()
+
+        # 为每个类别生成时间序列数据
+        trends_data = {}
+        for paper in papers:
+            norm_cat = normalize_category(paper.category)
+            if norm_cat == 'Uncategorized':
+                continue
+            if paper.publish_date:
+                date_key = paper.publish_date
+            elif paper.created_at:
+                date_key = paper.created_at.date()
+            else:
+                continue
+            if not (start_date <= date_key <= end_date):
+                continue
+            date_str = date_key.strftime('%Y-%m-%d')
+            trends_data.setdefault(norm_cat, {'daily_counts': {}})
+            trends_data[norm_cat]['daily_counts'][date_str] = trends_data[norm_cat]['daily_counts'].get(date_str, 0) + 1
+
         # 如果没有类别，返回空数据
-        if not categories:
+        if not trends_data:
             return jsonify({
                 'success': True,
                 'days': days,
@@ -309,58 +402,21 @@ def get_trends():
                 'updated_at': datetime.now().isoformat(),
                 'message': '暂无论文数据，请先抓取论文'
             })
-        
-        # 为每个类别生成时间序列数据
-        trends_data = {}
-        
-        for category in categories:
-            # 查询该类别在指定时间范围内的论文，按日期分组统计
-            # 使用 publish_date 或 created_at 作为时间基准
-            daily_counts = {}
-            
-            # 查询该类别在时间范围内的所有论文
-            # 优先使用 publish_date，如果没有则使用 created_at
-            papers = session.query(Paper).filter(
-                Paper.category == category
-            ).filter(
-                or_(
-                    and_(Paper.publish_date.isnot(None), Paper.publish_date >= start_date, Paper.publish_date <= end_date),
-                    and_(Paper.publish_date.is_(None), 
-                         func.date(Paper.created_at) >= start_date, 
-                         func.date(Paper.created_at) <= end_date)
-                )
-            ).all()
-            
-            # 按日期分组统计
-            for paper in papers:
-                # 优先使用 publish_date，如果没有则使用 created_at 的日期部分
-                if paper.publish_date:
-                    date_key = paper.publish_date
-                elif paper.created_at:
-                    date_key = paper.created_at.date()
-                else:
-                    continue
-                
-                if start_date <= date_key <= end_date:
-                    date_str = date_key.strftime('%Y-%m-%d')
-                    daily_counts[date_str] = daily_counts.get(date_str, 0) + 1
-            
-            # 生成完整的时间序列（包括没有论文的日期）
+
+        # 生成完整的时间序列（包括没有论文的日期）
+        for category, payload in trends_data.items():
+            daily_counts = payload.get('daily_counts', {})
             date_list = []
             count_list = []
             current_date = start_date
-            
             while current_date <= end_date:
                 date_str = current_date.strftime('%Y-%m-%d')
                 date_list.append(date_str)
                 count_list.append(daily_counts.get(date_str, 0))
                 current_date += timedelta(days=1)
-            
-            trends_data[category] = {
-                'dates': date_list,
-                'counts': count_list,
-                'total': sum(count_list)
-            }
+            payload['dates'] = date_list
+            payload['counts'] = count_list
+            payload['total'] = sum(count_list)
         
         # 计算增长最快的方向（最近7天 vs 之前7天）
         growth_analysis = {}
@@ -368,7 +424,7 @@ def get_trends():
             recent_start = end_date - timedelta(days=7)
             previous_start = end_date - timedelta(days=14)
             
-            for category in categories:
+            for category in CATEGORY_ORDER:
                 recent_count = trends_data[category]['total'] if category in trends_data else 0
                 # 计算最近7天的数量
                 recent_papers = session.query(Paper).filter(
@@ -437,36 +493,41 @@ def get_stats():
         session = get_session()
         
         # 按类别统计
-        stats_query = session.query(
-            Paper.category,
-            func.count(Paper.id).label('count')
-        ).group_by(Paper.category).all()
-        
-        stats = {category: count for category, count in stats_query}
-        total = session.query(func.count(Paper.id)).scalar() or 0
+        papers = session.query(Paper.category).all()
+        flat_counts = {}
+        for (cat,) in papers:
+            norm_cat = normalize_category(cat)
+            flat_counts[norm_cat] = flat_counts.get(norm_cat, 0) + 1
+        total = sum(flat_counts.values())
+        nested_counts = build_nested_from_flat(flat_counts)
         
         return jsonify({
             'success': True,
-            'stats': stats,
-            'total': total
+            'stats': nested_counts,
+            'total': total,
+            'display': CATEGORY_DISPLAY
         })
     except Exception as e:
         logger.error(f"获取统计信息失败: {e}")
         # 回退到JSON
         try:
             data = load_papers_data(use_db=False)
-            stats = {}
+            flat_counts = {}
             total = 0
             
             for keyword, papers in data.items():
                 count = len(papers)
-                stats[keyword] = count
+                norm_cat = normalize_category(keyword)
+                flat_counts[norm_cat] = flat_counts.get(norm_cat, 0) + count
                 total += count
+            
+            nested_counts = build_nested_from_flat(flat_counts)
             
             return jsonify({
                 'success': True,
-                'stats': stats,
+                'stats': nested_counts,
                 'total': total,
+                'display': CATEGORY_DISPLAY,
                 'warning': '使用JSON文件作为数据源'
             })
         except Exception as e2:
@@ -759,6 +820,478 @@ def get_bilibili():
             'success': False,
             'error': str(e)
         }), 500
+
+# B站UP主列表配置
+BILIBILI_UP_LIST = [
+    1172054289,       # 逐际动力
+    3546595559737798, # 傅立叶智能（旧-保留）
+    3494380742642452, # 傅立叶智能（官方？备份）
+    3546665977907667, # 加速进化机器人
+    3546728498202679, # 众擎
+    22477177,         # 云深处
+    519804427,        # 傅利叶（用户提供）
+    521974986,        # Unitree宇树科技
+    472153261,        # 优必选科技
+    3546714680068378, # 松延动力
+    3537120496978247, # 乐聚机器人LEJUROBOT
+    3546561487309464, # 星动纪元ROBOTERA
+]
+
+@app.route('/api/bilibili/all')
+def get_all_bilibili():
+    """获取所有B站UP主信息和视频列表"""
+    global bilibili_cache
+    
+    try:
+        # 检查是否有强制刷新参数（手动刷新时使用）
+        force_refresh = request.args.get('t') is not None
+        
+        # 如果不是强制刷新，检查缓存
+        if not force_refresh:
+            with bilibili_cache_lock:
+                now = datetime.now().timestamp()
+                if (bilibili_cache.get('all_data') is not None and 
+                    bilibili_cache.get('all_expires_at') is not None and 
+                    now < bilibili_cache['all_expires_at']):
+                    logger.info("使用Bilibili全部数据缓存")
+                    return jsonify(bilibili_cache['all_data'])
+        
+        # 清除缓存或缓存过期，重新获取数据
+        if force_refresh:
+            logger.info("手动刷新：清除缓存，重新获取Bilibili数据")
+        else:
+            logger.info("Bilibili全部数据缓存已过期或不存在，重新获取数据")
+        
+        client = BilibiliClient()
+        all_data = []
+        
+        import time
+        total_uid = len(BILIBILI_UP_LIST)
+        
+        for idx, up_uid in enumerate(BILIBILI_UP_LIST):
+            try:
+                # 添加请求间隔，避免触发B站风控（每个请求间隔1-2秒）
+                if idx > 0:
+                    delay = 1.5 + (idx % 3) * 0.3  # 1.5-2.4秒的随机延迟
+                    logger.info(f"请求间隔 {delay:.1f}秒，避免风控 (进度: {idx+1}/{total_uid})")
+                    time.sleep(delay)
+                
+                logger.info(f"正在获取UP主 {up_uid} 数据 ({idx+1}/{total_uid})...")
+                # 获取UP主数据（增加视频数量以支持月度统计）
+                data = client.get_all_data(up_uid, video_count=50)
+                
+                if data:
+                    user_info = data.get('user_info', {})
+                    user_stat = data.get('user_stat', {})
+                    videos = data.get('videos', [])
+                    
+                    # 格式化视频数据
+                    formatted_videos = []
+                    for video in videos:
+                        formatted_videos.append({
+                            'bvid': video.get('bvid', ''),
+                            'title': video.get('title', ''),
+                            'pic': video.get('pic', ''),
+                            'play': format_number(video.get('play', 0)),
+                            'play_raw': video.get('play', 0),
+                            'favorites': format_number(video.get('favorites', 0)),
+                            'video_review': format_number(video.get('video_review', 0)),
+                            'pubdate': format_timestamp(video.get('pubdate', 0)),
+                            'pubdate_raw': video.get('pubdate', 0),
+                            'description': video.get('description', ''),
+                            'length': video.get('length', ''),
+                            'url': f"https://www.bilibili.com/video/{video.get('bvid', '')}"
+                        })
+                    
+                    # 按日期从新到旧排序
+                    formatted_videos.sort(key=lambda x: x.get('pubdate_raw', 0), reverse=True)
+                    
+                    all_data.append({
+                        'user_info': {
+                            'mid': user_info.get('mid'),
+                            'name': user_info.get('name', f'UP主{up_uid}'),
+                            'face': user_info.get('face', ''),
+                            'sign': user_info.get('sign', ''),
+                            'level': user_info.get('level', 0),
+                            'fans': format_number(user_info.get('fans', 0)),
+                            'fans_raw': user_info.get('fans', 0),
+                            'friend': format_number(user_info.get('friend', 0)),
+                        },
+                        'user_stat': {
+                            'videos': format_number(user_stat.get('videos', 0)),
+                            'likes': format_number(user_stat.get('likes', 0)),
+                            'views': format_number(user_stat.get('views', 0)),
+                        },
+                        'videos': formatted_videos,
+                        'space_url': f"https://space.bilibili.com/{up_uid}",
+                        'updated_at': data.get('updated_at', datetime.now().isoformat())
+                    })
+                else:
+                    # 如果获取失败，添加错误信息
+                    all_data.append({
+                        'user_info': {
+                            'mid': up_uid,
+                            'name': f'UP主{up_uid}',
+                            'face': '',
+                            'sign': '数据获取失败',
+                            'level': 0,
+                            'fans': '0',
+                            'fans_raw': 0,
+                            'friend': '0',
+                        },
+                        'user_stat': {},
+                        'videos': [],
+                        'space_url': f"https://space.bilibili.com/{up_uid}",
+                        'error': True,
+                        'error_message': '数据获取失败'
+                    })
+            except Exception as e:
+                logger.error(f"获取UP主 {up_uid} 数据失败: {e}")
+                # 添加错误数据
+                all_data.append({
+                    'user_info': {
+                        'mid': up_uid,
+                        'name': f'UP主{up_uid}',
+                        'face': '',
+                        'sign': f'获取失败: {str(e)}',
+                        'level': 0,
+                        'fans': '0',
+                        'fans_raw': 0,
+                        'friend': '0',
+                    },
+                    'user_stat': {},
+                    'videos': [],
+                    'space_url': f"https://space.bilibili.com/{up_uid}",
+                    'error': True,
+                    'error_message': str(e)
+                })
+        
+        response_data = {
+            'success': True,
+            'data': all_data,
+            'total': len(all_data),
+            'updated_at': datetime.now().isoformat()
+        }
+        
+        # 保存到缓存（只有成功获取数据时才缓存）
+        with bilibili_cache_lock:
+            bilibili_cache['all_data'] = response_data
+            bilibili_cache['all_expires_at'] = datetime.now().timestamp() + BILIBILI_CACHE_DURATION
+            logger.info(f"Bilibili全部数据已缓存，有效期至: {datetime.fromtimestamp(bilibili_cache['all_expires_at'])}")
+        
+        return jsonify(response_data)
+        
+    except Exception as e:
+        logger.error(f"获取所有Bilibili数据失败: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/bilibili/monthly_stats')
+def get_bilibili_monthly_stats():
+    """按月统计各公司播放量对比（各公司当月发布的所有视频的播放量合计）"""
+    try:
+        from collections import defaultdict
+        from datetime import datetime as dt
+        
+        global bilibili_cache
+        
+        # 优先使用缓存数据，避免重复请求导致风控
+        cached_all_data = None
+        with bilibili_cache_lock:
+            if (bilibili_cache.get('all_data') is not None and 
+                bilibili_cache.get('all_expires_at') is not None):
+                cached_all_data = bilibili_cache['all_data']
+        
+        # 按月份组织数据：{月份: {公司名: 播放量}}
+        monthly_by_month = defaultdict(lambda: defaultdict(int))
+        company_names = {}
+        
+        # 如果缓存存在，使用缓存数据
+        if cached_all_data and cached_all_data.get('success') and cached_all_data.get('data'):
+            logger.info("使用缓存数据计算月度统计")
+            all_cards = cached_all_data['data']
+            
+            for card in all_cards:
+                user_info = card.get('user_info', {})
+                company_name = user_info.get('name', f'UP主{user_info.get("mid", "unknown")}')
+                videos = card.get('videos', [])
+                
+                # 按月统计播放量
+                for video in videos:
+                    pubdate_raw = video.get('pubdate_raw', 0)
+                    if not pubdate_raw:
+                        continue
+                    
+                    # 转换为日期
+                    try:
+                        pub_date = dt.fromtimestamp(pubdate_raw)
+                        month_key = pub_date.strftime('%Y-%m')  # 格式：2025-12
+                        
+                        # 使用play_raw（原始数值），如果没有则尝试play
+                        play_count = video.get('play_raw', 0) or 0
+                        if not play_count:
+                            # 如果play_raw不存在，尝试从play字符串中解析
+                            play_str = video.get('play', '0')
+                            if isinstance(play_str, str):
+                                # 处理格式化字符串，如 "1.2万"
+                                if '万' in play_str:
+                                    play_count = int(float(play_str.replace('万', '')) * 10000)
+                                else:
+                                    try:
+                                        play_count = int(play_str)
+                                    except:
+                                        play_count = 0
+                            else:
+                                play_count = play_str or 0
+                        
+                        monthly_by_month[month_key][company_name] += play_count
+                    except Exception as e:
+                        logger.debug(f"处理视频日期失败: {e}")
+                        continue
+        else:
+            # 缓存不存在，重新获取（但这种情况应该很少）
+            logger.warning("缓存数据不存在，重新获取月度统计数据")
+            client = BilibiliClient()
+            
+            for up_uid in BILIBILI_UP_LIST:
+                try:
+                    data = client.get_all_data(up_uid, video_count=50)
+                    if not data:
+                        continue
+                    
+                    user_info = data.get('user_info', {})
+                    company_name = user_info.get('name', f'UP主{up_uid}')
+                    company_names[up_uid] = company_name
+                    videos = data.get('videos', [])
+                    
+                    # 按月统计播放量
+                    for video in videos:
+                        pubdate_raw = video.get('pubdate', 0)
+                        if not pubdate_raw:
+                            continue
+                        
+                        # 转换为日期
+                        try:
+                            pub_date = dt.fromtimestamp(pubdate_raw)
+                            month_key = pub_date.strftime('%Y-%m')  # 格式：2025-12
+                            
+                            play_count = video.get('play', 0) or 0
+                            monthly_by_month[month_key][company_name] += play_count
+                        except Exception as e:
+                            logger.debug(f"处理视频日期失败: {e}")
+                            continue
+                        
+                except Exception as e:
+                    logger.error(f"统计UP主 {up_uid} 月度数据失败: {e}")
+                    continue
+        
+        # 转换为列表格式，按月份排序（最近6个月）
+        all_months = sorted(monthly_by_month.keys(), reverse=True)[:6]
+        
+        # 从月度数据中提取所有公司名称
+        all_companies_set = set()
+        for month_data in monthly_by_month.values():
+            all_companies_set.update(month_data.keys())
+        if cached_all_data and cached_all_data.get('success') and cached_all_data.get('data'):
+            # 也从缓存数据中提取公司名称
+            for card in cached_all_data['data']:
+                user_info = card.get('user_info', {})
+                company_name = user_info.get('name', f'UP主{user_info.get("mid", "unknown")}')
+                all_companies_set.add(company_name)
+        all_companies = sorted(all_companies_set)
+        
+        monthly_stats = []
+        for month in all_months:
+            month_data = {
+                'month': month,
+                'companies': {}
+            }
+            for company in all_companies:
+                play_count = monthly_by_month[month].get(company, 0)
+                month_data['companies'][company] = {
+                    'play_count': play_count,
+                    'play_count_formatted': format_number(play_count)
+                }
+            monthly_stats.append(month_data)
+        
+        return jsonify({
+            'success': True,
+            'data': {
+                'months': monthly_stats,
+                'companies': all_companies
+            },
+            'total_companies': len(all_companies),
+            'total_months': len(monthly_stats),
+            'updated_at': datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        logger.error(f"获取月度统计数据失败: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/authors/ranking')
+def get_author_ranking():
+    """获取活跃作者排行榜"""
+    session = None
+    try:
+        from datetime import date, timedelta
+        from collections import defaultdict
+        import re
+        
+        session = get_session()
+        
+        # 获取查询参数
+        days = request.args.get('days', type=int, default=7)  # 默认7天
+        category = request.args.get('category', type=str, default='')  # 类别筛选
+        limit = request.args.get('limit', type=int, default=20)  # 默认top20
+        normalized_filter = normalize_category(category) if category else ''
+        
+        # 计算日期范围
+        today = date.today()
+        start_date = today - timedelta(days=days)
+        
+        # 构建查询（时间范围内的所有论文，后续按新标签过滤）
+        papers = session.query(Paper).filter(
+            or_(
+                and_(Paper.publish_date.isnot(None), Paper.publish_date >= start_date, Paper.publish_date <= today),
+                and_(Paper.publish_date.is_(None), 
+                     func.date(Paper.created_at) >= start_date, 
+                     func.date(Paper.created_at) <= today)
+            )
+        ).all()
+        
+        # 统计作者论文数量
+        author_count = defaultdict(lambda: {'count': 0, 'papers': []})
+        
+        for paper in papers:
+            norm_cat = normalize_category(paper.category)
+            if normalized_filter and norm_cat != normalized_filter:
+                continue
+            if not paper.authors:
+                continue
+            
+            # 解析作者列表（可能是逗号分隔的字符串）
+            authors_str = paper.authors.strip()
+            if not authors_str:
+                continue
+            
+            # 分割作者（处理各种分隔符）
+            authors = re.split(r'[,，;；]', authors_str)
+            
+            for author in authors:
+                author = author.strip()
+                if not author or len(author) < 2:  # 过滤太短的名称
+                    continue
+                
+                # 移除常见的后缀（如"Team", "et al."等）
+                author = re.sub(r'\s+(Team|et al\.?|等)$', '', author, flags=re.IGNORECASE)
+                author = author.strip()
+                
+                if not author or len(author) < 2:
+                    continue
+                
+                author_count[author]['count'] += 1
+                author_count[author]['papers'].append({
+                    'id': paper.id,
+                    'title': paper.title,
+                    'date': paper.publish_date.strftime('%Y-%m-%d') if paper.publish_date else '',
+                    'category': norm_cat,
+                    'pdf_url': paper.pdf_url,
+                    'code_url': paper.code_url,
+                })
+        
+        # 转换为列表并排序
+        author_list = []
+        for author, data in author_count.items():
+            author_list.append({
+                'author': author,
+                'count': data['count'],
+                'papers': sorted(data['papers'], key=lambda x: x['date'], reverse=True)
+            })
+        
+        # 按论文数量排序，取top N
+        author_list.sort(key=lambda x: x['count'], reverse=True)
+        author_list = author_list[:limit]
+        
+        # 计算环比（与上一个周期对比）
+        prev_start_date = start_date - timedelta(days=days)
+        prev_query = session.query(Paper).filter(
+            or_(
+                and_(Paper.publish_date.isnot(None), Paper.publish_date >= prev_start_date, Paper.publish_date < start_date),
+                and_(Paper.publish_date.is_(None), 
+                     func.date(Paper.created_at) >= prev_start_date, 
+                     func.date(Paper.created_at) < start_date)
+            )
+        )
+        prev_papers = prev_query.all()
+        
+        # 统计上一个周期的作者数量
+        prev_author_count = defaultdict(int)
+        for paper in prev_papers:
+            norm_cat = normalize_category(paper.category)
+            if normalized_filter and norm_cat != normalized_filter:
+                continue
+            if not paper.authors:
+                continue
+            authors_str = paper.authors.strip()
+            if not authors_str:
+                continue
+            authors = re.split(r'[,，;；]', authors_str)
+            for author in authors:
+                author = author.strip()
+                if not author or len(author) < 2:
+                    continue
+                author = re.sub(r'\s+(Team|et al\.?|等)$', '', author, flags=re.IGNORECASE)
+                author = author.strip()
+                if author and len(author) >= 2:
+                    prev_author_count[author] += 1
+        
+        # 计算环比增长率
+        for author_data in author_list:
+            author = author_data['author']
+            current_count = author_data['count']
+            prev_count = prev_author_count.get(author, 0)
+            
+            if prev_count > 0:
+                growth_rate = ((current_count - prev_count) / prev_count) * 100
+            elif current_count > 0:
+                growth_rate = 100  # 从0增长到有数据
+            else:
+                growth_rate = 0
+            
+            author_data['growth_rate'] = round(growth_rate, 1)
+            author_data['prev_count'] = prev_count
+        
+        return jsonify({
+            'success': True,
+            'data': author_list,
+            'days': days,
+            'category': category,
+            'total': len(author_list),
+            'start_date': start_date.strftime('%Y-%m-%d'),
+            'end_date': today.strftime('%Y-%m-%d')
+        })
+        
+    except Exception as e:
+        logger.error(f"获取作者排行榜失败: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+    finally:
+        if session:
+            session.close()
 
 @app.route('/api/news')
 def get_news():

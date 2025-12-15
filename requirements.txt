@@ -11,3 +11,4 @@ lxml
 bilibili-api-python
 aiohttp
 psycopg2-binary
+python-dotenv
