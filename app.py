@@ -39,6 +39,8 @@ from taxonomy import (
     build_category_tree,
     build_nested_from_flat,
 )
+# 导入认证系统蓝图
+from auth_routes import auth_bp, user_bp, admin_bp
 
 # 获取当前文件所在目录
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -67,6 +69,12 @@ app = Flask(__name__,
             template_folder=TEMPLATE_DIR,
             static_folder=STATIC_DIR)
 app.config['JSON_AS_ASCII'] = False  # 支持中文
+
+# 注册认证系统蓝图
+app.register_blueprint(auth_bp)
+app.register_blueprint(user_bp)
+app.register_blueprint(admin_bp)
+logger.info("✅ 认证系统蓝图已注册")
 
 # 标签体系由 taxonomy.py 提供，避免多处定义
 
@@ -262,6 +270,142 @@ def bilibili_page():
         logger.warning(f"B站页面模板不存在: {template_path}，使用index.html")
         return render_template('index.html')
     return render_template('bilibili.html')
+
+# ==================== 认证系统前端路由 ====================
+
+@app.route('/login')
+def login_page():
+    """飞书登录页面"""
+    return render_template('login.html')
+
+@app.route('/profile')
+def profile_page():
+    """个人中心页面"""
+    return render_template('profile.html')
+
+@app.route('/admin/login')
+def admin_login_page():
+    """管理员登录页面（临时）"""
+    return """
+    <!DOCTYPE html>
+    <html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>管理员登录 - Embodied Pulse</title>
+        <style>
+            * { margin: 0; padding: 0; box-sizing: border-box; }
+            body {
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                min-height: 100vh;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+            .container {
+                background: white;
+                padding: 48px;
+                border-radius: 16px;
+                box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+                max-width: 400px;
+                width: 100%;
+            }
+            h1 { color: #333; margin-bottom: 32px; text-align: center; }
+            .form-group { margin-bottom: 20px; }
+            label { display: block; margin-bottom: 8px; color: #666; font-size: 14px; }
+            input {
+                width: 100%;
+                padding: 12px 16px;
+                border: 1px solid #e0e0e0;
+                border-radius: 8px;
+                font-size: 15px;
+            }
+            input:focus {
+                outline: none;
+                border-color: #667eea;
+                box-shadow: 0 0 0 3px rgba(102,126,234,0.1);
+            }
+            button {
+                width: 100%;
+                padding: 14px;
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                border: none;
+                border-radius: 8px;
+                color: white;
+                font-size: 16px;
+                font-weight: 600;
+                cursor: pointer;
+                margin-top: 8px;
+            }
+            button:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(102,126,234,0.3); }
+            #result {
+                margin-top: 20px;
+                padding: 16px;
+                border-radius: 8px;
+                display: none;
+            }
+            #result.success { background: #e8f5e9; color: #2e7d32; }
+            #result.error { background: #ffebee; color: #c62828; }
+            pre { white-space: pre-wrap; word-wrap: break-word; font-size: 13px; }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h1>管理员登录</h1>
+            <form id="admin-login-form">
+                <div class="form-group">
+                    <label>用户名</label>
+                    <input type="text" name="username" placeholder="请输入用户名" required>
+                </div>
+                <div class="form-group">
+                    <label>密码</label>
+                    <input type="password" name="password" placeholder="请输入密码" required>
+                </div>
+                <button type="submit">登录</button>
+            </form>
+            <div id="result"></div>
+        </div>
+        <script>
+        document.getElementById('admin-login-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const data = Object.fromEntries(formData);
+            const resultDiv = document.getElementById('result');
+            
+            try {
+                const response = await fetch('/api/admin/login', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(data)
+                });
+                const result = await response.json();
+                
+                resultDiv.style.display = 'block';
+                if (result.success) {
+                    resultDiv.className = 'success';
+                    resultDiv.innerHTML = '<strong>✅ 登录成功！</strong><br>Token已保存到LocalStorage<br><pre>' + 
+                                         JSON.stringify(result, null, 2) + '</pre>';
+                    localStorage.setItem('auth_token', result.token);
+                    setTimeout(() => {
+                        alert('登录成功！可以开始使用管理端API了。');
+                    }, 500);
+                } else {
+                    resultDiv.className = 'error';
+                    resultDiv.innerHTML = '<strong>❌ 登录失败</strong><br>' + result.message;
+                }
+            } catch (error) {
+                resultDiv.style.display = 'block';
+                resultDiv.className = 'error';
+                resultDiv.textContent = '网络错误：' + error.message;
+            }
+        });
+        </script>
+    </body>
+    </html>
+    """
+
+# ==================== API路由（已通过蓝图注册） ====================
 
 @app.route('/api/paper-stats')
 def get_paper_stats():
