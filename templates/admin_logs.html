@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>日志监控 - Embodied Pulse Admin</title>
+    <link rel="stylesheet" href="/static/css/admin.css">
+</head>
+<body>
+    <!-- 侧边栏 -->
+    <aside class="admin-sidebar">
+        <div class="sidebar-header">
+            <h2>Embodied Admin</h2>
+        </div>
+        <nav class="sidebar-nav">
+            <a href="/admin/dashboard" class="nav-item">
+                <svg class="nav-icon" viewBox="0 0 24 24" width="20" height="20">
+                    <path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/>
+                </svg>
+                仪表盘
+            </a>
+            <a href="/admin/users" class="nav-item">
+                <svg class="nav-icon" viewBox="0 0 24 24" width="20" height="20">
+                    <path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/>
+                </svg>
+                用户管理
+            </a>
+            <a href="/admin/logs" class="nav-item active">
+                <svg class="nav-icon" viewBox="0 0 24 24" width="20" height="20">
+                    <path d="M19 3h-4.18C14.4 1.84 13.3 1 12 1c-1.3 0-2.4.84-2.82 2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 0c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm2 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/>
+                </svg>
+                日志监控
+            </a>
+            <a href="/" class="nav-item">
+                <svg class="nav-icon" viewBox="0 0 24 24" width="20" height="20">
+                    <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/>
+                </svg>
+                返回网站
+            </a>
+        </nav>
+        <div class="sidebar-footer">
+            <button id="logout-btn" class="btn-logout">
+                <svg viewBox="0 0 24 24" width="18" height="18">
+                    <path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"/>
+                </svg>
+                退出登录
+            </button>
+        </div>
+    </aside>
+    
+    <!-- 主内容区 -->
+    <main class="admin-main">
+        <!-- 顶部栏 -->
+        <header class="admin-header">
+            <h1>日志监控</h1>
+            <div class="header-right">
+                <span class="admin-user-name" id="admin-user-name">加载中...</span>
+            </div>
+        </header>
+        
+        <!-- Tab切换 -->
+        <section class="tabs-section">
+            <button class="tab-btn active" data-tab="login">登录日志</button>
+            <button class="tab-btn" data-tab="access">访问日志</button>
+        </section>
+        
+        <!-- 登录日志 -->
+        <div id="login-logs-tab" class="log-tab active">
+            <!-- 筛选 -->
+            <section class="filters-section">
+                <div class="filters-container">
+                    <input type="number" id="login-user-id" class="form-control" placeholder="用户ID">
+                    <select id="login-status" class="form-select">
+                        <option value="">全部状态</option>
+                        <option value="success">成功</option>
+                        <option value="failed">失败</option>
+                    </select>
+                    <input type="date" id="login-start-date" class="form-control" placeholder="开始日期">
+                    <input type="date" id="login-end-date" class="form-control" placeholder="结束日期">
+                    <button id="login-search-btn" class="btn btn-primary">搜索</button>
+                    <button id="login-reset-btn" class="btn btn-secondary">重置</button>
+                </div>
+            </section>
+            
+            <!-- 表格 -->
+            <section class="table-section">
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>用户</th>
+                                <th>登录方式</th>
+                                <th>状态</th>
+                                <th>失败原因</th>
+                                <th>IP地址</th>
+                                <th>登录时间</th>
+                            </tr>
+                        </thead>
+                        <tbody id="login-logs-tbody">
+                            <tr>
+                                <td colspan="7" class="loading-text">加载中...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div id="login-pagination" class="pagination"></div>
+            </section>
+        </div>
+        
+        <!-- 访问日志 -->
+        <div id="access-logs-tab" class="log-tab">
+            <!-- 筛选 -->
+            <section class="filters-section">
+                <div class="filters-container">
+                    <input type="number" id="access-user-id" class="form-control" placeholder="用户ID">
+                    <input type="date" id="access-start-date" class="form-control" placeholder="开始日期">
+                    <input type="date" id="access-end-date" class="form-control" placeholder="结束日期">
+                    <button id="access-search-btn" class="btn btn-primary">搜索</button>
+                    <button id="access-reset-btn" class="btn btn-secondary">重置</button>
+                </div>
+            </section>
+            
+            <!-- 表格 -->
+            <section class="table-section">
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>用户</th>
+                                <th>页面URL</th>
+                                <th>IP地址</th>
+                                <th>停留时长</th>
+                                <th>访问时间</th>
+                            </tr>
+                        </thead>
+                        <tbody id="access-logs-tbody">
+                            <tr>
+                                <td colspan="6" class="loading-text">加载中...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div id="access-pagination" class="pagination"></div>
+            </section>
+        </div>
+    </main>
+    
+    <!-- Toast提示 -->
+    <div id="toast" class="toast"></div>
+    
+    <script src="/static/js/admin_logs.js"></script>
+</body>
+</html>
+
