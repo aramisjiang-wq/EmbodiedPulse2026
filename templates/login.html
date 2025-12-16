@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>登录 - Embodied Pulse</title>
+    <link rel="stylesheet" href="/static/css/login.css">
+</head>
+<body>
+    <div class="login-container">
+        <div class="login-card">
+            <div class="login-header">
+                <h1 class="login-title">Embodied Pulse</h1>
+                <p class="login-subtitle">具身智能研究平台</p>
+            </div>
+            
+            <div class="login-content">
+                <h2>欢迎登录</h2>
+                <p class="login-desc">使用飞书扫码登录，即刻访问平台内容</p>
+                
+                <!-- 飞书登录按钮 -->
+                <button id="feishu-login-btn" class="feishu-login-btn">
+                    <svg class="feishu-icon" viewBox="0 0 1024 1024" width="24" height="24">
+                        <path d="M512 64C264.6 64 64 264.6 64 512s200.6 448 448 448 448-200.6 448-448S759.4 64 512 64z" fill="#00D6B9"/>
+                        <path d="M512 128c212.1 0 384 171.9 384 384s-171.9 384-384 384S128 724.1 128 512 299.9 128 512 128z" fill="#FFFFFF"/>
+                        <path d="M512 192c176.7 0 320 143.3 320 320s-143.3 320-320 320-320-143.3-320-320 143.3-320 320-320z" fill="#00D6B9"/>
+                    </svg>
+                    <span>飞书扫码登录</span>
+                </button>
+                
+                <!-- 加载状态 -->
+                <div id="loading" class="loading" style="display: none;">
+                    <div class="loading-spinner"></div>
+                    <p>正在跳转飞书登录...</p>
+                </div>
+                
+                <!-- 错误提示 -->
+                <div id="error-message" class="error-message" style="display: none;"></div>
+            </div>
+            
+            <div class="login-footer">
+                <p>首次登录将自动注册账号</p>
+                <p class="copyright">&copy; 2025 Embodied Pulse. All rights reserved.</p>
+            </div>
+        </div>
+        
+        <!-- 背景装饰 -->
+        <div class="bg-decoration">
+            <div class="circle circle-1"></div>
+            <div class="circle circle-2"></div>
+            <div class="circle circle-3"></div>
+        </div>
+    </div>
+    
+    <script src="/static/js/login.js"></script>
+</body>
+</html>
+

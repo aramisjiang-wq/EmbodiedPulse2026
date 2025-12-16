@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>个人中心 - Embodied Pulse</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="stylesheet" href="/static/css/profile.css">
+</head>
+<body>
+    <!-- 顶部导航栏 -->
+    <nav class="user-nav">
+        <div class="nav-container">
+            <div class="nav-left">
+                <h2 class="nav-logo">Embodied Pulse</h2>
+                <a href="/" class="nav-link">首页</a>
+                <a href="/papers" class="nav-link">论文清单</a>
+                <a href="/bilibili" class="nav-link">具身视频</a>
+                <a href="/profile" class="nav-link active">个人中心</a>
+            </div>
+            <div class="nav-right">
+                <span class="nav-user-name" id="nav-user-name">加载中...</span>
+                <button id="logout-btn" class="btn-logout">退出</button>
+            </div>
+        </div>
+    </nav>
+    
+    <!-- 主内容区 -->
+    <div class="profile-container">
+        <!-- 侧边栏 -->
+        <aside class="profile-sidebar">
+            <!-- 用户卡片 -->
+            <div class="user-card">
+                <img id="user-avatar" src="" alt="头像" class="user-avatar-large">
+                <h2 id="user-name" class="user-name">加载中...</h2>
+                <p id="user-department" class="user-department">-</p>
+                <span id="user-role-badge" class="badge">-</span>
+            </div>
+            
+            <!-- 侧边栏菜单 -->
+            <nav class="profile-menu">
+                <a href="#info" class="menu-item active" data-tab="info">
+                    <svg class="menu-icon" viewBox="0 0 24 24" width="20" height="20">
+                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"/>
+                    </svg>
+                    基本信息
+                </a>
+                <a href="#edit" class="menu-item" data-tab="edit">
+                    <svg class="menu-icon" viewBox="0 0 24 24" width="20" height="20">
+                        <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
+                    </svg>
+                    编辑资料
+                </a>
+                <a href="#login" class="menu-item" data-tab="login">
+                    <svg class="menu-icon" viewBox="0 0 24 24" width="20" height="20">
+                        <path d="M13 3h-2v10h2V3zm4.83 2.17l-1.42 1.42C17.99 7.86 19 9.81 19 12c0 3.87-3.13 7-7 7s-7-3.13-7-7c0-2.19 1.01-4.14 2.58-5.42L6.17 5.17C4.23 6.82 3 9.26 3 12c0 4.97 4.03 9 9 9s9-4.03 9-9c0-2.74-1.23-5.18-3.17-6.83z"/>
+                    </svg>
+                    登录历史
+                </a>
+                <a href="#activity" class="menu-item" data-tab="activity">
+                    <svg class="menu-icon" viewBox="0 0 24 24" width="20" height="20">
+                        <path d="M9 11H7v2h2v-2zm4 0h-2v2h2v-2zm4 0h-2v2h2v-2zm2-7h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V9h14v11z"/>
+                    </svg>
+                    访问记录
+                </a>
+                <a href="#stats" class="menu-item" data-tab="stats">
+                    <svg class="menu-icon" viewBox="0 0 24 24" width="20" height="20">
+                        <path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/>
+                    </svg>
+                    数据统计
+                </a>
+            </nav>
+        </aside>
+        
+        <!-- 主内容区 -->
+        <main class="profile-main">
+            <!-- Tab 1: 基本信息 -->
+            <div id="tab-info" class="profile-tab active">
+                <h1 class="tab-title">基本信息</h1>
+                <div class="info-card">
+                    <div class="info-row">
+                        <label>姓名</label>
+                        <span id="info-name">-</span>
+                    </div>
+                    <div class="info-row">
+                        <label>邮箱</label>
+                        <span id="info-email">-</span>
+                    </div>
+                    <div class="info-row">
+                        <label>手机</label>
+                        <span id="info-mobile">-</span>
+                    </div>
+                    <div class="info-row">
+                        <label>部门</label>
+                        <span id="info-department">-</span>
+                    </div>
+                    <div class="info-row">
+                        <label>用户类型</label>
+                        <span id="info-user-type" class="badge">-</span>
+                    </div>
+                    <div class="info-row">
+                        <label>角色</label>
+                        <span id="info-role" class="badge">-</span>
+                    </div>
+                    <div class="info-row">
+                        <label>账号状态</label>
+                        <span id="info-status" class="badge">-</span>
+                    </div>
+                    <div class="info-row">
+                        <label>注册时间</label>
+                        <span id="info-created">-</span>
+                    </div>
+                    <div class="info-row">
+                        <label>最后登录</label>
+                        <span id="info-last-login">-</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Tab 2: 编辑资料 -->
+            <div id="tab-edit" class="profile-tab">
+                <h1 class="tab-title">编辑资料</h1>
+                <form id="profile-edit-form" class="edit-form">
+                    <div class="form-group">
+                        <label for="edit-email">邮箱</label>
+                        <input type="email" name="email" id="edit-email" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="edit-mobile">手机</label>
+                        <input type="tel" name="mobile" id="edit-mobile" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label for="edit-avatar">头像URL</label>
+                        <input type="url" name="avatar_url" id="edit-avatar" class="form-control">
+                    </div>
+                    <div class="form-notice">
+                        <svg viewBox="0 0 24 24" width="16" height="16">
+                            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>
+                        </svg>
+                        注意：姓名、部门、角色等信息由管理员管理，无法自行修改
+                    </div>
+                    <button type="submit" class="btn-primary">保存修改</button>
+                </form>
+            </div>
+            
+            <!-- Tab 3: 登录历史 -->
+            <div id="tab-login" class="profile-tab">
+                <h1 class="tab-title">登录历史</h1>
+                <div class="table-container">
+                    <table class="history-table">
+                        <thead>
+                            <tr>
+                                <th>登录时间</th>
+                                <th>登录方式</th>
+                                <th>IP地址</th>
+                                <th>地理位置</th>
+                                <th>状态</th>
+                            </tr>
+                        </thead>
+                        <tbody id="login-history-tbody">
+                            <tr>
+                                <td colspan="5" class="loading-row">加载中...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div id="login-pagination" class="pagination"></div>
+            </div>
+            
+            <!-- Tab 4: 访问记录 -->
+            <div id="tab-activity" class="profile-tab">
+                <h1 class="tab-title">访问记录</h1>
+                <div class="activity-filters">
+                    <input type="date" id="activity-start-date" class="form-control" placeholder="开始日期">
+                    <button id="activity-filter-btn" class="btn-secondary">筛选</button>
+                </div>
+                <div class="table-container">
+                    <table class="activity-table">
+                        <thead>
+                            <tr>
+                                <th>访问时间</th>
+                                <th>页面</th>
+                                <th>停留时长</th>
+                            </tr>
+                        </thead>
+                        <tbody id="activity-tbody">
+                            <tr>
+                                <td colspan="3" class="loading-row">加载中...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div id="activity-pagination" class="pagination"></div>
+            </div>
+            
+            <!-- Tab 5: 数据统计 -->
+            <div id="tab-stats" class="profile-tab">
+                <h1 class="tab-title">数据统计</h1>
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-icon">
+                            <svg viewBox="0 0 24 24" width="32" height="32">
+                                <path d="M11 7h2v2h-2zm0 4h2v6h-2zm1-9C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/>
+                            </svg>
+                        </div>
+                        <div class="stat-value" id="stat-total-logins">0</div>
+                        <div class="stat-label">总登录次数</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">
+                            <svg viewBox="0 0 24 24" width="32" height="32">
+                                <path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/>
+                            </svg>
+                        </div>
+                        <div class="stat-value" id="stat-total-access">0</div>
+                        <div class="stat-label">总访问次数</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">
+                            <svg viewBox="0 0 24 24" width="32" height="32">
+                                <path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z"/>
+                            </svg>
+                        </div>
+                        <div class="stat-value" id="stat-today-access">0</div>
+                        <div class="stat-label">今日访问</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">
+                            <svg viewBox="0 0 24 24" width="32" height="32">
+                                <path d="M9 11H7v2h2v-2zm4 0h-2v2h2v-2zm4 0h-2v2h2v-2zm2-7h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V9h14v11z"/>
+                            </svg>
+                        </div>
+                        <div class="stat-value" id="stat-account-age">0</div>
+                        <div class="stat-label">账号天数</div>
+                    </div>
+                </div>
+                <div class="stats-detail">
+                    <h3>最常访问页面</h3>
+                    <p id="stat-most-visited" class="stat-most-visited">-</p>
+                </div>
+            </div>
+        </main>
+    </div>
+    
+    <!-- Toast提示 -->
+    <div id="toast" class="toast"></div>
+    
+    <script src="/static/js/profile.js"></script>
+</body>
+</html>
+
