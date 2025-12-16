@@ -384,12 +384,11 @@ def admin_login_page():
                 resultDiv.style.display = 'block';
                 if (result.success) {
                     resultDiv.className = 'success';
-                    resultDiv.innerHTML = '<strong>✅ 登录成功！</strong><br>Token已保存到LocalStorage<br><pre>' + 
-                                         JSON.stringify(result, null, 2) + '</pre>';
+                    resultDiv.innerHTML = '<strong>✅ 登录成功！</strong><br>正在跳转到管理仪表盘...';
                     localStorage.setItem('auth_token', result.token);
                     setTimeout(() => {
-                        alert('登录成功！可以开始使用管理端API了。');
-                    }, 500);
+                        window.location.href = '/admin/dashboard';
+                    }, 1000);
                 } else {
                     resultDiv.className = 'error';
                     resultDiv.innerHTML = '<strong>❌ 登录失败</strong><br>' + result.message;
@@ -404,6 +403,21 @@ def admin_login_page():
     </body>
     </html>
     """
+
+@app.route('/admin/dashboard')
+def admin_dashboard_page():
+    """管理仪表盘页面"""
+    return render_template('admin_dashboard.html')
+
+@app.route('/admin/users')
+def admin_users_page():
+    """用户管理页面"""
+    return render_template('admin_users.html')
+
+@app.route('/admin/logs')
+def admin_logs_page():
+    """日志监控页面"""
+    return render_template('admin_logs.html')
 
 # ==================== API路由（已通过蓝图注册） ====================
 
