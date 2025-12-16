@@ -106,7 +106,7 @@ bilibili_cache = {
     'all_expires_at': None
 }
 bilibili_cache_lock = threading.Lock()
-BILIBILI_CACHE_DURATION = 600  # 缓存10分钟（600秒）
+BILIBILI_CACHE_DURATION = 600  # 缓存10分钟（600秒），force=1 时跳过缓存
 
 # 全局定时任务调度器（用于Gunicorn启动时自动启动）
 scheduler = None
@@ -1033,6 +1033,13 @@ BILIBILI_UP_LIST = [
 def get_all_bilibili():
     """从数据库获取所有B站UP主和视频数据"""
     try:
+        force = request.args.get('force') == '1'
+        now_ts = datetime.now().timestamp()
+        if not force:
+            with bilibili_cache_lock:
+                if bilibili_cache['data'] and bilibili_cache['expires_at'] > now_ts:
+                    return jsonify(bilibili_cache['data'])
+
         session = get_bilibili_session()
         all_data = []
         

@@ -853,90 +853,97 @@
             <div class="bilibili-main-layout">
                 <!-- 页面头部 - 覆盖整个宽度 -->
                 <div class="bilibili-page-header-wrapper">
-                    <div class="bilibili-page-header">
-                        <h1><i class="fab fa-bilibili"></i> 具身视频Hub</h1>
-                        <p>追踪具身智能领域的优质视频内容</p>
+            <div class="bilibili-page-header">
+                <h1><i class="fab fa-bilibili"></i> 具身视频Hub</h1>
+                <p>追踪具身智能领域的优质视频内容</p>
+            </div>
+                </div>
+        <!-- 主内容区域 -->
+        <div class="bilibili-main-content">
+            <!-- 视频发布趋势 -->
+                <div class="bilibili-trends-section">
+                    <div class="bilibili-trends-header">
+                        <div class="bilibili-trends-title">
+                            <i class="fas fa-chart-area"></i> 视频发布数量趋势（近30天）
+                        </div>
+                        <div class="bilibili-trends-controls">
+                            <div class="trends-view-tabs">
+                                <button id="trendsViewArea" class="trends-view-btn active" data-view="area"><i class="fas fa-layer-group"></i> 堆叠面积图</button>
+                                <button id="trendsViewHeatmap" class="trends-view-btn" data-view="heatmap"><i class="fas fa-th"></i> 热力图</button>
+                            </div>
+                            <button id="refreshBilibiliBtn" class="btn-refresh" onclick="refreshBilibiliData()">
+                                <i class="fas fa-sync-alt" id="refreshIcon"></i>
+                                <span>刷新数据</span>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div id="trendsLegend" class="bilibili-trends-legend" style="display: none;">
+                        <!-- 图例将通过JS动态生成 -->
+                    </div>
+                    
+                    <div class="bilibili-trends-chart" id="trendsAreaContainer">
+                        <canvas id="videoTrendsChart"></canvas>
+                    </div>
+                    <div class="bilibili-trends-chart hidden" id="trendsHeatmapContainer">
+                        <div id="trendsHeatmap" class="heatmap-container" style="min-height: 320px;"></div>
+                    </div>
+                    
+                    <div class="bilibili-trends-info">
+                        <div class="bilibili-trends-info-title">
+                            <i class="fas fa-info-circle"></i> 数据刷新规则
+                        </div>
+                        <div class="bilibili-trends-info-content">
+                            <strong>自动刷新：</strong>数据缓存10分钟，10分钟内访问会使用缓存数据，避免频繁请求B站API。<br>
+                            <strong>手动刷新：</strong>点击"刷新数据"按钮可立即获取最新数据（会清除缓存）。<br>
+                            <strong>趋势图说明：</strong>显示最近30天每日发布量，可通过图例或视图切换查看趋势。<br>
+                                <strong>最新视频：</strong>右侧侧边栏展示最近7天最新视频。
                     </div>
                 </div>
-                <!-- 主内容区域 -->
-                <div class="bilibili-main-content">
-                    <!-- 视频发布趋势 -->
-                    <div class="bilibili-trends-section">
-                        <div class="bilibili-trends-header">
-                            <div class="bilibili-trends-title">
-                                <i class="fas fa-chart-area"></i> 视频发布数量趋势（近30天）
-                            </div>
-                            <div class="bilibili-trends-controls">
-                                <button id="refreshBilibiliBtn" class="btn-refresh" onclick="refreshBilibiliData()">
-                                    <i class="fas fa-sync-alt" id="refreshIcon"></i>
-                                    <span>刷新数据</span>
-                                </button>
-                            </div>
-                        </div>
-                        
-                        <div id="trendsLegend" class="bilibili-trends-legend" style="display: none;">
-                            <!-- 图例将通过JS动态生成 -->
-                        </div>
-                        
-                        <div class="bilibili-trends-chart">
-                            <canvas id="videoTrendsChart"></canvas>
-                        </div>
-                        
-                        <div class="bilibili-trends-info">
-                            <div class="bilibili-trends-info-title">
-                                <i class="fas fa-info-circle"></i> 数据刷新规则
-                            </div>
-                            <div class="bilibili-trends-info-content">
-                                <strong>自动刷新：</strong>数据缓存10分钟，10分钟内访问会使用缓存数据，避免频繁请求B站API。<br>
-                                <strong>手动刷新：</strong>点击"刷新数据"按钮可立即获取最新数据（会清除缓存）。<br>
-                                <strong>趋势图说明：</strong>显示最近30天每日发布量（非累计），可通过图例切换公司。<br>
-                                <strong>最新视频：</strong>右侧侧边栏展示最近7天最新视频。
-                            </div>
-                        </div>
-                    </div>
+            </div>
 
-                    <!-- 月度播放量统计对比 -->
-                    <div class="bilibili-trends-section monthly-stats">
-                        <div class="bilibili-trends-header">
-                            <div class="bilibili-trends-title">
+            <!-- 月度播放量统计对比 -->
+            <div class="bilibili-trends-section monthly-stats">
+                <div class="bilibili-trends-header">
+                    <div class="bilibili-trends-title">
                                 <i class="fas fa-chart-bar"></i> 月度播放量对比（近1年）
-                            </div>
-                        </div>
-                        
-                        <div class="bilibili-trends-chart" style="min-height: 500px;">
+                    </div>
+                </div>
+                
+                <div class="bilibili-trends-chart" style="min-height: 500px;">
                             <div id="monthlyStatsHeatmap" style="width: 100%; overflow-x: auto;"></div>
                             <canvas id="monthlyStatsChart" style="display: none;"></canvas>
-                        </div>
-                        
-                        <div class="bilibili-trends-info">
-                            <div class="bilibili-trends-info-title">
-                                <i class="fas fa-info-circle"></i> 统计说明
-                            </div>
-                            <div class="bilibili-trends-info-content">
-                                <strong>数据来源：</strong>基于各公司B站账号发布的视频播放量，按月汇总统计。<br>
-                                <strong>统计方式：</strong>各公司当月发布的所有视频的播放量合计对比。<br>
-                                <strong>统计范围：</strong>显示最近12个月的播放量数据（基于已获取的视频）。
-                            </div>
-                        </div>
+                </div>
+                
+                <div class="bilibili-trends-info">
+                    <div class="bilibili-trends-info-title">
+                        <i class="fas fa-info-circle"></i> 统计说明
                     </div>
+                    <div class="bilibili-trends-info-content">
+                        <strong>数据来源：</strong>基于各公司B站账号发布的视频播放量，按月汇总统计。<br>
+                        <strong>统计方式：</strong>各公司当月发布的所有视频的播放量合计对比。<br>
+                                <strong>统计范围：</strong>显示最近12个月的播放量数据（基于已获取的视频）。
+                    </div>
+                </div>
+            </div>
 
-                    <!-- 公司卡片模块 -->
-                    <div class="bilibili-cards-section">
-                        <div class="bilibili-cards-header">
-                            <div class="bilibili-cards-title">
-                                <i class="fas fa-users"></i> 公司列表
-                            </div>
-                            <div class="bilibili-cards-filter">
-                                <input type="text" id="companyFilterInput" class="bilibili-filter-input" placeholder="搜索公司名称...">
-                            </div>
-                        </div>
-                        
-                        <div id="bilibiliCardsContainer">
-                            <div class="loading-container">
-                                <div class="loading-spinner"></div>
-                                <p style="margin-top: 16px; color: #718096;">加载B站视频数据中...</p>
-                            </div>
-                        </div>
+            <!-- 公司卡片模块 -->
+            <div class="bilibili-cards-section">
+                <div class="bilibili-cards-header">
+                    <div class="bilibili-cards-title">
+                        <i class="fas fa-users"></i> 公司列表
+                    </div>
+                    <div class="bilibili-cards-filter">
+                        <input type="text" id="companyFilterInput" class="bilibili-filter-input" placeholder="搜索公司名称...">
+                    </div>
+                </div>
+                
+                <div id="bilibiliCardsContainer">
+                    <div class="loading-container">
+                        <div class="loading-spinner"></div>
+                        <p style="margin-top: 16px; color: #718096;">加载B站视频数据中...</p>
+                    </div>
+                </div>
                     </div>
                 </div>
 
@@ -995,8 +1002,9 @@
         let allCardsData = [];
         let selectedCompanies = new Set(); // 选中的公司集合
         let filteredCardsData = []; // 筛选后的卡片数据
+        let currentTrendsView = 'area'; // area | heatmap
         const FETCH_TIMEOUT = 30000; // 30秒超时
-        
+
         async function fetchWithTimeout(url, options = {}, timeout = FETCH_TIMEOUT) {
             const controller = new AbortController();
             const id = setTimeout(() => controller.abort(), timeout);
@@ -1012,19 +1020,20 @@
         
         // 现代粉蓝系调色板（高区分度）
         function generatePalette(n) {
-            const base = [
-                { border: '#4F46E5', fill: 'rgba(79,70,229,0.20)' },   // 靛蓝
-                { border: '#F472B6', fill: 'rgba(244,114,182,0.20)' }, // 粉
-                { border: '#22D3EE', fill: 'rgba(34,211,238,0.20)' },  // 青蓝
-                { border: '#10B981', fill: 'rgba(16,185,129,0.20)' },  // 翠绿
-                { border: '#F59E0B', fill: 'rgba(245,158,11,0.20)' },  // 橙黄
-                { border: '#A855F7', fill: 'rgba(168,85,247,0.20)' },  // 紫
-                { border: '#0EA5E9', fill: 'rgba(14,165,233,0.20)' },  // 天蓝
-                { border: '#EC4899', fill: 'rgba(236,72,153,0.20)' },  // 玫红
-            ];
+            // 使用HSL颜色空间，均匀分配色相，确保每个公司颜色唯一
             const palette = [];
+            const saturation = 60; // 降低饱和度
+            const lightness = 55;  // 稍微提高亮度，配合较低饱和度
+            
             for (let i = 0; i < n; i++) {
-                palette.push(base[i % base.length]);
+                // 均匀分配色相（0-360度）
+                const hue = (i * 360) / n;
+                const borderColor = `hsl(${hue}, ${saturation}%, ${lightness}%)`;
+                const fillColor = `hsla(${hue}, ${saturation}%, ${lightness}%, 0.5)`;
+                palette.push({
+                    border: borderColor,
+                    fill: fillColor
+                });
             }
             return palette;
         }
@@ -1032,8 +1041,10 @@
         function generateTrendsData(cards) {
             // 近30天，按周聚合（周粒度）
             const today = new Date();
+            today.setHours(23, 59, 59, 999); // 设置为今天的最后一刻
             const start = new Date(today);
             start.setDate(start.getDate() - 29);
+            start.setHours(0, 0, 0, 0); // 设置为30天前的0点
 
             // 生成周区间（7天一组）
             const weeks = [];
@@ -1042,6 +1053,7 @@
                 const weekStart = new Date(cursor);
                 const weekEnd = new Date(cursor);
                 weekEnd.setDate(weekEnd.getDate() + 6);
+                weekEnd.setHours(23, 59, 59, 999); // 设置为该周最后一天的最后一刻
                 if (weekEnd > today) weekEnd.setTime(today.getTime());
                 weeks.push({ start: new Date(weekStart), end: new Date(weekEnd) });
                 cursor.setDate(cursor.getDate() + 7);
@@ -1054,7 +1066,10 @@
             });
 
             const datasets = [];
-            const palette = generatePalette(cards.length || 1);
+            // 先收集所有有效的公司，确保颜色分配正确
+            const validCards = cards.filter(card => !card.error && card.videos && card.videos.length > 0);
+            const palette = generatePalette(validCards.length || 1);
+            let colorIndex = 0;
             
             cards.forEach((card, index) => {
                 if (card.error || !card.videos || card.videos.length === 0) {
@@ -1083,22 +1098,20 @@
                     }
                 });
                 
-                const colorIndex = index % palette.length;
+                // 使用当前colorIndex，然后递增
                 const baseColor = palette[colorIndex].border;
                 const bgColor = palette[colorIndex].fill;
+                colorIndex++;
                 
                 datasets.push({
                     label: userName,
                     data: weekCounts,
                     borderColor: baseColor,
                     backgroundColor: bgColor,
-                    fill: {
-                        target: 'origin',
-                        above: bgColor,
-                    },
-                    tension: 0.35,
-                    borderWidth: 2.5,
-                    pointRadius: 2,
+                    fill: true,  // 启用填充，用于堆叠面积图
+                    tension: 0.3,
+                    borderWidth: 2,
+                    pointRadius: 0,  // 隐藏数据点，堆叠面积图不需要
                     pointHoverRadius: 6,
                     pointHoverBorderWidth: 2,
                     pointHoverBackgroundColor: baseColor,
@@ -1199,7 +1212,7 @@
             
             try {
                 const timestamp = new Date().getTime();
-                const response = await fetchWithTimeout(`/api/bilibili/all?t=${timestamp}`);
+                const response = await fetchWithTimeout(`/api/bilibili/all?force=1&t=${timestamp}`);
                 const result = await response.json();
                 
                 if (result.success && result.data) {
@@ -1227,6 +1240,12 @@
             
             const chartData = generateTrendsData(cards);
             
+            // 如果当前视图是热力图，仅更新数据，不切换图表类型
+            if (currentTrendsView === 'heatmap') {
+                renderTrendsHeatmap(cards);
+                return;
+            }
+            
             if (trendsChart) {
                 trendsChart.destroy();
             }
@@ -1251,7 +1270,16 @@
                     },
                     plugins: {
                         legend: {
-                            display: false,
+                            display: true,
+                            position: 'top',
+                            labels: {
+                                boxWidth: 12,
+                                padding: 8,
+                                font: {
+                                    size: 11
+                                },
+                                usePointStyle: true,
+                            }
                         },
                         tooltip: {
                             enabled: true,
@@ -1302,9 +1330,10 @@
                     scales: {
                         x: {
                             display: true,
+                            stacked: true,  // 启用堆叠
                             title: {
                                 display: true,
-                                text: '周区间',
+                                text: '日期',
                                 font: {
                                     size: 13,
                                     weight: '600',
@@ -1342,9 +1371,10 @@
                         },
                         y: {
                             display: true,
+                            stacked: true,  // 启用堆叠
                             title: {
                                 display: true,
-                                text: '累计视频数量',
+                                text: '视频发布数量',
                                 font: {
                                     size: 13,
                                     weight: '600',
@@ -1410,6 +1440,171 @@
                     }
                 }
             });
+        }
+
+        // 热力图渲染（按周统计，30天分为4-5周）
+        function renderTrendsHeatmap(cards) {
+            const container = document.getElementById('trendsHeatmap');
+            if (!container) return;
+            
+            // 过滤有效公司
+            const validCards = cards.filter(card => !card.error && card.videos && card.videos.length > 0);
+            if (selectedCompanies.size > 0) {
+                // 仅显示选中的公司
+                const names = new Set(selectedCompanies);
+                validCards.splice(0, validCards.length, ...validCards.filter(c => names.has((c.user_info || {}).name || `UP主${c.user_info?.mid}`)));
+            }
+            if (validCards.length === 0) {
+                container.innerHTML = '<div class="loading-container"><p style="color:#718096;">暂无数据</p></div>';
+                return;
+            }
+            
+            // 生成周区间（7天一组，近30天）
+            const today = new Date();
+            today.setHours(23, 59, 59, 999); // 设置为今天的最后一刻
+            const start = new Date(today);
+            start.setDate(start.getDate() - 29);
+            start.setHours(0, 0, 0, 0); // 设置为30天前的0点
+            
+            const weeks = [];
+            let cursor = new Date(start);
+            while (cursor <= today) {
+                const weekStart = new Date(cursor);
+                const weekEnd = new Date(cursor);
+                weekEnd.setDate(weekEnd.getDate() + 6);
+                weekEnd.setHours(23, 59, 59, 999); // 设置为该周最后一天的最后一刻
+                if (weekEnd > today) weekEnd.setTime(today.getTime());
+                weeks.push({ start: new Date(weekStart), end: new Date(weekEnd) });
+                cursor.setDate(cursor.getDate() + 7);
+            }
+            
+            // 生成周标签
+            const weekLabels = weeks.map(w => {
+                const s = `${w.start.getMonth() + 1}/${w.start.getDate()}`;
+                const e = `${w.end.getMonth() + 1}/${w.end.getDate()}`;
+                return `${s}-${e}`;
+            });
+            
+            // 构建数据矩阵（周 x 公司）
+            const companies = [];
+            const dataMap = new Map(); // company -> {weekIndex: count}
+            let maxValue = 0;
+            
+            validCards.forEach(card => {
+                const userInfo = card.user_info || {};
+                const name = userInfo.name || `UP主${userInfo.mid}`;
+                companies.push(name);
+                const weekCounts = new Array(weeks.length).fill(0);
+                
+                (card.videos || []).forEach(video => {
+                    if (!video.pubdate_raw) return;
+                    const pubDate = new Date(video.pubdate_raw * 1000);
+                    // 只考虑最近30天
+                    if (pubDate < start || pubDate > today) return;
+                    // 找到对应的周索引
+                    const weekIndex = weeks.findIndex(w => pubDate >= w.start && pubDate <= w.end);
+                    if (weekIndex >= 0) {
+                        weekCounts[weekIndex] += 1;
+                        if (weekCounts[weekIndex] > maxValue) maxValue = weekCounts[weekIndex];
+                    }
+                });
+                
+                dataMap.set(name, weekCounts);
+            });
+            
+            if (maxValue === 0) {
+                container.innerHTML = '<div class="loading-container"><p style="color:#718096;">近30天暂无视频发布</p></div>';
+                return;
+            }
+            
+            // 颜色映射（低饱和度蓝紫系）
+            const getColor = (t) => {
+                // t ∈ [0,1]
+                const hue = 220 - t * 50;     // 220 -> 170
+                const sat = 45;               // 较低饱和度
+                const light = 92 - t * 45;    // 92% -> 47%
+                return `hsl(${hue}, ${sat}%, ${light}%)`;
+            };
+            
+            const formatValue = (v) => v === 0 ? '-' : v.toString();
+            
+            // 构建表格
+            let html = '<div class="heatmap-container">';
+            html += '<table class="heatmap-table">';
+            html += '<thead><tr><th class="heatmap-header">公司</th>';
+            weekLabels.forEach(label => {
+                html += `<th class="heatmap-header">${label}</th>`;
+            });
+            html += '</tr></thead>';
+            html += '<tbody>';
+            
+            companies.forEach(name => {
+                html += '<tr>';
+                html += `<td class="heatmap-company-name">${escapeHtml(name)}</td>`;
+                const weekCounts = dataMap.get(name) || [];
+                weekLabels.forEach((label, idx) => {
+                    const value = weekCounts[idx] || 0;
+                    const intensity = value === 0 ? 0 : value / maxValue;
+                    const color = getColor(intensity);
+                    html += `<td class="heatmap-cell" style="background-color: ${color};" title="${escapeHtml(name)} - ${label}: ${value || 0} 条">`;
+                    html += `<span class="heatmap-value">${formatValue(value)}</span>`;
+                    html += '</td>';
+                });
+                html += '</tr>';
+            });
+            
+            html += '</tbody></table>';
+            
+            // 图例
+            html += '<div class="heatmap-legend">';
+            html += '<span class="heatmap-legend-label">发布量:</span>';
+            html += '<div class="heatmap-legend-gradient">';
+            html += '<span>低</span>';
+            for (let i = 0; i <= 10; i++) {
+                const t = i / 10;
+                const color = getColor(t);
+                html += `<span class="heatmap-legend-color" style="background-color: ${color}"></span>`;
+            }
+            html += '<span>高</span>';
+            html += '</div></div>';
+            
+            html += '</div>';
+            container.innerHTML = html;
+        }
+
+        function showTrendsView(view) {
+            if (currentTrendsView === view) return;
+            currentTrendsView = view;
+            const areaBtn = document.getElementById('trendsViewArea');
+            const heatmapBtn = document.getElementById('trendsViewHeatmap');
+            const areaContainer = document.getElementById('trendsAreaContainer');
+            const heatmapContainer = document.getElementById('trendsHeatmapContainer');
+            
+            if (areaBtn && heatmapBtn) {
+                areaBtn.classList.toggle('active', view === 'area');
+                heatmapBtn.classList.toggle('active', view === 'heatmap');
+            }
+            if (areaContainer && heatmapContainer) {
+                areaContainer.classList.toggle('hidden', view === 'heatmap');
+                heatmapContainer.classList.toggle('hidden', view === 'area');
+            }
+            
+            if (view === 'area') {
+                renderTrendsChart(allCardsData);
+            } else {
+                renderTrendsHeatmap(allCardsData);
+            }
+        }
+
+        function initTrendsViewToggle() {
+            const areaBtn = document.getElementById('trendsViewArea');
+            const heatmapBtn = document.getElementById('trendsViewHeatmap');
+            if (areaBtn) {
+                areaBtn.addEventListener('click', () => showTrendsView('area'));
+            }
+            if (heatmapBtn) {
+                heatmapBtn.addEventListener('click', () => showTrendsView('heatmap'));
+            }
         }
         
         function filterCards(searchTerm) {
@@ -1930,9 +2125,9 @@
             
             // 检查是否有数据
             if (companies.length === 0) {
-                container.innerHTML = '<div class="loading-container"><p style="color:#718096;">暂无播放量数据（可能视频数据尚未加载）</p></div>';
+                    container.innerHTML = '<div class="loading-container"><p style="color:#718096;">暂无播放量数据（可能视频数据尚未加载）</p></div>';
                 return;
-            }
+                }
             
             // 过滤掉播放量为0的公司
             const validCompanies = companies.filter(c => c.play_count > 0);
@@ -2207,6 +2402,7 @@
 
         // 页面加载时获取数据
         document.addEventListener('DOMContentLoaded', () => {
+            initTrendsViewToggle();
             loadAllBilibiliCards();
             
             // 绑定搜索框事件

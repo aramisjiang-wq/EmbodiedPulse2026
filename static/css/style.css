@@ -80,15 +80,15 @@ body {
 
 /* 全屏宽度Tab栏包装器 */
 .top-nav-fullwidth-wrapper {
-    width: 100vw;
     position: sticky;
     top: 0;
-    left: 50%;
-    right: 50%;
-    margin-left: -50vw;
-    margin-right: -50vw;
+    left: 0;
+    right: 0;
+    width: 100vw;
+    margin-left: calc(-50vw + 50%);
+    margin-right: calc(-50vw + 50%);
     margin-bottom: 24px;
-    padding: 0 20px;
+    padding: 0;
     box-sizing: border-box;
     z-index: 1000;
     background: linear-gradient(135deg, #f8fafc 0%, #ffffff 100%);
@@ -3202,13 +3202,56 @@ body {
 /* 顶部导航栏 - Tab标签页样式（渐变背景风格） */
 .top-nav {
     background: linear-gradient(135deg, #f8fafc 0%, #ffffff 100%);
-    border: 1px solid #e2e8f0;
-    border-radius: 12px;
-    margin-bottom: 24px;
-    padding: 8px;
+    border: none;
+    border-bottom: 1px solid #e2e8f0;
+    border-radius: 0;
+    margin-bottom: 0;
+    padding: 8px 20px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
     position: relative;
     z-index: 1001;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+/* 视频趋势视图切换按钮 */
+.trends-view-tabs {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-right: 12px;
+    flex-wrap: wrap;
+}
+
+.trends-view-btn {
+    border: 1px solid #e2e8f0;
+    background: #ffffff;
+    color: #334155;
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.2s ease;
+}
+
+.trends-view-btn:hover {
+    background: #f8fafc;
+    border-color: #cbd5e1;
+}
+
+.trends-view-btn.active {
+    background: linear-gradient(135deg, #fb7299 0%, #00a1d6 100%);
+    color: #ffffff;
+    border-color: transparent;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.hidden {
+    display: none !important;
 }
 
 .nav-tabs {
