@@ -557,6 +557,678 @@ def admin_login():
         }), 500
 
 
-# 注意：由于篇幅限制，这里仅实现了核心API
-# 其他管理端API（用户管理、日志查看等）将在后续补充
+# ==================== 管理端API - 用户管理 ====================
+
+@admin_bp.route('/users', methods=['GET'])
+@admin_required
+def get_users():
+    """
+    获取用户列表（分页）
+    
+    GET /api/admin/users?page=1&per_page=20&search=&status=&role=
+    """
+    try:
+        # 获取查询参数
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', 20, type=int)
+        search = request.args.get('search', '').strip()
+        status_filter = request.args.get('status', '').strip()
+        role_filter = request.args.get('role', '').strip()
+        
+        # 构建查询
+        query = AuthUser.query
+        
+        # 搜索过滤
+        if search:
+            query = query.filter(
+                (AuthUser.name.contains(search)) |
+                (AuthUser.email.contains(search)) |
+                (AuthUser.mobile.contains(search)) |
+                (AuthUser.feishu_id.contains(search))
+            )
+        
+        # 状态过滤
+        if status_filter and status_filter in ['active', 'inactive', 'banned']:
+            query = query.filter(AuthUser.status == status_filter)
+        
+        # 角色过滤
+        if role_filter and role_filter in ['user', 'admin', 'super_admin']:
+            query = query.filter(AuthUser.role == role_filter)
+        
+        # 排序
+        query = query.order_by(AuthUser.created_at.desc())
+        
+        # 分页
+        pagination = query.paginate(page=page, per_page=per_page, error_out=False)
+        
+        return jsonify({
+            'success': True,
+            'users': [user.to_dict() for user in pagination.items],
+            'total': pagination.total,
+            'pages': pagination.pages,
+            'current_page': pagination.page,
+            'per_page': pagination.per_page
+        })
+        
+    except Exception as e:
+        logger.error(f"获取用户列表失败: {e}")
+        return jsonify({
+            'success': False,
+            'message': f'获取用户列表失败: {str(e)}'
+        }), 500
+
+
+@admin_bp.route('/users/<int:user_id>', methods=['GET'])
+@admin_required
+def get_user_detail(user_id):
+    """
+    获取用户详情
+    
+    GET /api/admin/users/{user_id}
+    """
+    try:
+        user = AuthUser.query.get(user_id)
+        if not user:
+            return jsonify({
+                'success': False,
+                'message': '用户不存在'
+            }), 404
+        
+        # 获取用户的登录历史（最近10条）
+        login_history = LoginHistory.query.filter_by(user_id=user_id).order_by(
+            LoginHistory.login_time.desc()
+        ).limit(10).all()
+        
+        # 获取用户的访问统计
+        total_access_count = AccessLog.query.filter_by(user_id=user_id).count()
+        today_access_count = AccessLog.query.filter_by(user_id=user_id).filter(
+            AccessLog.access_time >= datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+        ).count()
+        
+        return jsonify({
+            'success': True,
+            'user': user.to_dict(),
+            'login_history': [h.to_dict() for h in login_history],
+            'stats': {
+                'total_access_count': total_access_count,
+                'today_access_count': today_access_count,
+                'login_count': len([h for h in login_history if h.status == 'success'])
+            }
+        })
+        
+    except Exception as e:
+        logger.error(f"获取用户详情失败 (user_id={user_id}): {e}")
+        return jsonify({
+            'success': False,
+            'message': f'获取用户详情失败: {str(e)}'
+        }), 500
+
+
+@admin_bp.route('/users/<int:user_id>', methods=['PUT'])
+@admin_required
+def update_user(user_id):
+    """
+    更新用户信息
+    
+    PUT /api/admin/users/{user_id}
+    {
+        "name": "新名字",
+        "email": "new@example.com",
+        "mobile": "13800138000",
+        "department": "技术部",
+        "role": "admin",
+        "status": "active"
+    }
+    """
+    try:
+        user = AuthUser.query.get(user_id)
+        if not user:
+            return jsonify({
+                'success': False,
+                'message': '用户不存在'
+            }), 404
+        
+        data = request.get_json()
+        if not data:
+            return jsonify({
+                'success': False,
+                'message': '请求数据不能为空'
+            }), 400
+        
+        # 获取当前管理员
+        current_admin = get_current_user()
+        
+        # 可更新字段
+        updatable_fields = ['name', 'email', 'mobile', 'department', 'status']
+        
+        # 只有超级管理员可以更新角色
+        if current_admin.get('role') == 'super_admin':
+            updatable_fields.append('role')
+        
+        # 更新字段
+        updated_fields = []
+        for field in updatable_fields:
+            if field in data:
+                setattr(user, field, data[field])
+                updated_fields.append(field)
+        
+        if updated_fields:
+            user.updated_at = datetime.now()
+            db.session.commit()
+            logger.info(f"用户信息已更新 - user_id: {user_id}, fields: {updated_fields}")
+        
+        return jsonify({
+            'success': True,
+            'message': '用户信息更新成功',
+            'user': user.to_dict()
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"更新用户信息失败 (user_id={user_id}): {e}")
+        return jsonify({
+            'success': False,
+            'message': f'更新用户信息失败: {str(e)}'
+        }), 500
+
+
+@admin_bp.route('/users/<int:user_id>', methods=['DELETE'])
+@super_admin_required
+def delete_user(user_id):
+    """
+    删除用户（仅超级管理员）
+    
+    DELETE /api/admin/users/{user_id}
+    """
+    try:
+        user = AuthUser.query.get(user_id)
+        if not user:
+            return jsonify({
+                'success': False,
+                'message': '用户不存在'
+            }), 404
+        
+        # 不能删除超级管理员
+        if user.role == 'super_admin':
+            return jsonify({
+                'success': False,
+                'message': '不能删除超级管理员'
+            }), 403
+        
+        db.session.delete(user)
+        db.session.commit()
+        
+        logger.info(f"用户已删除 - user_id: {user_id}, name: {user.name}")
+        
+        return jsonify({
+            'success': True,
+            'message': '用户删除成功'
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"删除用户失败 (user_id={user_id}): {e}")
+        return jsonify({
+            'success': False,
+            'message': f'删除用户失败: {str(e)}'
+        }), 500
+
+
+@admin_bp.route('/users/batch', methods=['POST'])
+@admin_required
+def batch_update_users():
+    """
+    批量更新用户
+    
+    POST /api/admin/users/batch
+    {
+        "user_ids": [1, 2, 3],
+        "action": "update_status" | "update_role" | "delete",
+        "value": "active" | "admin" (根据action不同)
+    }
+    """
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({
+                'success': False,
+                'message': '请求数据不能为空'
+            }), 400
+        
+        user_ids = data.get('user_ids', [])
+        action = data.get('action')
+        value = data.get('value')
+        
+        if not user_ids or not action:
+            return jsonify({
+                'success': False,
+                'message': '缺少必要参数'
+            }), 400
+        
+        # 获取用户
+        users = AuthUser.query.filter(AuthUser.id.in_(user_ids)).all()
+        if not users:
+            return jsonify({
+                'success': False,
+                'message': '未找到指定用户'
+            }), 404
+        
+        current_admin = get_current_user()
+        updated_count = 0
+        
+        if action == 'update_status':
+            if value not in ['active', 'inactive', 'banned']:
+                return jsonify({
+                    'success': False,
+                    'message': '无效的状态值'
+                }), 400
+            
+            for user in users:
+                if user.role != 'super_admin':  # 不能修改超级管理员状态
+                    user.status = value
+                    user.updated_at = datetime.now()
+                    updated_count += 1
+        
+        elif action == 'update_role':
+            # 只有超级管理员可以批量更新角色
+            if current_admin.get('role') != 'super_admin':
+                return jsonify({
+                    'success': False,
+                    'message': '权限不足'
+                }), 403
+            
+            if value not in ['user', 'admin', 'super_admin']:
+                return jsonify({
+                    'success': False,
+                    'message': '无效的角色值'
+                }), 400
+            
+            for user in users:
+                if user.role != 'super_admin':  # 不能修改超级管理员角色
+                    user.role = value
+                    user.updated_at = datetime.now()
+                    updated_count += 1
+        
+        elif action == 'delete':
+            # 只有超级管理员可以批量删除
+            if current_admin.get('role') != 'super_admin':
+                return jsonify({
+                    'success': False,
+                    'message': '权限不足'
+                }), 403
+            
+            for user in users:
+                if user.role != 'super_admin':  # 不能删除超级管理员
+                    db.session.delete(user)
+                    updated_count += 1
+        else:
+            return jsonify({
+                'success': False,
+                'message': '无效的操作类型'
+            }), 400
+        
+        db.session.commit()
+        logger.info(f"批量操作完成 - action: {action}, count: {updated_count}")
+        
+        return jsonify({
+            'success': True,
+            'message': f'批量操作成功，共处理 {updated_count} 个用户'
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"批量操作失败: {e}")
+        return jsonify({
+            'success': False,
+            'message': f'批量操作失败: {str(e)}'
+        }), 500
+
+
+# ==================== 管理端API - 日志管理 ====================
+
+@admin_bp.route('/logs/login', methods=['GET'])
+@admin_required
+def get_login_logs():
+    """
+    获取登录日志
+    
+    GET /api/admin/logs/login?page=1&per_page=50&user_id=&status=&start_date=&end_date=
+    """
+    try:
+        # 获取查询参数
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', 50, type=int)
+        user_id = request.args.get('user_id', type=int)
+        status_filter = request.args.get('status', '').strip()
+        start_date = request.args.get('start_date', '').strip()
+        end_date = request.args.get('end_date', '').strip()
+        
+        # 构建查询
+        query = LoginHistory.query
+        
+        # 用户过滤
+        if user_id:
+            query = query.filter(LoginHistory.user_id == user_id)
+        
+        # 状态过滤
+        if status_filter and status_filter in ['success', 'failed']:
+            query = query.filter(LoginHistory.status == status_filter)
+        
+        # 日期过滤
+        if start_date:
+            try:
+                start_dt = datetime.strptime(start_date, '%Y-%m-%d')
+                query = query.filter(LoginHistory.login_time >= start_dt)
+            except ValueError:
+                pass
+        
+        if end_date:
+            try:
+                end_dt = datetime.strptime(end_date, '%Y-%m-%d')
+                end_dt = end_dt.replace(hour=23, minute=59, second=59)
+                query = query.filter(LoginHistory.login_time <= end_dt)
+            except ValueError:
+                pass
+        
+        # 排序
+        query = query.order_by(LoginHistory.login_time.desc())
+        
+        # 分页
+        pagination = query.paginate(page=page, per_page=per_page, error_out=False)
+        
+        # 构建结果（包含用户信息）
+        results = []
+        for log in pagination.items:
+            log_dict = log.to_dict()
+            if log.user_id:
+                user = AuthUser.query.get(log.user_id)
+                if user:
+                    log_dict['user'] = {
+                        'id': user.id,
+                        'name': user.name,
+                        'email': user.email
+                    }
+            results.append(log_dict)
+        
+        return jsonify({
+            'success': True,
+            'logs': results,
+            'total': pagination.total,
+            'pages': pagination.pages,
+            'current_page': pagination.page,
+            'per_page': pagination.per_page
+        })
+        
+    except Exception as e:
+        logger.error(f"获取登录日志失败: {e}")
+        return jsonify({
+            'success': False,
+            'message': f'获取登录日志失败: {str(e)}'
+        }), 500
+
+
+@admin_bp.route('/logs/access', methods=['GET'])
+@admin_required
+def get_access_logs():
+    """
+    获取访问日志
+    
+    GET /api/admin/logs/access?page=1&per_page=50&user_id=&start_date=&end_date=
+    """
+    try:
+        # 获取查询参数
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', 50, type=int)
+        user_id = request.args.get('user_id', type=int)
+        start_date = request.args.get('start_date', '').strip()
+        end_date = request.args.get('end_date', '').strip()
+        
+        # 构建查询
+        query = AccessLog.query
+        
+        # 用户过滤
+        if user_id:
+            query = query.filter(AccessLog.user_id == user_id)
+        
+        # 日期过滤
+        if start_date:
+            try:
+                start_dt = datetime.strptime(start_date, '%Y-%m-%d')
+                query = query.filter(AccessLog.access_time >= start_dt)
+            except ValueError:
+                pass
+        
+        if end_date:
+            try:
+                end_dt = datetime.strptime(end_date, '%Y-%m-%d')
+                end_dt = end_dt.replace(hour=23, minute=59, second=59)
+                query = query.filter(AccessLog.access_time <= end_dt)
+            except ValueError:
+                pass
+        
+        # 排序
+        query = query.order_by(AccessLog.access_time.desc())
+        
+        # 分页
+        pagination = query.paginate(page=page, per_page=per_page, error_out=False)
+        
+        # 构建结果（包含用户信息）
+        results = []
+        for log in pagination.items:
+            log_dict = log.to_dict()
+            if log.user_id:
+                user = AuthUser.query.get(log.user_id)
+                if user:
+                    log_dict['user'] = {
+                        'id': user.id,
+                        'name': user.name,
+                        'email': user.email
+                    }
+            results.append(log_dict)
+        
+        return jsonify({
+            'success': True,
+            'logs': results,
+            'total': pagination.total,
+            'pages': pagination.pages,
+            'current_page': pagination.page,
+            'per_page': pagination.per_page
+        })
+        
+    except Exception as e:
+        logger.error(f"获取访问日志失败: {e}")
+        return jsonify({
+            'success': False,
+            'message': f'获取访问日志失败: {str(e)}'
+        }), 500
+
+
+# ==================== 管理端API - 统计数据 ====================
+
+@admin_bp.route('/stats/overview', methods=['GET'])
+@admin_required
+def get_overview_stats():
+    """
+    获取全局统计概览
+    
+    GET /api/admin/stats/overview
+    """
+    try:
+        from sqlalchemy import func, distinct
+        from datetime import timedelta
+        
+        now = datetime.now()
+        today = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        week_ago = today - timedelta(days=7)
+        month_ago = today - timedelta(days=30)
+        
+        # 用户统计
+        total_users = AuthUser.query.count()
+        active_users = AuthUser.query.filter_by(status='active').count()
+        new_users_today = AuthUser.query.filter(AuthUser.created_at >= today).count()
+        new_users_week = AuthUser.query.filter(AuthUser.created_at >= week_ago).count()
+        
+        # 登录统计
+        total_logins = LoginHistory.query.filter_by(status='success').count()
+        logins_today = LoginHistory.query.filter(
+            LoginHistory.status == 'success',
+            LoginHistory.login_time >= today
+        ).count()
+        logins_week = LoginHistory.query.filter(
+            LoginHistory.status == 'success',
+            LoginHistory.login_time >= week_ago
+        ).count()
+        
+        # 活跃用户统计
+        active_users_today = db.session.query(distinct(LoginHistory.user_id)).filter(
+            LoginHistory.login_time >= today
+        ).count()
+        active_users_week = db.session.query(distinct(LoginHistory.user_id)).filter(
+            LoginHistory.login_time >= week_ago
+        ).count()
+        
+        # 访问统计
+        total_access = AccessLog.query.count()
+        access_today = AccessLog.query.filter(AccessLog.access_time >= today).count()
+        access_week = AccessLog.query.filter(AccessLog.access_time >= week_ago).count()
+        
+        # 用户类型分布
+        user_type_stats = db.session.query(
+            AuthUser.user_type,
+            func.count(AuthUser.id)
+        ).group_by(AuthUser.user_type).all()
+        
+        # 用户角色分布
+        role_stats = db.session.query(
+            AuthUser.role,
+            func.count(AuthUser.id)
+        ).group_by(AuthUser.role).all()
+        
+        return jsonify({
+            'success': True,
+            'stats': {
+                'users': {
+                    'total': total_users,
+                    'active': active_users,
+                    'new_today': new_users_today,
+                    'new_week': new_users_week
+                },
+                'logins': {
+                    'total': total_logins,
+                    'today': logins_today,
+                    'week': logins_week
+                },
+                'active_users': {
+                    'today': active_users_today,
+                    'week': active_users_week
+                },
+                'access': {
+                    'total': total_access,
+                    'today': access_today,
+                    'week': access_week
+                },
+                'distribution': {
+                    'user_type': {ut[0]: ut[1] for ut in user_type_stats},
+                    'role': {r[0]: r[1] for r in role_stats}
+                }
+            }
+        })
+        
+    except Exception as e:
+        logger.error(f"获取统计概览失败: {e}")
+        return jsonify({
+            'success': False,
+            'message': f'获取统计概览失败: {str(e)}'
+        }), 500
+
+
+@admin_bp.route('/stats/trends', methods=['GET'])
+@admin_required
+def get_trends_stats():
+    """
+    获取趋势统计数据
+    
+    GET /api/admin/stats/trends?days=30
+    """
+    try:
+        from datetime import timedelta
+        from sqlalchemy import func, cast, Date
+        
+        days = request.args.get('days', 30, type=int)
+        if days > 365:
+            days = 365  # 最多1年
+        
+        end_date = datetime.now().replace(hour=23, minute=59, second=59, microsecond=999999)
+        start_date = end_date - timedelta(days=days-1)
+        start_date = start_date.replace(hour=0, minute=0, second=0, microsecond=0)
+        
+        # 每日新增用户
+        new_users_daily = db.session.query(
+            cast(AuthUser.created_at, Date).label('date'),
+            func.count(AuthUser.id).label('count')
+        ).filter(
+            AuthUser.created_at >= start_date,
+            AuthUser.created_at <= end_date
+        ).group_by(cast(AuthUser.created_at, Date)).all()
+        
+        # 每日登录次数
+        logins_daily = db.session.query(
+            cast(LoginHistory.login_time, Date).label('date'),
+            func.count(LoginHistory.id).label('count')
+        ).filter(
+            LoginHistory.status == 'success',
+            LoginHistory.login_time >= start_date,
+            LoginHistory.login_time <= end_date
+        ).group_by(cast(LoginHistory.login_time, Date)).all()
+        
+        # 每日活跃用户数
+        active_users_daily = db.session.query(
+            cast(LoginHistory.login_time, Date).label('date'),
+            func.count(distinct(LoginHistory.user_id)).label('count')
+        ).filter(
+            LoginHistory.login_time >= start_date,
+            LoginHistory.login_time <= end_date
+        ).group_by(cast(LoginHistory.login_time, Date)).all()
+        
+        # 每日访问次数
+        access_daily = db.session.query(
+            cast(AccessLog.access_time, Date).label('date'),
+            func.count(AccessLog.id).label('count')
+        ).filter(
+            AccessLog.access_time >= start_date,
+            AccessLog.access_time <= end_date
+        ).group_by(cast(AccessLog.access_time, Date)).all()
+        
+        # 格式化返回数据
+        def format_daily_data(data):
+            result = {}
+            for item in data:
+                date_str = item.date.strftime('%Y-%m-%d')
+                result[date_str] = item.count
+            return result
+        
+        return jsonify({
+            'success': True,
+            'trends': {
+                'new_users': format_daily_data(new_users_daily),
+                'logins': format_daily_data(logins_daily),
+                'active_users': format_daily_data(active_users_daily),
+                'access': format_daily_data(access_daily)
+            },
+            'period': {
+                'start_date': start_date.strftime('%Y-%m-%d'),
+                'end_date': end_date.strftime('%Y-%m-%d'),
+                'days': days
+            }
+        })
+        
+    except Exception as e:
+        logger.error(f"获取趋势统计失败: {e}")
+        return jsonify({
+            'success': False,
+            'message': f'获取趋势统计失败: {str(e)}'
+        }), 500
+
+
+# ==================== Phase 3 管理端API开发完成 ====================
 
