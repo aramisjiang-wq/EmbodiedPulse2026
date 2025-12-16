@@ -81,7 +81,8 @@ body {
 /* 全屏宽度Tab栏包装器 */
 .top-nav-fullwidth-wrapper {
     width: 100vw;
-    position: relative;
+    position: sticky;
+    top: 0;
     left: 50%;
     right: 50%;
     margin-left: -50vw;
@@ -89,6 +90,10 @@ body {
     margin-bottom: 24px;
     padding: 0 20px;
     box-sizing: border-box;
+    z-index: 1000;
+    background: linear-gradient(135deg, #f8fafc 0%, #ffffff 100%);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
 }
 
 /* 头部样式 - 使用Banner2.png作为背景图 */
@@ -3202,6 +3207,8 @@ body {
     margin-bottom: 24px;
     padding: 8px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    position: relative;
+    z-index: 1001;
 }
 
 .nav-tabs {
