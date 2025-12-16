@@ -20,30 +20,83 @@ md_gitpage_path: './docs/index.md'
 md_wechat_path: './docs/wechat.md'
 
 # keywords to search
-# 按照具身智能研究方向全量标签配置
+# 基于新论文标签体系配置（2025-12-15更新）
 keywords:
-    # --------- 感知层 (Perception Layer) ---------
-    "Perception":
-        filters: ["Visual Perception", "Scene Understanding", "Robot Perception", "Perception", "Visual Understanding", "Scene Recognition"]
-    "VLM":
-        filters: ["Vision Language Model", "Vision Language Models", "Vision-Language Model", "Vision-Language Models", "Multimodal Learning", "Visual-Language"]
+    # ========== 感知与理解 (Perception & Understanding) ==========
+    "Perception-2D":
+        filters: ["perception", "2d perception", "visual perception", "computer vision", "image understanding"]
     
-    # --------- 决策层 (Decision Layer) ---------
-    "Planning":
-        filters: ["Task Planning", "Path Planning", "Motion Planning", "Robot Planning", "Action Planning", "Trajectory Planning"]
-    "RL/IL":
-        filters: ["Reinforcement Learning", "Imitation Learning", "Robot Learning", "Deep Reinforcement Learning", "RL", "Imitation"]
+    "Perception-3D":
+        filters: ["3d perception", "3d vision", "depth perception", "spatial perception", "volumetric"]
     
-    # --------- 执行层 (Execution Layer) ---------
-    "Manipulation":
-        filters: ["Robot Manipulation", "Robotic Manipulation", "Robot Learning", "Imitation Learning", "Grasping", "Object Manipulation"]
-    "Locomotion":
-        filters: ["Mobile Robot", "Navigation", "Robot Locomotion", "Legged Robot", "Walking Robot", "Mobile Navigation", "Robot Walking", "Quadruped Robot", "Quadruped"]
-    "Dexterous":
-        filters: ["Dexterous Manipulation", "Dexterous hand", "Dexterity", "Dexterous", "Fine Manipulation", "Dexterous Robot"]
+    "Perception-Detection":
+        filters: ["object detection", "detection", "object recognition", "tracking", "multi-object tracking"]
     
-    # --------- 系统集成 (System Integration) ---------
-    "VLA":
-        filters: ["Vision Language Action", "Vision-Language-Action", "VLA", "Embodied Agent", "Embodied AI"]
-    "Humanoid":
-        filters: ["Humanoid Robot", "Humanoid", "Bipedal Robot", "Humanoid Robotics", "Bipedal Locomotion"]
+    "Perception-Segmentation":
+        filters: ["segmentation", "instance segmentation", "semantic segmentation", "panoptic segmentation"]
+    
+    "Perception-VLM":
+        filters: ["vision language model", "VLM", "multimodal", "CLIP", "visual language", "visual grounding", "VQA"]
+    
+    "Perception-PointCloud":
+        filters: ["point cloud", "pointcloud", "lidar", "3d point"]
+    
+    "Perception-SceneUnderstanding":
+        filters: ["scene understanding", "3d scene", "scene reconstruction", "3DGS", "gaussian splatting", "nerf"]
+    
+    "Perception-Generation":
+        filters: ["image generation", "video generation", "diffusion", "text to image", "text to video"]
+
+    # ========== 决策 (Decision Making) ==========
+    "Decision-Planning":
+        filters: ["planning", "task planning", "motion planning", "path planning", "navigation", "long-horizon"]
+    
+    "Decision-Graph":
+        filters: ["graph modeling", "graph neural", "knowledge graph", "scene graph"]
+
+    # ========== 运动控制 (Motion Control) ==========
+    "Motion-Locomotion":
+        filters: ["locomotion", "walking", "legged", "gait", "navigation"]
+    
+    "Motion-Humanoid":
+        filters: ["humanoid", "bipedal", "humanoid robot", "human-like robot"]
+    
+    "Motion-Quadruped":
+        filters: ["quadruped", "quadrupedal", "four-legged", "legged robot"]
+    
+    "Motion-MobileManipulation":
+        filters: ["mobile manipulation", "loco-manipulation", "mobile manipulator"]
+
+    # ========== 操作与交互 (Operation & Interaction) ==========
+    "Operation-Grasp":
+        filters: ["grasp", "grasping", "manipulation", "pick and place", "object manipulation"]
+    
+    "Operation-Bimanual":
+        filters: ["bimanual", "dual arm", "dual-arm", "two-arm", "coordinated manipulation"]
+    
+    "Operation-Dexterous":
+        filters: ["dexterous", "dexterous hand", "fine manipulation", "in-hand manipulation"]
+    
+    "Operation-VLA":
+        filters: ["vision language action", "VLA", "embodied agent", "embodied AI", "autonomous agent"]
+    
+    "Operation-Policy":
+        filters: ["policy", "control policy", "visuomotor policy", "robot policy", "neural policy"]
+
+    # ========== 学习与算法 (Learning & Algorithms) ==========
+    "Learning-RL":
+        filters: ["reinforcement learning", "deep reinforcement learning", "RL", "PPO", "SAC", "actor-critic"]
+    
+    "Learning-IL":
+        filters: ["imitation learning", "behavioral cloning", "learning from demonstration", "IL"]
+    
+    "Learning-Lightweight":
+        filters: ["lightweight", "efficient", "compression", "quantization", "model compression"]
+
+    # ========== 基准 (Benchmark) ==========
+    "Benchmark":
+        filters: ["benchmark", "evaluation", "dataset", "testbed", "simulator", "simulation"]
+    
+    # ========== 通用 (General) ==========
+    "General-Robot":
+        filters: ["robot learning", "robotic learning", "embodied", "autonomous", "sim-to-real"]

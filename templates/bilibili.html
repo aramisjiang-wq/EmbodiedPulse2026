@@ -23,15 +23,125 @@
         }
         
         .bilibili-page-container {
-            max-width: 1600px;
+            max-width: 1800px;
             margin: 0 auto;
             padding: 24px;
+        }
+        
+        /* 主布局：左侧主内容 + 右侧侧边栏 */
+        .bilibili-main-layout {
+            display: grid;
+            grid-template-columns: 1fr 420px;
+            gap: 24px;
+            align-items: start;
+        }
+        
+        /* Banner模块覆盖整个宽度 */
+        .bilibili-page-header-wrapper {
+            grid-column: 1 / -1;
+            margin-bottom: 24px;
+        }
+        
+        /* 主内容区域 */
+        .bilibili-main-content {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+        
+        /* 右侧侧边栏 */
+        .bilibili-sidebar {
+            position: sticky;
+            top: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+            max-height: calc(100vh - 48px);
+            overflow-y: auto;
+        }
+        
+        /* 侧边栏挂件 */
+        .bilibili-sidebar-widget {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            padding: 28px;
+            border: 1px solid rgba(251, 114, 153, 0.1);
+            min-height: 400px;
+        }
+        
+        /* 最新视频挂件高度 */
+        .bilibili-sidebar-widget:first-child {
+            min-height: 500px;
+        }
+        
+        /* TOP5挂件高度 */
+        .bilibili-sidebar-widget:nth-child(2) {
+            min-height: 450px;
+        }
+        
+        /* 年度播放量挂件高度 */
+        .bilibili-sidebar-widget:last-child {
+            min-height: 500px;
+        }
+        
+        /* 年度图表样式 */
+        .bilibili-yearly-chart {
+            width: 100%;
+            height: 350px;
+            margin-bottom: 12px;
+        }
+        
+        /* 侧边栏滚动条样式 */
+        .bilibili-sidebar::-webkit-scrollbar {
+            width: 6px;
+        }
+        
+        .bilibili-sidebar::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 3px;
+        }
+        
+        .bilibili-sidebar::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 3px;
+        }
+        
+        .bilibili-sidebar::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+        
+        /* 响应式设计 */
+        @media (max-width: 1400px) {
+            .bilibili-main-layout {
+                grid-template-columns: 1fr 380px;
+            }
+        }
+        
+        @media (max-width: 1200px) {
+            .bilibili-main-layout {
+                grid-template-columns: 1fr;
+            }
+            
+            .bilibili-sidebar {
+                position: static;
+                max-height: none;
+                display: grid;
+                grid-template-columns: repeat(2, 1fr);
+                gap: 24px;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .bilibili-sidebar {
+                grid-template-columns: 1fr;
+            }
         }
         
         /* 页面头部 - B站风格 */
         .bilibili-page-header {
             text-align: center;
-            margin-bottom: 40px;
+            margin-bottom: 0;
             padding: 40px 20px;
             background: linear-gradient(135deg, var(--bilibili-pink) 0%, var(--bilibili-blue) 100%);
             border-radius: 16px;
@@ -84,14 +194,14 @@
             background: #ffffff;
             border-radius: 16px;
             padding: 32px;
-            margin-bottom: 32px;
+            margin-bottom: 24px;
             box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
             border: 1px solid rgba(251, 114, 153, 0.1);
         }
         
         /* 月度播放量统计对比模块 - 与上方保持间距 */
         .bilibili-trends-section.monthly-stats {
-            margin-top: 32px;
+            margin-top: 8px;
         }
         
         .bilibili-trends-header {
@@ -104,7 +214,7 @@
         }
         
         .bilibili-trends-title {
-            font-size: 1.75rem;
+            font-size: 1.5rem;
             font-weight: 700;
             color: #2d3748;
             margin: 0;
@@ -209,12 +319,121 @@
         
         .bilibili-trends-chart {
             position: relative;
-            height: 500px;
+            min-height: 800px;
+            height: auto;
             margin-bottom: 24px;
             background: linear-gradient(135deg, #fafbfc 0%, #ffffff 100%);
             border-radius: 12px;
             padding: 16px;
             border: 1px solid rgba(148, 163, 184, 0.1);
+            display: flex;
+            flex-direction: column;
+        }
+        
+        /* 热力图样式 */
+        .heatmap-container {
+            width: 100%;
+            overflow-x: auto;
+            overflow-y: visible;
+            margin-bottom: 16px;
+        }
+        
+        .heatmap-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.875rem;
+            background: white;
+        }
+        
+        .heatmap-header {
+            padding: 12px 8px;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            font-weight: 600;
+            color: #2d3748;
+            text-align: center;
+            white-space: nowrap;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+        
+        .heatmap-company-name {
+            padding: 12px 16px;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            font-weight: 600;
+            color: #2d3748;
+            text-align: left;
+            white-space: nowrap;
+            position: sticky;
+            left: 0;
+            z-index: 5;
+            min-width: 120px;
+        }
+        
+        .heatmap-cell {
+            padding: 12px 8px;
+            border: 1px solid #e2e8f0;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            min-width: 80px;
+            position: relative;
+        }
+        
+        .heatmap-cell:hover {
+            transform: scale(1.05);
+            z-index: 1;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            border-color: #f59e0b;
+        }
+        
+        .heatmap-value {
+            font-weight: 600;
+            color: #2d3748;
+            font-size: 0.8rem;
+        }
+        
+        .heatmap-cell[data-value="0"] .heatmap-value {
+            color: #a0aec0;
+            font-weight: 400;
+        }
+        
+        .heatmap-legend {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px;
+            background: #f8fafc;
+            border-radius: 8px;
+            margin-top: 16px;
+            flex-shrink: 0;
+        }
+        
+        .heatmap-legend-label {
+            font-weight: 600;
+            color: #2d3748;
+            font-size: 0.875rem;
+        }
+        
+        .heatmap-legend-gradient {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            flex: 1;
+        }
+        
+        .heatmap-legend-gradient span {
+            font-size: 0.75rem;
+            color: #718096;
+        }
+        
+        .heatmap-legend-color {
+            width: 20px;
+            height: 20px;
+            border-radius: 4px;
+            border: 1px solid #e2e8f0;
         }
         
         .bilibili-trends-info {
@@ -630,50 +849,100 @@
         </div>
 
         <div class="bilibili-page-container">
-            <!-- 页面头部 -->
-            <div class="bilibili-page-header">
-                <h1><i class="fab fa-bilibili"></i> 具身视频Hub</h1>
-                <p>追踪具身智能领域的优质视频内容</p>
-            </div>
+            <!-- 主内容区域 + 右侧侧边栏 -->
+            <div class="bilibili-main-layout">
+                <!-- 页面头部 - 覆盖整个宽度 -->
+                <div class="bilibili-page-header-wrapper">
+                    <div class="bilibili-page-header">
+                        <h1><i class="fab fa-bilibili"></i> 具身视频Hub</h1>
+                        <p>追踪具身智能领域的优质视频内容</p>
+                    </div>
+                </div>
+                <!-- 主内容区域 -->
+                <div class="bilibili-main-content">
+                    <!-- 视频发布趋势 -->
+                    <div class="bilibili-trends-section">
+                        <div class="bilibili-trends-header">
+                            <div class="bilibili-trends-title">
+                                <i class="fas fa-chart-area"></i> 视频发布数量趋势（近30天）
+                            </div>
+                            <div class="bilibili-trends-controls">
+                                <button id="refreshBilibiliBtn" class="btn-refresh" onclick="refreshBilibiliData()">
+                                    <i class="fas fa-sync-alt" id="refreshIcon"></i>
+                                    <span>刷新数据</span>
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div id="trendsLegend" class="bilibili-trends-legend" style="display: none;">
+                            <!-- 图例将通过JS动态生成 -->
+                        </div>
+                        
+                        <div class="bilibili-trends-chart">
+                            <canvas id="videoTrendsChart"></canvas>
+                        </div>
+                        
+                        <div class="bilibili-trends-info">
+                            <div class="bilibili-trends-info-title">
+                                <i class="fas fa-info-circle"></i> 数据刷新规则
+                            </div>
+                            <div class="bilibili-trends-info-content">
+                                <strong>自动刷新：</strong>数据缓存10分钟，10分钟内访问会使用缓存数据，避免频繁请求B站API。<br>
+                                <strong>手动刷新：</strong>点击"刷新数据"按钮可立即获取最新数据（会清除缓存）。<br>
+                                <strong>趋势图说明：</strong>显示最近30天每日发布量（非累计），可通过图例切换公司。<br>
+                                <strong>最新视频：</strong>右侧侧边栏展示最近7天最新视频。
+                            </div>
+                        </div>
+                    </div>
 
-            <!-- 视频发布趋势 + 右侧（最新视频 + Top5） -->
-            <div class="bilibili-trends-grid">
-                <div class="bilibili-trends-section">
-                    <div class="bilibili-trends-header">
-                        <div class="bilibili-trends-title">
-                            <i class="fas fa-chart-area"></i> 视频发布数量趋势（近30天）
+                    <!-- 月度播放量统计对比 -->
+                    <div class="bilibili-trends-section monthly-stats">
+                        <div class="bilibili-trends-header">
+                            <div class="bilibili-trends-title">
+                                <i class="fas fa-chart-bar"></i> 月度播放量对比（近1年）
+                            </div>
                         </div>
-                        <div class="bilibili-trends-controls">
-                            <button id="refreshBilibiliBtn" class="btn-refresh" onclick="refreshBilibiliData()">
-                                <i class="fas fa-sync-alt" id="refreshIcon"></i>
-                                <span>刷新数据</span>
-                            </button>
+                        
+                        <div class="bilibili-trends-chart" style="min-height: 500px;">
+                            <div id="monthlyStatsHeatmap" style="width: 100%; overflow-x: auto;"></div>
+                            <canvas id="monthlyStatsChart" style="display: none;"></canvas>
+                        </div>
+                        
+                        <div class="bilibili-trends-info">
+                            <div class="bilibili-trends-info-title">
+                                <i class="fas fa-info-circle"></i> 统计说明
+                            </div>
+                            <div class="bilibili-trends-info-content">
+                                <strong>数据来源：</strong>基于各公司B站账号发布的视频播放量，按月汇总统计。<br>
+                                <strong>统计方式：</strong>各公司当月发布的所有视频的播放量合计对比。<br>
+                                <strong>统计范围：</strong>显示最近12个月的播放量数据（基于已获取的视频）。
+                            </div>
                         </div>
                     </div>
-                    
-                    <div id="trendsLegend" class="bilibili-trends-legend" style="display: none;">
-                        <!-- 图例将通过JS动态生成 -->
-                    </div>
-                    
-                    <div class="bilibili-trends-chart">
-                        <canvas id="videoTrendsChart"></canvas>
-                    </div>
-                    
-                    <div class="bilibili-trends-info">
-                        <div class="bilibili-trends-info-title">
-                            <i class="fas fa-info-circle"></i> 数据刷新规则
+
+                    <!-- 公司卡片模块 -->
+                    <div class="bilibili-cards-section">
+                        <div class="bilibili-cards-header">
+                            <div class="bilibili-cards-title">
+                                <i class="fas fa-users"></i> 公司列表
+                            </div>
+                            <div class="bilibili-cards-filter">
+                                <input type="text" id="companyFilterInput" class="bilibili-filter-input" placeholder="搜索公司名称...">
+                            </div>
                         </div>
-                        <div class="bilibili-trends-info-content">
-                            <strong>自动刷新：</strong>数据缓存10分钟，10分钟内访问会使用缓存数据，避免频繁请求B站API。<br>
-                            <strong>手动刷新：</strong>点击"刷新数据"按钮可立即获取最新数据（会清除缓存）。<br>
-                            <strong>趋势图说明：</strong>显示最近30天每日发布量（非累计），可通过图例切换公司。<br>
-                            <strong>最新视频：</strong>右侧挂件展示最近7天最新视频。
+                        
+                        <div id="bilibiliCardsContainer">
+                            <div class="loading-container">
+                                <div class="loading-spinner"></div>
+                                <p style="margin-top: 16px; color: #718096;">加载B站视频数据中...</p>
+                            </div>
                         </div>
                     </div>
                 </div>
 
-                <div class="bilibili-right-stack">
-                    <aside class="bilibili-latest-videos">
+                <!-- 右侧侧边栏 -->
+                <aside class="bilibili-sidebar">
+                    <div class="bilibili-sidebar-widget">
                         <div class="bilibili-latest-header">
                             <div class="bilibili-latest-title">
                                 <i class="fas fa-bolt"></i> 7天内最新视频
@@ -686,62 +955,35 @@
                                 <p style="margin-top: 8px; color: #718096;">加载最新视频...</p>
                             </div>
                         </div>
-                    </aside>
+                    </div>
 
-                    <div class="bilibili-top-section">
+                    <div class="bilibili-sidebar-widget">
                         <div class="bilibili-trends-header">
                             <div class="bilibili-trends-title">
-                                <i class="fas fa-crown"></i> Top 5（近30天发布数量）
+                                <i class="fas fa-crown"></i> TOP 5（近30天发布数量）
                             </div>
                         </div>
                         <div class="bilibili-top-chart">
                             <canvas id="topCompaniesChart"></canvas>
                         </div>
                     </div>
-                </div>
-            </div>
 
-            <!-- 月度播放量统计对比 -->
-            <div class="bilibili-trends-section monthly-stats">
-                <div class="bilibili-trends-header">
-                    <div class="bilibili-trends-title">
-                        <i class="fas fa-chart-bar"></i> 月度播放量统计对比
+                    <div class="bilibili-sidebar-widget">
+                        <div class="bilibili-trends-header">
+                            <div class="bilibili-trends-title">
+                                <i class="fas fa-chart-line"></i> 年度总播放量（当年）
+                            </div>
+                        </div>
+                        <div class="bilibili-yearly-chart">
+                            <canvas id="yearlyStatsChart"></canvas>
+                        </div>
+                        <div class="bilibili-trends-info" style="margin-top: 12px; padding: 12px; background: #f8fafc; border-radius: 8px;">
+                            <div class="bilibili-trends-info-content" style="font-size: 0.8rem; color: #718096;">
+                                <strong>统计方式：</strong>各公司当年发布的所有视频的播放量合计对比。
+                            </div>
+                        </div>
                     </div>
-                </div>
-                
-                <div class="bilibili-trends-chart" style="min-height: 500px;">
-                    <canvas id="monthlyStatsChart"></canvas>
-                </div>
-                
-                <div class="bilibili-trends-info">
-                    <div class="bilibili-trends-info-title">
-                        <i class="fas fa-info-circle"></i> 统计说明
-                    </div>
-                    <div class="bilibili-trends-info-content">
-                        <strong>数据来源：</strong>基于各公司B站账号发布的视频播放量，按月汇总统计。<br>
-                        <strong>统计方式：</strong>各公司当月发布的所有视频的播放量合计对比。<br>
-                        <strong>统计范围：</strong>显示最近6个月的播放量数据（基于已获取的视频）。
-                    </div>
-                </div>
-            </div>
-
-            <!-- 公司卡片模块 -->
-            <div class="bilibili-cards-section">
-                <div class="bilibili-cards-header">
-                    <div class="bilibili-cards-title">
-                        <i class="fas fa-users"></i> 公司列表
-                    </div>
-                    <div class="bilibili-cards-filter">
-                        <input type="text" id="companyFilterInput" class="bilibili-filter-input" placeholder="搜索公司名称...">
-                    </div>
-                </div>
-                
-                <div id="bilibiliCardsContainer">
-                    <div class="loading-container">
-                        <div class="loading-spinner"></div>
-                        <p style="margin-top: 16px; color: #718096;">加载B站视频数据中...</p>
-                    </div>
-                </div>
+                </aside>
             </div>
         </div>
     </div>
@@ -749,11 +991,12 @@
     <script>
         let trendsChart = null;
         let topCompaniesChart = null;
+        let yearlyStatsChart = null;
         let allCardsData = [];
         let selectedCompanies = new Set(); // 选中的公司集合
         let filteredCardsData = []; // 筛选后的卡片数据
-        const FETCH_TIMEOUT = 8000; // ms
-
+        const FETCH_TIMEOUT = 30000; // 30秒超时
+        
         async function fetchWithTimeout(url, options = {}, timeout = FETCH_TIMEOUT) {
             const controller = new AbortController();
             const id = setTimeout(() => controller.abort(), timeout);
@@ -1456,11 +1699,13 @@
             }
             
             console.log('开始加载B站数据...');
+            console.log('容器元素:', container);
             
             try {
                 console.log('发送API请求: /api/bilibili/all');
                 const response = await fetchWithTimeout('/api/bilibili/all');
                 console.log('API响应状态:', response.status, response.statusText);
+                console.log('响应头:', Object.fromEntries(response.headers.entries()));
                 
                 if (!response.ok) {
                     throw new Error(`HTTP错误: ${response.status} ${response.statusText}`);
@@ -1480,18 +1725,52 @@
                     } : null
                 });
                 
-                if (result.success && result.data && result.data.length > 0) {
+                if (result.success && result.data) {
+                    console.log('数据处理前:', {
+                        dataLength: result.data.length,
+                        firstCard: result.data[0] ? {
+                            name: result.data[0].user_info?.name,
+                            videosCount: result.data[0].videos?.length
+                        } : null
+                    });
+                    
+                    // 如果数据为空，显示提示
+                    if (!result.data || result.data.length === 0) {
+                        container.innerHTML = `
+                            <div class="loading-container">
+                                <i class="fas fa-info-circle" style="font-size: 3rem; color: #4299e1; margin-bottom: 16px;"></i>
+                                <p style="color: #718096; font-size: 1rem;">
+                                    数据库中暂无数据，请先运行数据抓取脚本
+                                </p>
+                                <code style="display: block; margin-top: 8px; padding: 8px; background: #f7fafc; border-radius: 4px; color: #2d3748;">
+                                    python3 fetch_bilibili_data.py
+                                </code>
+                            </div>
+                        `;
+                        return;
+                    }
+                    
                     const cards = result.data.map(card => {
                         // 限制视频列表规模：仅保留近30天的前200条
                         const now = Date.now();
                         let safeVideos = (card.videos || [])
-                            .filter(v => v.pubdate_raw && (now - v.pubdate_raw * 1000) <= 30 * 24 * 3600 * 1000)
+                            .filter(v => {
+                                if (!v.pubdate_raw) return false;
+                                const videoTime = v.pubdate_raw * 1000;
+                                const daysDiff = (now - videoTime) / (24 * 3600 * 1000);
+                                return daysDiff <= 30;
+                            })
                             .slice(0, 200);
-                        // 如果近30天无视频，回退展示最近的前5条，避免公司“空白”
-                        if (!safeVideos.length && card.videos) {
+                        // 如果近30天无视频，回退展示最近的前5条，避免公司"空白"
+                        if (!safeVideos.length && card.videos && card.videos.length > 0) {
                             safeVideos = [...card.videos].slice(0, 5);
                         }
                         return { ...card, videos: safeVideos };
+                    });
+                    
+                    console.log('数据处理后:', {
+                        cardsLength: cards.length,
+                        totalVideos: cards.reduce((sum, card) => sum + (card.videos?.length || 0), 0)
                     });
                     allCardsData = cards;
                     filteredCardsData = cards;
@@ -1554,8 +1833,20 @@
                     } catch (e) {
                         console.error('加载月度统计失败:', e);
                     }
+                    
+                    // 加载年度播放量统计
+                    try {
+                        loadYearlyStats();
+                    } catch (e) {
+                        console.error('加载年度统计失败:', e);
+                    }
+                    
+                    console.log('✅ 所有数据加载和渲染完成');
                 } else {
-                    throw new Error(result.error || '获取数据失败');
+                    // 如果success为false或没有data字段
+                    const errorMsg = result.error || result.message || '获取数据失败';
+                    console.error('API返回失败:', result);
+                    throw new Error(errorMsg);
                 }
             } catch (error) {
                 console.error('加载B站卡片失败:', error);
@@ -1583,6 +1874,168 @@
         
         let monthlyStatsChart = null;
         let monthlyStatsData = null;
+        let yearlyStatsData = null;
+
+        async function loadYearlyStats() {
+            try {
+                console.log('开始加载年度统计数据...');
+                const container = document.querySelector('.bilibili-yearly-chart');
+                if (container) {
+                    container.innerHTML = '<div class="loading-container"><div class="loading-spinner"></div><p style="margin-top: 8px; color: #718096;">加载年度统计数据...</p></div>';
+                }
+                
+                const response = await fetchWithTimeout('/api/bilibili/yearly_stats');
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP错误: ${response.status} ${response.statusText}`);
+                }
+                
+                const result = await response.json();
+                console.log('年度统计数据:', result);
+                
+                if (result.success && result.data) {
+                    yearlyStatsData = result.data;
+                    console.log('年度统计数据详情:', {
+                        year: yearlyStatsData.year,
+                        companies: yearlyStatsData.companies?.length || 0,
+                        firstCompany: yearlyStatsData.companies?.[0]
+                    });
+                    updateYearlyStatsChart();
+                } else {
+                    console.warn('年度统计数据格式不正确:', result);
+                    const container = document.querySelector('.bilibili-yearly-chart');
+                    if (container) {
+                        container.innerHTML = '<div class="loading-container"><p style="color:#718096;">加载年度统计数据失败</p></div>';
+                    }
+                }
+            } catch (error) {
+                console.error('加载年度统计数据失败:', error);
+                const container = document.querySelector('.bilibili-yearly-chart');
+                if (container) {
+                    container.innerHTML = '<div class="loading-container"><p style="color:#f56565;">加载失败: ' + error.message + '</p></div>';
+                }
+            }
+        }
+
+        function updateYearlyStatsChart() {
+            const container = document.querySelector('.bilibili-yearly-chart');
+            if (!container) return;
+            
+            if (!yearlyStatsData || !yearlyStatsData.companies || !Array.isArray(yearlyStatsData.companies)) {
+                container.innerHTML = '<div class="loading-container"><p style="color:#718096;">暂无年度统计数据</p></div>';
+                return;
+            }
+            
+            const companies = yearlyStatsData.companies;
+            
+            // 检查是否有数据
+            if (companies.length === 0) {
+                container.innerHTML = '<div class="loading-container"><p style="color:#718096;">暂无播放量数据（可能视频数据尚未加载）</p></div>';
+                return;
+            }
+            
+            // 过滤掉播放量为0的公司
+            const validCompanies = companies.filter(c => c.play_count > 0);
+            if (validCompanies.length === 0) {
+                container.innerHTML = '<div class="loading-container"><p style="color:#718096;">暂无播放量数据</p></div>';
+                return;
+            }
+            
+            // 显示canvas，隐藏加载提示
+            container.innerHTML = '<canvas id="yearlyStatsChart"></canvas>';
+            const ctx = document.getElementById('yearlyStatsChart');
+            if (!ctx) return;
+            
+            // 提取标签和数据（按播放量降序，逐际动力在第一位）
+            const labels = validCompanies.map(c => c.name);
+            const data = validCompanies.map(c => c.play_count);
+            
+            // 生成调色板
+            const palette = generatePalette(validCompanies.length);
+            const border = data.map((_, i) => palette[i % palette.length].border);
+            const fill = data.map((_, i) => palette[i % palette.length].fill);
+            
+            if (yearlyStatsChart) {
+                yearlyStatsChart.destroy();
+            }
+            
+            yearlyStatsChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: data,
+                        backgroundColor: fill,
+                        borderColor: border,
+                        borderWidth: 2,
+                        borderRadius: 8,
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',  // 横向柱状图
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },  // 隐藏图例
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const value = context.parsed.x;
+                                    const formatted = value >= 10000 
+                                        ? (value / 10000).toFixed(1) + '万' 
+                                        : value >= 1000
+                                        ? (value / 1000).toFixed(1) + 'K'
+                                        : value.toLocaleString();
+                                    return `${formatted}`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            type: 'logarithmic',  // 对数刻度
+                            beginAtZero: false,
+                            ticks: {
+                                callback: function(value) {
+                                    if (value === 0) return '0';
+                                    if (value >= 1000000) return (value / 1000000).toFixed(0) + 'M';
+                                    if (value >= 10000) return (value / 10000).toFixed(0) + '万';
+                                    if (value >= 1000) return (value / 1000).toFixed(0) + 'K';
+                                    return value.toString();
+                                },
+                                color: '#475569',
+                                font: {
+                                    size: 11
+                                }
+                            },
+                            grid: {
+                                color: 'rgba(148,163,184,0.2)'
+                            },
+                            title: {
+                                display: true,
+                                text: '播放量（对数刻度）',
+                                font: {
+                                    size: 12,
+                                    weight: 'bold'
+                                }
+                            }
+                        },
+                        y: {
+                            ticks: {
+                                color: '#0f172a',
+                                font: {
+                                    weight: '600',
+                                    size: 11
+                                }
+                            },
+                            grid: {
+                                display: false
+                            }
+                        }
+                    }
+                }
+            });
+        }
 
         async function loadMonthlyStats() {
             try {
@@ -1606,145 +2059,150 @@
                     updateMonthlyStatsChart();
                 } else {
                     console.warn('月度统计数据格式不正确:', result);
-                    const ctx = document.getElementById('monthlyStatsChart');
-                    if (ctx && ctx.parentElement) {
-                        ctx.parentElement.innerHTML = '<div class="loading-container"><p style="color:#718096;">加载月度统计数据失败</p></div>';
+                    const heatmapContainer = document.getElementById('monthlyStatsHeatmap');
+                    if (heatmapContainer) {
+                        heatmapContainer.innerHTML = '<div class="loading-container"><p style="color:#718096;">加载月度统计数据失败</p></div>';
                     }
                 }
             } catch (error) {
                 console.error('加载月度统计数据失败:', error);
-                const ctx = document.getElementById('monthlyStatsChart');
-                if (ctx && ctx.parentElement) {
-                    ctx.parentElement.innerHTML = '<div class="loading-container"><p style="color:#f56565;">加载失败: ' + error.message + '</p></div>';
+                const heatmapContainer = document.getElementById('monthlyStatsHeatmap');
+                if (heatmapContainer) {
+                    heatmapContainer.innerHTML = '<div class="loading-container"><p style="color:#f56565;">加载失败: ' + error.message + '</p></div>';
                 }
             }
         }
 
         function updateMonthlyStatsChart() {
-            const ctx = document.getElementById('monthlyStatsChart');
-            if (!ctx) return;
+            const heatmapContainer = document.getElementById('monthlyStatsHeatmap');
+            if (!heatmapContainer) return;
             
             if (!monthlyStatsData || !monthlyStatsData.months || !monthlyStatsData.companies) {
-                // 显示空数据提示
-                const container = ctx.parentElement;
-                if (container) {
-                    container.innerHTML = '<div class="loading-container"><p style="color:#718096;">暂无月度统计数据</p></div>';
-                }
+                heatmapContainer.innerHTML = '<div class="loading-container"><p style="color:#718096;">暂无月度统计数据</p></div>';
                 return;
             }
             
             const months = monthlyStatsData.months.reverse(); // 从旧到新
             const companies = monthlyStatsData.companies;
-            const labels = months.map(m => m.month);
             
-            // 检查是否有数据
+            // 检查是否有数据，并计算最大值和最小值
             let hasData = false;
+            let maxValue = 0;
+            let minValue = Infinity;
+            
             for (const month of months) {
                 for (const company of companies) {
-                    if (month.companies[company]?.play_count > 0) {
+                    const value = month.companies[company]?.play_count || 0;
+                    if (value > 0) {
                         hasData = true;
-                        break;
+                        maxValue = Math.max(maxValue, value);
+                        minValue = Math.min(minValue, value);
                     }
                 }
-                if (hasData) break;
             }
             
             if (!hasData) {
-                // 显示空数据提示
-                const container = ctx.parentElement;
-                if (container) {
-                    container.innerHTML = '<div class="loading-container"><p style="color:#718096;">暂无播放量数据（可能视频数据尚未加载）</p></div>';
-                }
+                heatmapContainer.innerHTML = '<div class="loading-container"><p style="color:#718096;">暂无播放量数据（可能视频数据尚未加载）</p></div>';
                 return;
             }
             
-            // 生成调色板
-            const palette = generatePalette(companies.length);
+            // 计算颜色强度函数（0-1之间，使用对数缩放）
+            const getColorIntensity = (value) => {
+                if (value === 0) return 0;
+                // 使用对数缩放，使颜色分布更均匀
+                const logMax = Math.log10(maxValue + 1);
+                const logMin = Math.log10(minValue);
+                const logValue = Math.log10(value + 1);
+                return (logValue - logMin) / (logMax - logMin);
+            };
             
-            // 为每个公司创建数据集
-            const datasets = companies.map((company, index) => {
-                const data = months.map(month => {
-                    return month.companies[company]?.play_count || 0;
+            // 根据强度值获取颜色（从浅橙到深橙/红）
+            const getColor = (intensity) => {
+                if (intensity === 0) return '#fff7ed'; // 浅橙色（无数据）
+                // 使用橙色到红色渐变：浅橙 -> 深橙 -> 红色
+                // 低强度：浅橙色 (255, 247, 237)
+                // 中强度：橙色 (251, 146, 60)
+                // 高强度：深红色 (220, 38, 38)
+                if (intensity < 0.5) {
+                    // 浅橙到橙色
+                    const factor = intensity * 2;
+                    const r = Math.floor(255 - factor * 4);
+                    const g = Math.floor(247 - factor * 101);
+                    const b = Math.floor(237 - factor * 177);
+                    return `rgb(${r}, ${g}, ${b})`;
+                } else {
+                    // 橙色到深红色
+                    const factor = (intensity - 0.5) * 2;
+                    const r = Math.floor(251 - factor * 31);
+                    const g = Math.floor(146 - factor * 108);
+                    const b = Math.floor(60 - factor * 22);
+                    return `rgb(${r}, ${g}, ${b})`;
+                }
+            };
+            
+            // 格式化数值显示
+            const formatValue = (value) => {
+                if (value === 0) return '-';
+                if (value >= 10000) {
+                    return (value / 10000).toFixed(1) + '万';
+                } else if (value >= 1000) {
+                    return (value / 1000).toFixed(1) + 'K';
+                }
+                return value.toLocaleString();
+            };
+            
+            // 构建热力图HTML
+            let html = '<div class="heatmap-container">';
+            html += '<table class="heatmap-table">';
+            
+            // 表头：月份
+            html += '<thead><tr><th class="heatmap-header">公司</th>';
+            months.forEach(month => {
+                html += `<th class="heatmap-header">${month.month}</th>`;
+            });
+            html += '</tr></thead>';
+            
+            // 表格主体：公司行
+            html += '<tbody>';
+            companies.forEach(company => {
+                html += '<tr>';
+                html += `<td class="heatmap-company-name">${escapeHtml(company)}</td>`;
+                
+                months.forEach(month => {
+                    const value = month.companies[company]?.play_count || 0;
+                    const intensity = getColorIntensity(value);
+                    const color = getColor(intensity);
+                    const formatted = formatValue(value);
+                    
+                    html += `<td class="heatmap-cell" style="background-color: ${color};" `;
+                    html += `title="${escapeHtml(company)} - ${month.month}: ${formatted}" `;
+                    html += `data-value="${value}">`;
+                    html += `<span class="heatmap-value">${formatted}</span>`;
+                    html += '</td>';
                 });
                 
-                return {
-                    label: company,
-                    data: data,
-                    backgroundColor: palette[index % palette.length].fill,
-                    borderColor: palette[index % palette.length].border,
-                    borderWidth: 2,
-                    borderRadius: 6,
-                };
+                html += '</tr>';
             });
+            html += '</tbody>';
+            html += '</table>';
             
-            if (monthlyStatsChart) {
-                monthlyStatsChart.destroy();
+            // 图例
+            html += '<div class="heatmap-legend">';
+            html += '<span class="heatmap-legend-label">播放量:</span>';
+            html += '<div class="heatmap-legend-gradient">';
+            html += '<span>低</span>';
+            for (let i = 0; i <= 10; i++) {
+                const intensity = i / 10;
+                const color = getColor(intensity);
+                html += `<span class="heatmap-legend-color" style="background-color: ${color}"></span>`;
             }
+            html += '<span>高</span>';
+            html += '</div>';
+            html += '</div>';
             
-            // 重新获取canvas元素（因为可能被替换了）
-            const ctx = document.getElementById('monthlyStatsChart');
-            if (!ctx) return;
+            html += '</div>';
             
-            monthlyStatsChart = new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: labels,
-                    datasets: datasets
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: {
-                            display: true,
-                            position: 'top',
-                            labels: {
-                                boxWidth: 12,
-                                padding: 10,
-                                font: {
-                                    size: 12
-                                }
-                            }
-                        },
-                        tooltip: {
-                            callbacks: {
-                                label: function(context) {
-                                    const value = context.parsed.y;
-                                    const formatted = value >= 10000 
-                                        ? (value / 10000).toFixed(1) + '万' 
-                                        : value.toString();
-                                    return `${context.dataset.label}: ${formatted}`;
-                                }
-                            }
-                        }
-                    },
-                    scales: {
-                        x: {
-                            stacked: false,
-                            ticks: {
-                                font: {
-                                    size: 11
-                                }
-                            }
-                        },
-                        y: {
-                            beginAtZero: true,
-                            stacked: false,
-                            ticks: {
-                                callback: function(value) {
-                                    if (value >= 10000) {
-                                        return (value / 10000).toFixed(1) + '万';
-                                    }
-                                    return value;
-                                },
-                                font: {
-                                    size: 11
-                                }
-                            }
-                        }
-                    }
-                }
-            });
+            heatmapContainer.innerHTML = html;
         }
 
         // 页面加载时获取数据

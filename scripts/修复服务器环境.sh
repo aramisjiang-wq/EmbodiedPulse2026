@@ -108,3 +108,12 @@ echo "  cd /opt/EmbodiedPulse"
 echo "  bash scripts/紧急修复服务.sh"
 echo "=========================================="
 
+
+
+
+
+
+
+
+
+

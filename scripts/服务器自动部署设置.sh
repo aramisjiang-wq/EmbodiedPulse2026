@@ -66,3 +66,12 @@ echo ""
 echo "查看日志: tail -f /var/log/embodied-pulse-deploy.log"
 echo "=========================================="
 
+
+
+
+
+
+
+
+
+

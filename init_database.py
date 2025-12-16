@@ -6,6 +6,7 @@ from models import init_db, get_session, Paper
 from jobs_models import init_jobs_db
 from news_models import init_news_db
 from datasets_models import init_datasets_db
+from bilibili_models import init_bilibili_db
 from migrate_json_to_db import migrate_json_to_database
 
 if __name__ == '__main__':
@@ -23,6 +24,8 @@ if __name__ == '__main__':
     init_news_db()
     print("   - 数据集数据库...")
     init_datasets_db()
+    print("   - B站视频数据库...")
+    init_bilibili_db()
     
     # 2. 迁移JSON数据到数据库（仅论文数据库）
     print("\n2. 迁移JSON数据到数据库...")

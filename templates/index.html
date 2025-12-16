@@ -58,21 +58,66 @@
         <!-- 头部 Banner -->
         <header class="header">
             <div class="header-background"></div>
-            <div class="header-wrapper">
-                <div class="header-content">
-                    <h1 class="header-main-title">Embodied Pulse</h1>
-                    <p class="subtitle">具身领域前沿论文每日更新</p>
-                    <p class="header-description">追踪具身智能、机器人学习、视觉语言动作模型等前沿研究</p>
-                </div>
-                <div class="header-actions">
-                    <button id="fetchBtnBanner" class="btn btn-banner-primary">
-                        <i class="fas fa-download"></i> 抓取新论文
-                    </button>
-                </div>
-            </div>
         </header>
 
         <!-- 数据仪表盘与趋势模块已下线 -->
+
+        <!-- 研究方向活跃度模块 -->
+        <section class="research-activity-section">
+            <div class="research-activity-main">
+                <div class="research-activity-header">
+                    <h2>
+                        <i class="fas fa-chart-line"></i> 研究方向活跃度
+                    </h2>
+                </div>
+                
+                <!-- 时间范围选择器 -->
+                <div class="activity-time-selector">
+                    <button class="time-btn" data-weeks="4">最近4周</button>
+                    <button class="time-btn active" data-weeks="8">最近8周</button>
+                    <button class="time-btn" data-weeks="12">最近12周</button>
+                    <button class="time-btn" data-weeks="52">全部</button>
+                </div>
+                
+                <!-- 视图切换标签页 -->
+                <div class="activity-view-tabs">
+                    <button class="view-tab active" data-view="category">
+                        <i class="fas fa-layer-group"></i> 分类视图
+                    </button>
+                    <button class="view-tab" data-view="tag">
+                        <i class="fas fa-tags"></i> 子标签视图
+                    </button>
+                </div>
+                
+                <!-- 分类视图 -->
+                <div class="activity-view-content" id="categoryView">
+                    <div class="activity-chart-container">
+                        <canvas id="categoryActivityChart"></canvas>
+                    </div>
+                    <div class="activity-legend" id="categoryLegend"></div>
+                </div>
+                
+                <!-- 子标签视图 -->
+                <div class="activity-view-content hidden" id="tagView">
+                    <div class="tag-filter-bar">
+                        <select id="tagCategoryFilter" class="tag-filter-select">
+                            <option value="">显示全部分类</option>
+                            <option value="Perception">感知层</option>
+                            <option value="Decision">决策层</option>
+                            <option value="Motion Control">运动层</option>
+                            <option value="Operation">操作层</option>
+                            <option value="Learning">学习与算法</option>
+                            <option value="Benchmark">基准</option>
+                        </select>
+                        <button id="tagShowAllBtn" class="tag-filter-btn">显示全部</button>
+                    </div>
+                    <div class="activity-chart-container">
+                        <canvas id="tagActivityChart"></canvas>
+                    </div>
+                    <div class="activity-legend" id="tagLegend"></div>
+                </div>
+            </div>
+        </section>
 
         <!-- 论文清单 -->
         <section class="papers-list-section">
@@ -81,38 +126,35 @@
                         <h2>
                             <i class="fas fa-list"></i> 具身论文清单
                         </h2>
+                        <button id="refreshPapersBtn" class="btn btn-refresh">
+                            <i class="fas fa-sync-alt"></i> 刷新论文数据
+                        </button>
                     </div>
                     
-                    <!-- 搜索框 -->
-                    <div class="search-section">
-                <div class="search-container">
-                    <div class="search-box">
+                    <!-- 搜索工具栏 -->
+                    <div class="search-toolbar">
+                        <div class="search-input-wrapper">
                         <i class="fas fa-search"></i>
-                        <input type="text" id="searchInput" placeholder="搜索论文标题或作者...">
-                        <select id="categoryFilter">
-                            <option value="">所有类别</option>
-                        </select>
-                        <button id="searchBtn" class="btn btn-primary">
-                            <i class="fas fa-search"></i> 搜索
-                        </button>
-                        <button id="clearSearchBtn" class="btn btn-secondary hidden">
-                            <i class="fas fa-times"></i> 清除搜索
+                            <input type="text" id="searchInput" placeholder="搜索论文标题、作者或摘要...">
+                            <button id="clearSearchBtn" class="clear-search-btn hidden" title="清除搜索">
+                                <i class="fas fa-times"></i>
                         </button>
                     </div>
                 </div>
                 <div id="searchResults" class="search-results hidden"></div>
-            </div>
             
             <!-- 筛选和排序工具栏 -->
-            <div class="filter-sort-toolbar">
+                    <div class="filter-sort-bar">
                 <div class="filter-group">
-                    <label><i class="fas fa-filter"></i> 筛选：</label>
+                            <i class="fas fa-filter"></i>
+                            <label>筛选</label>
                     <select id="venueFilter" class="filter-select">
                         <option value="">所有发表场所</option>
                     </select>
                 </div>
                 <div class="sort-group">
-                    <label><i class="fas fa-sort"></i> 排序：</label>
+                            <i class="fas fa-sort"></i>
+                            <label>排序</label>
                     <select id="sortBy" class="sort-select">
                         <option value="date">按日期</option>
                         <option value="citations">按被引用数量</option>
@@ -121,8 +163,8 @@
                 </div>
             </div>
 
-            <!-- 标签页（筛选按钮） -->
-            <div class="tabs" id="tabs">
+                    <!-- 标签页容器（折叠展开） -->
+                    <div class="tabs-container" id="tabs">
                 <!-- 标签页将通过JS动态生成 -->
             </div>
 
@@ -147,6 +189,39 @@
             
             <!-- 右侧独立挂窗区域 -->
             <aside class="side-widgets">
+                <!-- 论文统计挂件 - 重新设计版 -->
+                <div class="paper-stats-widget">
+                    <div class="paper-stats-header">
+                        <h3><i class="fas fa-chart-line"></i> 论文统计</h3>
+                    </div>
+                    <div class="paper-stats-content">
+                        <!-- 总数 - 大样式，独占一行 -->
+                        <div class="stat-item stat-item-total">
+                            <div class="stat-label"><i class="fas fa-database"></i> 总数</div>
+                            <div class="stat-value stat-value-total" id="totalPapers">-</div>
+                        </div>
+                        <!-- 其他统计项 - 小样式，3列布局 -->
+                        <div class="stats-row">
+                            <div class="stat-item stat-item-today">
+                            <div class="stat-label"><i class="fas fa-plus-circle"></i> 今日</div>
+                                <div class="stat-value stat-value-small" id="todayPapers">-</div>
+                        </div>
+                            <div class="stat-item stat-item-week">
+                            <div class="stat-label"><i class="fas fa-calendar-week"></i> 本周</div>
+                                <div class="stat-value stat-value-small" id="weekPapers">-</div>
+                        </div>
+                            <div class="stat-item stat-item-month">
+                            <div class="stat-label"><i class="fas fa-calendar-alt"></i> 本月</div>
+                                <div class="stat-value stat-value-small" id="monthPapers">-</div>
+                            </div>
+                        </div>
+                        <div class="stat-update-time">
+                            <i class="fas fa-calendar"></i>
+                            <span id="statsDate">加载中...</span>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- 活跃作者排行榜挂件 -->
                 <div class="author-ranking-widget">
                     <div class="author-ranking-widget-header">

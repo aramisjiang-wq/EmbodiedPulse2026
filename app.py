@@ -27,14 +27,17 @@ from jobs_models import get_jobs_session, Job
 from datasets_models import get_datasets_session, Dataset
 from news_models import get_news_session, News
 from bilibili_client import BilibiliClient, format_number, format_timestamp
+from bilibili_models import get_bilibili_session, BilibiliUp, BilibiliVideo
 from taxonomy import (
     CATEGORY_DISPLAY,
     CATEGORY_ORDER,
-    build_nested_from_flat,
+    CATEGORY_DISPLAY_NAMES,
     display_category,
     get_category_meta,
     normalize_category,
-    split_leaf_key,
+    get_category_from_tag,
+    build_category_tree,
+    build_nested_from_flat,
 )
 
 # 获取当前文件所在目录
@@ -205,15 +208,14 @@ def parse_paper_entry(entry_str):
 
 
 def build_nested_papers(papers):
-    """将论文列表组织为 level1->level2->leaf 的嵌套结构"""
-    nested = {}
+    """将论文列表组织为扁平化分类结构（新版）"""
+    flat = {}
     for paper in papers:
         norm_cat = normalize_category(paper.category)
-        l1, l2, leaf = split_leaf_key(norm_cat)
         paper_dict = paper.to_dict()
-        paper_dict['category'] = leaf
-        nested.setdefault(l1, {}).setdefault(l2, {}).setdefault(leaf, []).append(paper_dict)
-    return nested
+        paper_dict['category'] = norm_cat  # 使用规范化后的标签
+        flat.setdefault(norm_cat, []).append(paper_dict)
+    return flat
 
 
 def build_nested_stats_from_papers(papers):
@@ -261,6 +263,62 @@ def bilibili_page():
         return render_template('index.html')
     return render_template('bilibili.html')
 
+@app.route('/api/paper-stats')
+def get_paper_stats():
+    """获取论文统计数据"""
+    from datetime import datetime, timedelta
+    
+    try:
+        session = get_session()
+        
+        # 总论文数
+        total = session.query(func.count(Paper.id)).scalar()
+        
+        # 今日新增（created_at为今天）
+        today = datetime.now().date()
+        today_start = datetime.combine(today, datetime.min.time())
+        today_papers = session.query(func.count(Paper.id)).filter(
+            Paper.created_at >= today_start
+        ).scalar()
+        
+        # 近7天新增
+        week_ago = datetime.now() - timedelta(days=7)
+        week_papers = session.query(func.count(Paper.id)).filter(
+            Paper.created_at >= week_ago
+        ).scalar()
+        
+        # 近30天新增
+        month_ago = datetime.now() - timedelta(days=30)
+        month_papers = session.query(func.count(Paper.id)).filter(
+            Paper.created_at >= month_ago
+        ).scalar()
+        
+        # 最后更新时间
+        last_update = session.query(Paper.updated_at).order_by(
+            desc(Paper.updated_at)
+        ).first()
+        
+        session.close()
+        
+        return jsonify({
+            'total': total,
+            'today': today_papers,
+            'week': week_papers,
+            'month': month_papers,
+            'last_update': last_update[0].isoformat() if last_update else None
+        })
+        
+    except Exception as e:
+        logger.error(f"获取论文统计数据失败: {e}")
+        return jsonify({
+            'total': 0,
+            'today': 0,
+            'week': 0,
+            'month': 0,
+            'last_update': None,
+            'error': str(e)
+        }), 500
+
 @app.route('/api/papers')
 def get_papers():
     """获取论文列表API（使用数据库）"""
@@ -295,6 +353,8 @@ def get_papers():
         
         # 按三层标签组织数据
         nested = build_nested_papers(papers)
+        logger.info(f"build_nested_papers返回: {len(nested)} 个分类")
+        logger.info(f"前5个分类: {list(nested.keys())[:5]}")
         
         # 计算总数
         total_count = len(papers)
@@ -475,6 +535,138 @@ def get_trends():
         
     except Exception as e:
         logger.error(f"获取趋势数据失败: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+    finally:
+        if session:
+            session.close()
+
+@app.route('/api/research-activity')
+def get_research_activity():
+    """获取研究方向活跃度数据（按周统计）"""
+    session = None
+    try:
+        from datetime import timedelta
+        from collections import defaultdict
+        
+        session = get_session()
+        
+        # 获取查询参数
+        weeks = request.args.get('weeks', type=int, default=8)  # 默认8周
+        weeks = min(max(weeks, 4), 52)  # 限制在4-52周之间
+        level = request.args.get('level', type=str, default='category')  # 'category' 或 'tag'
+        category_filter = request.args.get('category', type=str, default=None)  # 可选，用于筛选子标签
+        
+        # 计算起始日期（按周计算）
+        end_date = datetime.now().date()
+        start_date = end_date - timedelta(weeks=weeks)
+        
+        # 获取时间范围内的所有论文
+        papers = session.query(Paper).filter(
+            or_(
+                and_(Paper.publish_date.isnot(None), Paper.publish_date >= start_date, Paper.publish_date <= end_date),
+                and_(Paper.publish_date.is_(None),
+                     func.date(Paper.created_at) >= start_date,
+                     func.date(Paper.created_at) <= end_date)
+            )
+        ).all()
+        
+        # 按周分组统计
+        # 生成周区间（周一到周日）
+        week_ranges = []
+        current_date = start_date
+        # 找到第一个周一
+        while current_date.weekday() != 0:  # 0 = Monday
+            current_date -= timedelta(days=1)
+        
+        week_labels = []
+        while current_date <= end_date:
+            week_end = min(current_date + timedelta(days=6), end_date)
+            week_ranges.append((current_date, week_end))
+            # 生成周标签：MM/DD-MM/DD
+            week_labels.append(f"{current_date.strftime('%m/%d')}-{week_end.strftime('%m/%d')}")
+            current_date += timedelta(days=7)
+        
+        # 统计每个分类/子标签每周的论文数量
+        activity_data = defaultdict(lambda: [0] * len(week_ranges))
+        
+        for paper in papers:
+            # 确定日期
+            if paper.publish_date:
+                date_key = paper.publish_date
+            elif paper.created_at:
+                date_key = paper.created_at.date()
+            else:
+                continue
+            
+            if not (start_date <= date_key <= end_date):
+                continue
+            
+            # 确定分类/子标签
+            if level == 'category':
+                # 分类视图：提取分类名称
+                if paper.category and '/' in paper.category:
+                    category = paper.category.split('/')[0]
+                else:
+                    category = normalize_category(paper.category)
+                
+                if category == 'Uncategorized':
+                    continue
+                
+                # 找到该日期属于哪一周
+                for i, (week_start, week_end) in enumerate(week_ranges):
+                    if week_start <= date_key <= week_end:
+                        activity_data[category][i] += 1
+                        break
+            else:
+                # 子标签视图：使用完整category
+                category = normalize_category(paper.category)
+                if category == 'Uncategorized':
+                    continue
+                
+                # 如果指定了分类筛选，只统计该分类下的子标签
+                if category_filter:
+                    if not category.startswith(category_filter + '/'):
+                        continue
+                
+                # 找到该日期属于哪一周
+                for i, (week_start, week_end) in enumerate(week_ranges):
+                    if week_start <= date_key <= week_end:
+                        activity_data[category][i] += 1
+                        break
+        
+        # 转换为字典格式
+        result_data = {}
+        for key, counts in activity_data.items():
+            result_data[key] = counts
+        
+        # 如果没有数据，返回空结果
+        if not result_data:
+            return jsonify({
+                'success': True,
+                'level': level,
+                'weeks': week_labels,
+                'data': {},
+                'category_filter': category_filter,
+                'message': '暂无论文数据'
+            })
+        
+        return jsonify({
+            'success': True,
+            'level': level,
+            'weeks': week_labels,
+            'data': result_data,
+            'category_filter': category_filter,
+            'start_date': start_date.strftime('%Y-%m-%d'),
+            'end_date': end_date.strftime('%Y-%m-%d')
+        })
+        
+    except Exception as e:
+        logger.error(f"获取研究方向活跃度数据失败: {e}")
         import traceback
         logger.error(traceback.format_exc())
         return jsonify({
@@ -839,121 +1031,105 @@ BILIBILI_UP_LIST = [
 
 @app.route('/api/bilibili/all')
 def get_all_bilibili():
-    """获取所有B站UP主信息和视频列表"""
-    global bilibili_cache
-    
+    """从数据库获取所有B站UP主和视频数据"""
     try:
-        # 检查是否有强制刷新参数（手动刷新时使用）
-        force_refresh = request.args.get('t') is not None
-        
-        # 如果不是强制刷新，检查缓存
-        if not force_refresh:
-            with bilibili_cache_lock:
-                now = datetime.now().timestamp()
-                if (bilibili_cache.get('all_data') is not None and 
-                    bilibili_cache.get('all_expires_at') is not None and 
-                    now < bilibili_cache['all_expires_at']):
-                    logger.info("使用Bilibili全部数据缓存")
-                    return jsonify(bilibili_cache['all_data'])
-        
-        # 清除缓存或缓存过期，重新获取数据
-        if force_refresh:
-            logger.info("手动刷新：清除缓存，重新获取Bilibili数据")
-        else:
-            logger.info("Bilibili全部数据缓存已过期或不存在，重新获取数据")
-        
-        client = BilibiliClient()
+        session = get_bilibili_session()
         all_data = []
         
-        import time
-        total_uid = len(BILIBILI_UP_LIST)
+        # 从数据库获取所有活跃的UP主
+        # 排序：逐际动力(1172054289)始终在第一位，其他按UID排序
+        LIMX_UID = 1172054289
+        ups = session.query(BilibiliUp).filter_by(is_active=True).all()
+        # 分离逐际动力和其他UP主
+        limx_up = None
+        other_ups = []
+        for up in ups:
+            if up.uid == LIMX_UID:
+                limx_up = up
+            else:
+                other_ups.append(up)
+        # 其他UP主按UID排序
+        other_ups.sort(key=lambda x: x.uid)
+        # 合并：逐际动力在第一位
+        ups = ([limx_up] if limx_up else []) + other_ups
         
-        for idx, up_uid in enumerate(BILIBILI_UP_LIST):
+        if not ups:
+            logger.warning("数据库中暂无UP主数据，请先运行 fetch_bilibili_data.py 抓取数据")
+            # 返回空数据，但保持接口可用
+            return jsonify({
+                'success': True,
+                'data': [],
+                'total': 0,
+                'updated_at': datetime.now().isoformat(),
+                'message': '数据库中暂无数据，请先运行数据抓取脚本'
+            })
+        
+        for up in ups:
             try:
-                # 添加请求间隔，避免触发B站风控（每个请求间隔1-2秒）
-                if idx > 0:
-                    delay = 1.5 + (idx % 3) * 0.3  # 1.5-2.4秒的随机延迟
-                    logger.info(f"请求间隔 {delay:.1f}秒，避免风控 (进度: {idx+1}/{total_uid})")
-                    time.sleep(delay)
+                # 获取该UP主的视频（按发布时间倒序，最多200条）
+                videos_query = session.query(BilibiliVideo).filter_by(
+                    uid=up.uid,
+                    is_deleted=False
+                ).order_by(BilibiliVideo.pubdate_raw.desc()).limit(200)
                 
-                logger.info(f"正在获取UP主 {up_uid} 数据 ({idx+1}/{total_uid})...")
-                # 获取UP主数据（增加视频数量以支持月度统计）
-                data = client.get_all_data(up_uid, video_count=50)
+                videos = videos_query.all()
                 
-                if data:
-                    user_info = data.get('user_info', {})
-                    user_stat = data.get('user_stat', {})
-                    videos = data.get('videos', [])
-                    
-                    # 格式化视频数据
-                    formatted_videos = []
-                    for video in videos:
-                        formatted_videos.append({
-                            'bvid': video.get('bvid', ''),
-                            'title': video.get('title', ''),
-                            'pic': video.get('pic', ''),
-                            'play': format_number(video.get('play', 0)),
-                            'play_raw': video.get('play', 0),
-                            'favorites': format_number(video.get('favorites', 0)),
-                            'video_review': format_number(video.get('video_review', 0)),
-                            'pubdate': format_timestamp(video.get('pubdate', 0)),
-                            'pubdate_raw': video.get('pubdate', 0),
-                            'description': video.get('description', ''),
-                            'length': video.get('length', ''),
-                            'url': f"https://www.bilibili.com/video/{video.get('bvid', '')}"
-                        })
-                    
-                    # 按日期从新到旧排序
-                    formatted_videos.sort(key=lambda x: x.get('pubdate_raw', 0), reverse=True)
-                    
-                    all_data.append({
-                        'user_info': {
-                            'mid': user_info.get('mid'),
-                            'name': user_info.get('name', f'UP主{up_uid}'),
-                            'face': user_info.get('face', ''),
-                            'sign': user_info.get('sign', ''),
-                            'level': user_info.get('level', 0),
-                            'fans': format_number(user_info.get('fans', 0)),
-                            'fans_raw': user_info.get('fans', 0),
-                            'friend': format_number(user_info.get('friend', 0)),
-                        },
-                        'user_stat': {
-                            'videos': format_number(user_stat.get('videos', 0)),
-                            'likes': format_number(user_stat.get('likes', 0)),
-                            'views': format_number(user_stat.get('views', 0)),
-                        },
-                        'videos': formatted_videos,
-                        'space_url': f"https://space.bilibili.com/{up_uid}",
-                        'updated_at': data.get('updated_at', datetime.now().isoformat())
+                # 转换为字典格式
+                formatted_videos = []
+                for video in videos:
+                    formatted_videos.append({
+                        'bvid': video.bvid,
+                        'title': video.title or '',
+                        'pic': video.pic or '',
+                        'play': video.play_formatted or '0',
+                        'play_raw': video.play or 0,
+                        'favorites': video.favorites_formatted or '0',
+                        'video_review': video.video_review_formatted or '0',
+                        'pubdate': format_timestamp(video.pubdate_raw) if video.pubdate_raw else '',
+                        'pubdate_raw': video.pubdate_raw or 0,
+                        'description': video.description or '',
+                        'length': video.length or '',
+                        'url': video.url or f"https://www.bilibili.com/video/{video.bvid}"
                     })
-                else:
-                    # 如果获取失败，添加错误信息
-                    all_data.append({
-                        'user_info': {
-                            'mid': up_uid,
-                            'name': f'UP主{up_uid}',
-                            'face': '',
-                            'sign': '数据获取失败',
-                            'level': 0,
-                            'fans': '0',
-                            'fans_raw': 0,
-                            'friend': '0',
-                        },
-                        'user_stat': {},
-                        'videos': [],
-                        'space_url': f"https://space.bilibili.com/{up_uid}",
-                        'error': True,
-                        'error_message': '数据获取失败'
-                    })
+                
+                # 构建响应数据
+                card_data = {
+                    'user_info': {
+                        'mid': up.uid,
+                        'name': up.name,
+                        'face': up.face or '',
+                        'sign': up.sign or '',
+                        'level': up.level,
+                        'fans': up.fans_formatted or '0',
+                        'fans_raw': up.fans or 0,
+                        'friend': str(up.friend) if up.friend else '0',
+                    },
+                    'user_stat': {
+                        'videos': format_number(up.videos_count) if up.videos_count else '0',
+                        'likes': up.likes_formatted or '0',
+                        'views': up.views_formatted or '0',
+                    },
+                    'videos': formatted_videos,
+                    'space_url': up.space_url or f"https://space.bilibili.com/{up.uid}",
+                    'updated_at': up.last_fetch_at.isoformat() if up.last_fetch_at else datetime.now().isoformat()
+                }
+                
+                # 如果有错误信息，添加错误标记
+                if up.fetch_error:
+                    card_data['error'] = True
+                    card_data['error_message'] = up.fetch_error
+                
+                all_data.append(card_data)
+                
             except Exception as e:
-                logger.error(f"获取UP主 {up_uid} 数据失败: {e}")
+                logger.error(f"处理UP主 {up.uid} 数据失败: {e}")
                 # 添加错误数据
                 all_data.append({
                     'user_info': {
-                        'mid': up_uid,
-                        'name': f'UP主{up_uid}',
+                        'mid': up.uid,
+                        'name': up.name or f'UP主{up.uid}',
                         'face': '',
-                        'sign': f'获取失败: {str(e)}',
+                        'sign': f'数据处理失败: {str(e)}',
                         'level': 0,
                         'fans': '0',
                         'fans_raw': 0,
@@ -961,28 +1137,27 @@ def get_all_bilibili():
                     },
                     'user_stat': {},
                     'videos': [],
-                    'space_url': f"https://space.bilibili.com/{up_uid}",
+                    'space_url': f"https://space.bilibili.com/{up.uid}",
                     'error': True,
                     'error_message': str(e)
                 })
+        
+        session.close()
         
         response_data = {
             'success': True,
             'data': all_data,
             'total': len(all_data),
-            'updated_at': datetime.now().isoformat()
+            'updated_at': datetime.now().isoformat(),
+            'source': 'database'  # 标识数据来源
         }
         
-        # 保存到缓存（只有成功获取数据时才缓存）
-        with bilibili_cache_lock:
-            bilibili_cache['all_data'] = response_data
-            bilibili_cache['all_expires_at'] = datetime.now().timestamp() + BILIBILI_CACHE_DURATION
-            logger.info(f"Bilibili全部数据已缓存，有效期至: {datetime.fromtimestamp(bilibili_cache['all_expires_at'])}")
+        logger.info(f"从数据库获取B站数据，共 {len(all_data)} 个UP主")
         
         return jsonify(response_data)
         
     except Exception as e:
-        logger.error(f"获取所有Bilibili数据失败: {e}")
+        logger.error(f"从数据库获取Bilibili数据失败: {e}")
         import traceback
         logger.error(traceback.format_exc())
         return jsonify({
@@ -990,119 +1165,159 @@ def get_all_bilibili():
             'error': str(e)
         }), 500
 
-@app.route('/api/bilibili/monthly_stats')
-def get_bilibili_monthly_stats():
-    """按月统计各公司播放量对比（各公司当月发布的所有视频的播放量合计）"""
+@app.route('/api/bilibili/yearly_stats')
+def get_bilibili_yearly_stats():
+    """从数据库统计各公司当前年份的总播放量（各公司当年发布的所有视频的播放量合计）"""
     try:
         from collections import defaultdict
-        from datetime import datetime as dt
         
-        global bilibili_cache
+        session = get_bilibili_session()
         
-        # 优先使用缓存数据，避免重复请求导致风控
-        cached_all_data = None
-        with bilibili_cache_lock:
-            if (bilibili_cache.get('all_data') is not None and 
-                bilibili_cache.get('all_expires_at') is not None):
-                cached_all_data = bilibili_cache['all_data']
+        # 从数据库获取所有活跃的UP主
+        ups = session.query(BilibiliUp).filter_by(is_active=True).all()
+        
+        if not ups:
+            logger.warning("数据库中暂无UP主数据")
+            return jsonify({
+                'success': True,
+                'data': {
+                    'year': str(datetime.now().year),
+                    'companies': []
+                },
+                'total_companies': 0,
+                'updated_at': datetime.now().isoformat()
+            })
+        
+        # 统计当前年份各公司的总播放量
+        current_year = datetime.now().year
+        company_play_counts = defaultdict(int)
+        all_companies_set = set()
+        
+        # 查询当前年份的数据
+        year_start = datetime(current_year, 1, 1)
+        year_end = datetime(current_year, 12, 31, 23, 59, 59)
+        
+        for up in ups:
+            company_name = up.name
+            all_companies_set.add(company_name)
+            
+            # 查询该UP主当前年份的所有视频
+            videos = session.query(BilibiliVideo).filter(
+                BilibiliVideo.uid == up.uid,
+                BilibiliVideo.is_deleted == False,
+                BilibiliVideo.pubdate >= year_start,
+                BilibiliVideo.pubdate <= year_end
+            ).all()
+            
+            # 统计该公司的年度总播放量
+            for video in videos:
+                if not video.pubdate or not video.play:
+                    continue
+                
+                try:
+                    if video.pubdate.year == current_year:
+                        play_count = video.play or 0
+                        company_play_counts[company_name] += play_count
+                except Exception as e:
+                    logger.debug(f"处理视频 {video.bvid} 日期失败: {e}")
+                    continue
+        
+        session.close()
+        
+        # 公司排序：完全按播放量降序排序
+        companies_list = [
+            {'name': name, 'play_count': count}
+            for name, count in company_play_counts.items()
+        ]
+        companies_list.sort(key=lambda x: x['play_count'], reverse=True)
+        
+        return jsonify({
+            'success': True,
+            'data': {
+                'year': str(current_year),
+                'companies': companies_list
+            },
+            'total_companies': len(companies_list),
+            'updated_at': datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        logger.error(f"获取年度统计数据失败: {e}", exc_info=True)
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/bilibili/monthly_stats')
+def get_bilibili_monthly_stats():
+    """从数据库按月统计各公司播放量对比（各公司当月发布的所有视频的播放量合计）"""
+    try:
+        from collections import defaultdict
+        from datetime import datetime as dt, timedelta
+        from sqlalchemy import func, extract
+        
+        session = get_bilibili_session()
+        
+        # 从数据库获取所有活跃的UP主
+        ups = session.query(BilibiliUp).filter_by(is_active=True).all()
+        
+        if not ups:
+            logger.warning("数据库中暂无UP主数据")
+            return jsonify({
+                'success': True,
+                'data': {
+                    'months': [],
+                    'companies': []
+                },
+                'total_companies': 0,
+                'total_months': 0,
+                'updated_at': datetime.now().isoformat()
+            })
         
         # 按月份组织数据：{月份: {公司名: 播放量}}
         monthly_by_month = defaultdict(lambda: defaultdict(int))
-        company_names = {}
+        all_companies_set = set()
         
-        # 如果缓存存在，使用缓存数据
-        if cached_all_data and cached_all_data.get('success') and cached_all_data.get('data'):
-            logger.info("使用缓存数据计算月度统计")
-            all_cards = cached_all_data['data']
+        # 从数据库查询视频数据，按月统计
+        for up in ups:
+            company_name = up.name
+            all_companies_set.add(company_name)
             
-            for card in all_cards:
-                user_info = card.get('user_info', {})
-                company_name = user_info.get('name', f'UP主{user_info.get("mid", "unknown")}')
-                videos = card.get('videos', [])
+            # 查询该UP主的所有视频（最近12个月）
+            twelve_months_ago = datetime.now().replace(day=1)
+            for _ in range(12):
+                twelve_months_ago = (twelve_months_ago.replace(day=1) - timedelta(days=1)).replace(day=1)
+            
+            videos = session.query(BilibiliVideo).filter(
+                BilibiliVideo.uid == up.uid,
+                BilibiliVideo.is_deleted == False,
+                BilibiliVideo.pubdate >= twelve_months_ago
+            ).all()
+            
+            # 按月统计播放量
+            for video in videos:
+                if not video.pubdate or not video.play:
+                    continue
                 
-                # 按月统计播放量
-                for video in videos:
-                    pubdate_raw = video.get('pubdate_raw', 0)
-                    if not pubdate_raw:
-                        continue
-                    
-                    # 转换为日期
-                    try:
-                        pub_date = dt.fromtimestamp(pubdate_raw)
-                        month_key = pub_date.strftime('%Y-%m')  # 格式：2025-12
-                        
-                        # 使用play_raw（原始数值），如果没有则尝试play
-                        play_count = video.get('play_raw', 0) or 0
-                        if not play_count:
-                            # 如果play_raw不存在，尝试从play字符串中解析
-                            play_str = video.get('play', '0')
-                            if isinstance(play_str, str):
-                                # 处理格式化字符串，如 "1.2万"
-                                if '万' in play_str:
-                                    play_count = int(float(play_str.replace('万', '')) * 10000)
-                                else:
-                                    try:
-                                        play_count = int(play_str)
-                                    except:
-                                        play_count = 0
-                            else:
-                                play_count = play_str or 0
-                        
-                        monthly_by_month[month_key][company_name] += play_count
-                    except Exception as e:
-                        logger.debug(f"处理视频日期失败: {e}")
-                        continue
-        else:
-            # 缓存不存在，重新获取（但这种情况应该很少）
-            logger.warning("缓存数据不存在，重新获取月度统计数据")
-            client = BilibiliClient()
-            
-            for up_uid in BILIBILI_UP_LIST:
                 try:
-                    data = client.get_all_data(up_uid, video_count=50)
-                    if not data:
-                        continue
-                    
-                    user_info = data.get('user_info', {})
-                    company_name = user_info.get('name', f'UP主{up_uid}')
-                    company_names[up_uid] = company_name
-                    videos = data.get('videos', [])
-                    
-                    # 按月统计播放量
-                    for video in videos:
-                        pubdate_raw = video.get('pubdate', 0)
-                        if not pubdate_raw:
-                            continue
-                        
-                        # 转换为日期
-                        try:
-                            pub_date = dt.fromtimestamp(pubdate_raw)
-                            month_key = pub_date.strftime('%Y-%m')  # 格式：2025-12
-                            
-                            play_count = video.get('play', 0) or 0
-                            monthly_by_month[month_key][company_name] += play_count
-                        except Exception as e:
-                            logger.debug(f"处理视频日期失败: {e}")
-                            continue
-                        
+                    month_key = video.pubdate.strftime('%Y-%m')  # 格式：2025-12
+                    play_count = video.play or 0
+                    monthly_by_month[month_key][company_name] += play_count
                 except Exception as e:
-                    logger.error(f"统计UP主 {up_uid} 月度数据失败: {e}")
+                    logger.debug(f"处理视频 {video.bvid} 日期失败: {e}")
                     continue
         
-        # 转换为列表格式，按月份排序（最近6个月）
-        all_months = sorted(monthly_by_month.keys(), reverse=True)[:6]
+        session.close()
         
-        # 从月度数据中提取所有公司名称
-        all_companies_set = set()
-        for month_data in monthly_by_month.values():
-            all_companies_set.update(month_data.keys())
-        if cached_all_data and cached_all_data.get('success') and cached_all_data.get('data'):
-            # 也从缓存数据中提取公司名称
-            for card in cached_all_data['data']:
-                user_info = card.get('user_info', {})
-                company_name = user_info.get('name', f'UP主{user_info.get("mid", "unknown")}')
-                all_companies_set.add(company_name)
+        # 转换为列表格式，按月份排序（最近12个月）
+        all_months = sorted(monthly_by_month.keys(), reverse=True)[:12]
+        
+        # 公司排序：逐际动力始终在第一位，其他按字母顺序
+        LIMX_NAME = '逐际动力'
         all_companies = sorted(all_companies_set)
+        if LIMX_NAME in all_companies:
+            all_companies.remove(LIMX_NAME)
+            all_companies.insert(0, LIMX_NAME)
         
         monthly_stats = []
         for month in all_months:
@@ -1649,29 +1864,25 @@ def search_papers():
     session = None
     try:
         query = request.args.get('q', '').strip()
-        category = request.args.get('category', '').strip()
         
-        if not query and not category:
+        if not query:
             return jsonify({
                 'success': False,
-                'error': '请提供搜索关键词或类别'
+                'error': '请提供搜索关键词'
             }), 400
         
         session = get_session()
         
-        # 构建查询
+        # 构建查询（全局搜索，不受类别限制）
         papers_query = session.query(Paper)
         
-        # 按类别筛选
-        if category:
-            papers_query = papers_query.filter(Paper.category == category)
-        
-        # 按关键词搜索（标题或作者）
+        # 按关键词搜索（标题、作者或摘要）
         if query:
             papers_query = papers_query.filter(
                 or_(
                     Paper.title.contains(query),
-                    Paper.authors.contains(query)
+                    Paper.authors.contains(query),
+                    Paper.abstract.contains(query)
                 )
             )
         
@@ -1703,11 +1914,35 @@ def trigger_fetch():
     global fetch_status
     
     with fetch_status_lock:
+        # 检查状态，如果running为True但last_update超过10分钟，认为任务已卡死，重置状态
         if fetch_status['running']:
-            return jsonify({
-                'success': False,
-                'message': '抓取任务正在运行中，请稍候...'
-            }), 400
+            from datetime import datetime, timedelta
+            last_update_str = fetch_status.get('last_update', '')
+            if last_update_str:
+                try:
+                    last_update = datetime.strptime(last_update_str, '%Y-%m-%d %H:%M:%S')
+                    if datetime.now() - last_update > timedelta(minutes=10):
+                        logger.warning("检测到抓取任务可能已卡死，重置状态")
+                        fetch_status['running'] = False
+                        fetch_status['progress'] = 0
+                        fetch_status['current_keyword'] = ''
+                    else:
+                        return jsonify({
+                            'success': False,
+                            'message': '抓取任务正在运行中，请稍候...'
+                        }), 400
+                except:
+                    # 如果解析失败，重置状态
+                    logger.warning("无法解析last_update时间，重置状态")
+                    fetch_status['running'] = False
+                    fetch_status['progress'] = 0
+                    fetch_status['current_keyword'] = ''
+            else:
+                # 如果没有last_update，重置状态
+                logger.warning("没有last_update信息，重置状态")
+                fetch_status['running'] = False
+                fetch_status['progress'] = 0
+                fetch_status['current_keyword'] = ''
     
     # 简化版：不需要配置参数，直接执行脚本
     # 脚本内部已配置好所有参数（max_results=100, days_back=14等）
@@ -1849,8 +2084,10 @@ def trigger_fetch():
                 fetch_status['current_keyword'] = ''
                 fetch_status['last_update'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         finally:
+            # 确保在所有情况下都重置running状态
             with fetch_status_lock:
-                if fetch_status['running']:  # 如果还没被设置为False
+                if fetch_status.get('running', False):
+                    # 如果还在运行状态，说明可能异常退出，重置状态
                     fetch_status['running'] = False
                     fetch_status['progress'] = 0
                     fetch_status['current_keyword'] = ''

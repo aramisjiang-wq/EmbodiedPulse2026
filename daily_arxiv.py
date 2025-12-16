@@ -7,6 +7,7 @@ import logging
 import argparse
 import datetime
 import requests
+from taxonomy import normalize_category
 import subprocess
 import time
 
@@ -88,15 +89,18 @@ def get_code_link(qword:str) -> str:
         code_link = results["items"][0]["html_url"]
     return code_link
   
-def get_daily_papers(topic,query="slam", max_results=2):
+def get_daily_papers(topic,query="slam", max_results=2, days_back=14):
     """
     @param topic: str
     @param query: str
+    @param max_results: int
+    @param days_back: int - 只抓取最近N天的论文（默认14天）
     @return paper_with_code: dict
     
     抓取策略：
     1. 优先抓取最新日期的论文（按提交日期倒序）
     2. 如果该类别论文总数少于1000篇，则允许补齐历史论文
+    3. 在ArXiv API查询时添加日期过滤，只查询最近days_back天的论文
     """
     # output 
     content = dict() 
@@ -127,9 +131,22 @@ def get_daily_papers(topic,query="slam", max_results=2):
         num_retries=3
     )
     
+    # 添加日期过滤：只查询最近days_back天的论文
+    from datetime import datetime, timedelta
+    end_date = datetime.now()
+    start_date = end_date - timedelta(days=days_back)
+    
+    # 构建日期过滤（ArXiv API格式：submittedDate:[YYYYMMDDHHMM TO YYYYMMDDHHMM]）
+    date_filter = f"submittedDate:[{start_date.strftime('%Y%m%d')}0000 TO {end_date.strftime('%Y%m%d')}2359]"
+    
+    # 在查询中添加日期过滤
+    full_query = f"({query}) AND {date_filter}"
+    
+    logging.info(f"{topic}: 查询日期范围 {start_date.date()} 到 {end_date.date()} (最近{days_back}天)")
+    
     # 按提交日期倒序排序，优先获取最新论文
     search = arxiv.Search(
-        query = query,
+        query = full_query,
         max_results = max_results,
         sort_by = arxiv.SortCriterion.SubmittedDate,
         sort_order = arxiv.SortOrder.Descending  # 倒序：最新的在前
@@ -323,6 +340,7 @@ def update_json_file(filename,data_dict, save_to_db=True, enable_dedup=True, ena
             
             for data in data_dict:
                 for keyword, papers in data.items():
+                    normalized_keyword = normalize_category(keyword)
                     for paper_id, paper_entry in papers.items():
                         # 解析论文条目
                         parsed = parse_paper_entry_from_string(paper_entry)
@@ -330,6 +348,19 @@ def update_json_file(filename,data_dict, save_to_db=True, enable_dedup=True, ena
                             continue
                         
                         parsed['id'] = paper_id
+                        
+                        # 如果没有摘要，尝试从ArXiv API获取（用于分类）
+                        if not parsed.get('abstract') and paper_id:
+                            try:
+                                import arxiv
+                                client = arxiv.Client(page_size=1, delay_seconds=0.5, num_retries=2)
+                                search = arxiv.Search(id_list=[paper_id])
+                                results = list(client.results(search))
+                                if results:
+                                    parsed['abstract'] = results[0].summary.replace("\n", " ")
+                                    logging.debug(f"从ArXiv API获取摘要: {paper_id}")
+                            except Exception as e:
+                                logging.debug(f"无法从ArXiv API获取摘要 {paper_id}: {e}")
                         
                         # 智能去重检查
                         if enable_dedup and parsed.get('title'):
@@ -344,7 +375,7 @@ def update_json_file(filename,data_dict, save_to_db=True, enable_dedup=True, ena
                                 paper_date = datetime.strptime(parsed['date'], '%Y-%m-%d')
                                 # 只检查是否在时间范围内（days_back），不检查日期比较
                                 # 去重机制（ID和标题相似度）已经足够处理重复问题
-                                if not should_fetch_paper(paper_date, keyword, days_back=days_back):
+                                if not should_fetch_paper(paper_date, normalized_keyword, days_back=days_back):
                                     skipped_old += 1
                                     logging.debug(f"跳过超出时间范围的论文: {parsed['title'][:50]}... (日期: {parsed['date']})")
                                     continue
@@ -353,7 +384,7 @@ def update_json_file(filename,data_dict, save_to_db=True, enable_dedup=True, ena
                         
                         # 保存到数据库（强制启用去重，可选启用Semantic Scholar）
                         # 如果启用Semantic Scholar，会在保存时同时获取补充数据（引用数、机构信息等）
-                        success, action = save_paper_to_db(parsed, keyword, enable_title_dedup=enable_dedup, fetch_semantic_scholar=fetch_semantic_scholar)
+                        success, action = save_paper_to_db(parsed, normalized_keyword, enable_title_dedup=enable_dedup, fetch_semantic_scholar=fetch_semantic_scholar)
                         if success:
                             if action == 'created':
                                 saved_count += 1
@@ -383,11 +414,12 @@ def update_json_file(filename,data_dict, save_to_db=True, enable_dedup=True, ena
     for data in data_dict:
         for keyword in data.keys():
             papers = data[keyword]
+            normalized_keyword = normalize_category(keyword)
 
-            if keyword in json_data.keys():
-                json_data[keyword].update(papers)
+            if normalized_keyword in json_data.keys():
+                json_data[normalized_keyword].update(papers)
             else:
-                json_data[keyword] = papers
+                json_data[normalized_keyword] = papers
 
     with open(filename,"w") as f:
         json.dump(json_data,f)
@@ -543,7 +575,8 @@ def demo(**config):
             
             logging.info(f"Keyword: {topic} ({current_progress}/{total_keywords})")
             data, data_web = get_daily_papers(topic, query = keyword,
-                                            max_results = max_results)
+                                            max_results = max_results,
+                                            days_back = config.get('days_back', 14))
             data_collector.append(data)
             data_collector_web.append(data_web)
             print("\n")
