@@ -40,6 +40,7 @@ Group=root
 WorkingDirectory=${APP_DIR}
 Environment="PATH=${VENV_DIR}/bin"
 Environment="FLASK_ENV=production"
+EnvironmentFile=${APP_DIR}/.env
 ExecStart=${VENV_DIR}/bin/gunicorn -c ${APP_DIR}/gunicorn_config.py app:app
 ExecReload=/bin/kill -s HUP \$MAINPID
 Restart=always
