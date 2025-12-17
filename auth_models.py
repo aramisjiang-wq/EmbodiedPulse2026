@@ -7,10 +7,10 @@
 from sqlalchemy import Column, Integer, String, DateTime, Text, ForeignKey
 from sqlalchemy.sql import func
 from datetime import datetime
-from database import Base
+from database import db
 
 
-class AuthUser(Base):
+class AuthUser(db.Model):
     """认证用户表 - 飞书登录用户"""
     __tablename__ = 'auth_users'
     
@@ -69,7 +69,7 @@ class AuthUser(Base):
         return f'<AuthUser {self.id}: {self.name} ({self.role})>'
 
 
-class AdminUser(Base):
+class AdminUser(db.Model):
     """管理员表 - 用户名密码登录的管理员"""
     __tablename__ = 'admin_users'
     
@@ -115,7 +115,7 @@ class AdminUser(Base):
         return f'<AdminUser {self.id}: {self.username} ({self.role})>'
 
 
-class AccessLog(Base):
+class AccessLog(db.Model):
     """访问日志表 - 记录用户访问行为"""
     __tablename__ = 'access_logs'
     
@@ -166,7 +166,7 @@ class AccessLog(Base):
         return f'<AccessLog {self.id}: {self.username} -> {self.page_url}>'
 
 
-class LoginHistory(Base):
+class LoginHistory(db.Model):
     """登录历史表 - 记录用户登录行为"""
     __tablename__ = 'login_history'
     

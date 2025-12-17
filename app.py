@@ -70,6 +70,11 @@ app = Flask(__name__,
             static_folder=STATIC_DIR)
 app.config['JSON_AS_ASCII'] = False  # 支持中文
 
+# 初始化数据库（Flask-SQLAlchemy）
+from database import init_db
+init_db(app)
+logger.info("✅ Flask-SQLAlchemy数据库已初始化")
+
 # 注册认证系统蓝图
 app.register_blueprint(auth_bp)
 app.register_blueprint(user_bp)
