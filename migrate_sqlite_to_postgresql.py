@@ -1,6 +1,6 @@
 """
 从SQLite迁移数据到PostgreSQL
-支持迁移所有数据库：papers, jobs, news, datasets
+支持迁移所有数据库：papers, jobs, news, datasets, bilibili
 """
 import os
 import sys
@@ -12,6 +12,7 @@ SQLITE_PAPERS_DB = 'sqlite:///./papers.db'
 SQLITE_JOBS_DB = 'sqlite:///./jobs.db'
 SQLITE_NEWS_DB = 'sqlite:///./news.db'
 SQLITE_DATASETS_DB = 'sqlite:///./datasets.db'
+SQLITE_BILIBILI_DB = 'sqlite:///./bilibili.db'
 
 # PostgreSQL连接URL（从环境变量获取）
 POSTGRES_URL = os.getenv('DATABASE_URL', 'postgresql://robotics_user:robotics_password@localhost:5432/robotics_arxiv')
@@ -211,6 +212,33 @@ def main():
     except Exception as e:
         print(f"\n❌ 数据集数据库迁移失败: {e}")
         results['datasets'] = False
+    
+    # 5. 迁移Bilibili数据库（UP主和视频）
+    try:
+        from bilibili_models import BilibiliUp, BilibiliVideo
+        bilibili_postgres_url = os.getenv('BILIBILI_DATABASE_URL', POSTGRES_URL)
+        
+        # 迁移UP主表
+        print(f"\n迁移Bilibili UP主数据...")
+        results['bilibili_ups'] = migrate_table(
+            SQLITE_BILIBILI_DB,
+            bilibili_postgres_url,
+            'bilibili_ups',
+            BilibiliUp
+        )
+        
+        # 迁移视频表
+        print(f"\n迁移Bilibili视频数据...")
+        results['bilibili_videos'] = migrate_table(
+            SQLITE_BILIBILI_DB,
+            bilibili_postgres_url,
+            'bilibili_videos',
+            BilibiliVideo
+        )
+    except Exception as e:
+        print(f"\n❌ Bilibili数据库迁移失败: {e}")
+        results['bilibili_ups'] = False
+        results['bilibili_videos'] = False
     
     # 总结
     print(f"\n{'='*60}")
