@@ -5,20 +5,12 @@
 
 // 获取当前页面路径
 const currentPath = window.location.pathname;
-const currentHost = window.location.hostname;
 
 // 不需要强制登录的页面（白名单）
 const publicPages = ['/login', '/auth/callback', '/admin/login', '/test', '/bilibili'];
 
-// 不需要强制登录的域名（白名单）
-const publicDomains = ['blibli.gradmotion.com'];
-
 // 检查是否是公开页面
 function isPublicPage() {
-    // 如果当前域名在白名单中，不需要登录
-    if (publicDomains.includes(currentHost)) {
-        return true;
-    }
     return publicPages.some(page => currentPath.startsWith(page));
 }
 
