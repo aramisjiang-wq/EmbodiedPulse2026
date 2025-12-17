@@ -21,7 +21,9 @@ jobs:
           port: ${{ secrets.SERVER_SSH_PORT }}
           script: |
             echo "[CI] 开始部署 EmbodiedPulse2026 ..."
-            /srv/EmbodiedPulse2026/deploy.sh
+            cd /srv/EmbodiedPulse2026
+            chmod +x scripts/deploy_server.sh
+            bash scripts/deploy_server.sh
             echo "[CI] 部署脚本执行完毕。"
 
 
