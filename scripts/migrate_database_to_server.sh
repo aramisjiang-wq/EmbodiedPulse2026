@@ -25,7 +25,7 @@ echo ""
 echo "1. 检查本地数据库文件..."
 echo ""
 
-PAPERS_DB="${LOCAL_DIR}/instance/papers.db"
+PAPERS_DB="${LOCAL_DIR}/papers.db"
 BILIBILI_DB="${LOCAL_DIR}/bilibili.db"
 
 if [ ! -f "$PAPERS_DB" ]; then
@@ -103,7 +103,7 @@ fi
 # 上传论文数据库
 echo ""
 echo "4. 上传论文数据库..."
-scp "$PAPERS_DB" "${SERVER_USER}@${SERVER_IP}:${SERVER_DIR}/instance/" << EOF
+scp "$PAPERS_DB" "${SERVER_USER}@${SERVER_IP}:${SERVER_DIR}/" << EOF
 ${SERVER_PASSWORD}
 EOF
 
@@ -134,9 +134,9 @@ echo "6. 在服务器上设置文件权限..."
 ssh "${SERVER_USER}@${SERVER_IP}" << EOF
 ${SERVER_PASSWORD}
 cd ${SERVER_DIR}
-chmod 644 instance/papers.db
+chmod 644 papers.db
 chmod 644 bilibili.db
-chown root:root instance/papers.db
+chown root:root papers.db
 chown root:root bilibili.db
 echo "文件权限已设置"
 EOF
@@ -149,11 +149,11 @@ ${SERVER_PASSWORD}
 cd ${SERVER_DIR}
 if command -v sqlite3 &> /dev/null; then
     echo "论文数据库:"
-    sqlite3 instance/papers.db "SELECT COUNT(*) FROM papers;" 2>/dev/null || echo "查询失败"
+    sqlite3 papers.db "SELECT COUNT(*) FROM papers;" 2>/dev/null || echo "查询失败"
     echo ""
     echo "B站数据库:"
-    sqlite3 bilibili.db "SELECT COUNT(*) FROM bilibili_up;" 2>/dev/null || echo "UP主查询失败"
-    sqlite3 bilibili.db "SELECT COUNT(*) FROM bilibili_video;" 2>/dev/null || echo "视频查询失败"
+    sqlite3 bilibili.db "SELECT COUNT(*) FROM bilibili_ups;" 2>/dev/null || echo "UP主查询失败"
+    sqlite3 bilibili.db "SELECT COUNT(*) FROM bilibili_videos;" 2>/dev/null || echo "视频查询失败"
 else
     echo "sqlite3 未安装，跳过验证"
 fi
