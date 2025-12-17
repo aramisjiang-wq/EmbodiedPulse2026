@@ -91,8 +91,8 @@ server {
         proxy_set_header X-Forwarded-Proto $scheme;
     }
 
-    # 登录页面（参考 essay.gradmotion.com 的配置方式）
-    location /login {
+    # 登录页面 - 使用精确匹配，确保优先级高于 location /
+    location = /login {
         proxy_pass http://127.0.0.1:5001/login;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
@@ -100,7 +100,7 @@ server {
         proxy_set_header X-Forwarded-Proto $scheme;
     }
 
-    # 视频页面
+    # 视频页面（默认路由，必须放在最后）
     location / {
         proxy_pass http://127.0.0.1:5001/bilibili;
         proxy_set_header Host $host;
