@@ -288,6 +288,12 @@ def profile_page():
     """个人中心页面"""
     return render_template('profile.html')
 
+@app.route('/test')
+def test_page():
+    """快速测试页面"""
+    with open(os.path.join(BASE_DIR, '快速测试.html'), 'r', encoding='utf-8') as f:
+        return f.read()
+
 @app.route('/admin/login')
 def admin_login_page():
     """管理员登录页面（临时）"""

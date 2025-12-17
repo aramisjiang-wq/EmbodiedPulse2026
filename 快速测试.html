@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>飞书登录系统 - 快速测试</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 40px 20px;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        h1 { color: #333; margin-bottom: 32px; }
+        .test-section {
+            margin-bottom: 32px;
+            padding: 24px;
+            background: #f8f9fa;
+            border-radius: 12px;
+        }
+        h3 { color: #667eea; margin-bottom: 16px; }
+        .btn {
+            padding: 12px 24px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 15px;
+            cursor: pointer;
+            margin-right: 12px;
+            margin-bottom: 8px;
+        }
+        .btn:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(102,126,234,0.3); }
+        .result {
+            margin-top: 16px;
+            padding: 16px;
+            background: white;
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 13px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .success { color: #2e7d32; }
+        .error { color: #c62828; }
+        .info { color: #1976d2; }
+        .link { color: #667eea; text-decoration: none; margin-right: 16px; }
+        .link:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎉 飞书登录系统 - 快速测试</h1>
+        
+        <!-- 测试1: 管理员登录 -->
+        <div class="test-section">
+            <h3>1. 管理员登录测试</h3>
+            <button class="btn" onclick="testAdminLogin()">登录 (limx/limx123456)</button>
+            <button class="btn" onclick="clearToken()">清除Token</button>
+            <button class="btn" onclick="showToken()">查看Token</button>
+            <div id="login-result" class="result"></div>
+        </div>
+        
+        <!-- 测试2: API调用 -->
+        <div class="test-section">
+            <h3>2. API调用测试</h3>
+            <button class="btn" onclick="testOverviewAPI()">测试统计API</button>
+            <button class="btn" onclick="testUsersAPI()">测试用户列表API</button>
+            <div id="api-result" class="result"></div>
+        </div>
+        
+        <!-- 测试3: 页面跳转 -->
+        <div class="test-section">
+            <h3>3. 页面跳转测试</h3>
+            <a href="/admin/login" class="link" target="_blank">管理员登录页面</a>
+            <a href="/admin/dashboard" class="link" target="_blank">管理仪表盘</a>
+            <a href="/admin/users" class="link" target="_blank">用户管理</a>
+            <a href="/admin/logs" class="link" target="_blank">日志监控</a>
+            <br><br>
+            <a href="/login" class="link" target="_blank">飞书登录</a>
+            <a href="/profile" class="link" target="_blank">个人中心</a>
+        </div>
+        
+        <!-- 状态显示 -->
+        <div class="test-section">
+            <h3>4. 当前状态</h3>
+            <div id="status-result" class="result">
+                Token状态: <span id="token-status">未检测</span>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // 测试管理员登录
+        async function testAdminLogin() {
+            const resultDiv = document.getElementById('login-result');
+            resultDiv.textContent = '正在登录...';
+            
+            try {
+                const response = await fetch('/api/admin/login', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        username: 'limx',
+                        password: 'limx123456'
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    localStorage.setItem('auth_token', data.token);
+                    resultDiv.innerHTML = `<span class="success">✅ 登录成功！</span>\n\nToken: ${data.token.substring(0, 50)}...\n\n管理员信息:\n${JSON.stringify(data.admin, null, 2)}`;
+                    updateStatus();
+                } else {
+                    resultDiv.innerHTML = `<span class="error">❌ 登录失败：${data.message}</span>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<span class="error">❌ 网络错误：${error.message}</span>`;
+            }
+        }
+        
+        // 测试统计API
+        async function testOverviewAPI() {
+            const resultDiv = document.getElementById('api-result');
+            const token = localStorage.getItem('auth_token');
+            
+            if (!token) {
+                resultDiv.innerHTML = '<span class="error">❌ 请先登录</span>';
+                return;
+            }
+            
+            resultDiv.textContent = '正在获取数据...';
+            
+            try {
+                const response = await fetch('/api/admin/stats/overview', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                if (response.status === 401) {
+                    resultDiv.innerHTML = '<span class="error">❌ Token无效或已过期，请重新登录</span>';
+                    return;
+                }
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    resultDiv.innerHTML = `<span class="success">✅ API调用成功！</span>\n\n${JSON.stringify(data.stats, null, 2)}`;
+                } else {
+                    resultDiv.innerHTML = `<span class="error">❌ API返回错误：${data.message}</span>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<span class="error">❌ 网络错误：${error.message}</span>`;
+            }
+        }
+        
+        // 测试用户列表API
+        async function testUsersAPI() {
+            const resultDiv = document.getElementById('api-result');
+            const token = localStorage.getItem('auth_token');
+            
+            if (!token) {
+                resultDiv.innerHTML = '<span class="error">❌ 请先登录</span>';
+                return;
+            }
+            
+            resultDiv.textContent = '正在获取数据...';
+            
+            try {
+                const response = await fetch('/api/admin/users?page=1&per_page=10', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                if (response.status === 401) {
+                    resultDiv.innerHTML = '<span class="error">❌ Token无效或已过期，请重新登录</span>';
+                    return;
+                }
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    resultDiv.innerHTML = `<span class="success">✅ API调用成功！</span>\n\n用户总数: ${data.total}\n当前页: ${data.current_page}\n\n${JSON.stringify(data.users, null, 2)}`;
+                } else {
+                    resultDiv.innerHTML = `<span class="error">❌ API返回错误：${data.message}</span>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<span class="error">❌ 网络错误：${error.message}</span>`;
+            }
+        }
+        
+        // 清除Token
+        function clearToken() {
+            localStorage.removeItem('auth_token');
+            document.getElementById('login-result').innerHTML = '<span class="info">ℹ️  Token已清除</span>';
+            updateStatus();
+        }
+        
+        // 显示Token
+        function showToken() {
+            const token = localStorage.getItem('auth_token');
+            const resultDiv = document.getElementById('login-result');
+            
+            if (token) {
+                resultDiv.innerHTML = `<span class="info">当前Token:</span>\n\n${token}`;
+            } else {
+                resultDiv.innerHTML = '<span class="error">❌ 没有Token</span>';
+            }
+        }
+        
+        // 更新状态
+        function updateStatus() {
+            const token = localStorage.getItem('auth_token');
+            const statusSpan = document.getElementById('token-status');
+            
+            if (token) {
+                statusSpan.innerHTML = '<span class="success">✅ 已登录</span>';
+            } else {
+                statusSpan.innerHTML = '<span class="error">❌ 未登录</span>';
+            }
+        }
+        
+        // 页面加载时更新状态
+        updateStatus();
+    </script>
+</body>
+</html>
+
