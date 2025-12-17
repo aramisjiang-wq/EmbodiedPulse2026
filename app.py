@@ -2054,9 +2054,35 @@ def get_refresh_status():
 @app.route('/api/fetch-status')
 def get_fetch_status():
     """获取论文抓取状态"""
-    # 使用锁保护读取
+    # 使用锁保护读取，并在这里做一次“兜底纠错”
+    # 场景：某些情况下底层进度已经到达 total，但 running 标志未及时置为 False，
+    # 会导致前端一直显示“正在抓取 General-Robot (24/24)...”
     with fetch_status_lock:
+        # 先拷贝一份当前状态
         status_copy = fetch_status.copy()
+
+        # 如果发现 progress >= total 且 total > 0，但 running 仍为 True，则在这里自动纠正
+        try:
+            running = bool(status_copy.get('running'))
+            total = int(status_copy.get('total', 0) or 0)
+            progress = int(status_copy.get('progress', 0) or 0)
+        except Exception:
+            running = status_copy.get('running', False)
+            total = status_copy.get('total', 0) or 0
+            progress = status_copy.get('progress', 0) or 0
+
+        if running and total > 0 and progress >= total:
+            logger.warning(
+                f"检测到抓取进度已完成但running仍为True，自动纠正状态：progress={progress}, total={total}, "
+                f"current_keyword={status_copy.get('current_keyword')}"
+            )
+            fetch_status['running'] = False
+            fetch_status['message'] = '抓取完成！（由进度自动纠正状态）'
+            fetch_status['current_keyword'] = ''
+            fetch_status['last_update'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            # 重新拷贝一份修正后的状态
+            status_copy = fetch_status.copy()
+
     # 添加调试日志
     if status_copy.get('running'):
         logger.debug(f"返回抓取状态: {status_copy}")

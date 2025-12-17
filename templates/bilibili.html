@@ -151,6 +151,22 @@
             }
         }
         
+        /* 仅具身视频页：放大主内容宽度，让 4 个模块尽量在横向完整展示 */
+        /* 仅具身视频页：放大主内容宽度，让 4 个模块尽量在横向完整展示 */
+        .container {
+            max-width: 1900px; /* 比论文页更宽，给趋势图和月度热力图更多横向空间 */
+        }
+        
+        .bilibili-page-container {
+            max-width: none;              /* 占满 main-content 可用宽度 */
+            padding: 0 16px 32px;        /* 顶部去掉额外内边距，让 Banner 顶部与右侧挂件对齐 */
+        }
+        
+        /* 右侧挂件稍微收窄一点，把更多空间让给中间 4 个模块 */
+        .side-widgets {
+            width: 420px;
+        }
+        
         /* 页面头部 - B站风格 */
         .bilibili-page-header {
             text-align: center;
@@ -834,57 +850,57 @@
     </style>
 </head>
 <body>
-    <!-- 顶部导航栏 - 全屏宽度 -->
-    <div class="top-nav-fullwidth-wrapper">
-        <nav class="top-nav">
-            <div class="nav-tabs">
-                <a href="/" class="nav-logo">
-                    <img src="{{ url_for('static', filename='images/LimX logo.svg') }}" alt="LimX Logo" class="logo-img">
-                </a>
-                <a href="/" class="nav-tab">
-                    <span>具身论文（Embodied Pulse）</span>
-                </a>
-                <a href="/bilibili" class="nav-tab active">
-                    <span>具身视频Hub</span>
-                </a>
-                <a href="https://gradmotion.com/" target="_blank" class="nav-tab">
-                    <span>具身算法工具箱（GradMotion）</span>
-                </a>
-                <a href="https://paj5uamwttr.feishu.cn/wiki/GaozwfU3iiWA9Nk0LVUcUzKZnHc" target="_blank" class="nav-tab">
-                    <span>具身知识库</span>
-                </a>
-                <a href="https://paj5uamwttr.feishu.cn/share/base/form/shrcnYlYb0NorOBVv2P8xRAArDe" target="_blank" class="nav-tab">
-                    <span>产品反馈</span>
-                </a>
-                
-                <!-- 个人中心/登录按钮 - 右对齐 -->
-                <a href="/login" class="nav-tab nav-tab-right" id="userLoginBtn">
-                    <i class="fas fa-sign-in-alt"></i>
-                    <span>登录</span>
-                </a>
-                <a href="/profile" class="nav-tab nav-tab-right" id="userProfileBtn" style="display: none;">
-                    <span id="userNameText">加载中...</span>
-                </a>
-            </div>
-        </nav>
-    </div>
-
     <div class="container">
-        <div class="bilibili-page-container">
-            <!-- 页面头部 - 覆盖整个宽度 -->
-            <div class="bilibili-page-header-wrapper">
-                <div class="bilibili-page-header">
-                    <h1><i class="fab fa-bilibili"></i> 具身视频Hub</h1>
-                    <p>追踪具身智能领域的优质视频内容</p>
+        <!-- 顶部导航栏 - Tab样式 - 全屏宽度（与具身论文页面一致） -->
+        <div class="top-nav-fullwidth-wrapper">
+            <nav class="top-nav">
+                <div class="nav-tabs">
+                    <a href="/" class="nav-logo">
+                        <img src="{{ url_for('static', filename='images/LimX logo.svg') }}" alt="LimX Logo" class="logo-img">
+                    </a>
+                    <a href="/" class="nav-tab">
+                        <span>具身论文（Embodied Pulse）</span>
+                    </a>
+                    <a href="/bilibili" class="nav-tab active">
+                        <span>具身视频Hub</span>
+                    </a>
+                    <a href="https://gradmotion.com/" target="_blank" class="nav-tab">
+                        <span>具身算法工具箱（GradMotion）</span>
+                    </a>
+                    <a href="https://paj5uamwttr.feishu.cn/wiki/GaozwfU3iiWA9Nk0LVUcUzKZnHc" target="_blank" class="nav-tab">
+                        <span>具身知识库</span>
+                    </a>
+                    <a href="https://paj5uamwttr.feishu.cn/share/base/form/shrcnYlYb0NorOBVv2P8xRAArDe" target="_blank" class="nav-tab">
+                        <span>产品反馈</span>
+                    </a>
+                    
+                    <!-- 个人中心/登录按钮 - 右对齐 -->
+                    <a href="/login" class="nav-tab nav-tab-right" id="userLoginBtn">
+                        <i class="fas fa-sign-in-alt"></i>
+                        <span>登录</span>
+                    </a>
+                    <a href="/profile" class="nav-tab nav-tab-right" id="userProfileBtn" style="display: none;">
+                        <span id="userNameText">加载中...</span>
+                    </a>
                 </div>
-            </div>
-            
-            <!-- 主内容区域 + 右侧侧边栏 -->
-            <div class="bilibili-main-layout">
-                <!-- 主内容区域 -->
-                <div class="bilibili-main-content">
-            <!-- 视频发布趋势 -->
-                <div class="bilibili-trends-section">
+            </nav>
+        </div>
+
+        <!-- 主体内容布局：左侧主内容 + 右侧挂件（与具身论文页面一致） -->
+        <div class="main-content-wrapper">
+            <div class="main-content">
+                <div class="bilibili-page-container">
+                    <!-- 页面头部 - 覆盖整个宽度 -->
+                    <div class="bilibili-page-header-wrapper">
+                        <div class="bilibili-page-header">
+                            <h1><i class="fab fa-bilibili"></i> 具身视频Hub</h1>
+                            <p>追踪具身智能领域的优质视频内容</p>
+                        </div>
+                    </div>
+                    
+                    <!-- 左侧主内容：3 个主模块 -->
+                    <!-- 视频发布趋势 -->
+                    <div class="bilibili-trends-section">
                     <div class="bilibili-trends-header">
                         <div class="bilibili-trends-title">
                             <i class="fas fa-chart-area"></i> 视频发布数量趋势（近30天）
@@ -920,57 +936,59 @@
                             <strong>自动刷新：</strong>数据缓存10分钟，10分钟内访问会使用缓存数据，避免频繁请求B站API。<br>
                             <strong>手动刷新：</strong>点击"刷新数据"按钮可立即获取最新数据（会清除缓存）。<br>
                             <strong>趋势图说明：</strong>显示最近30天每日发布量，可通过图例或视图切换查看趋势。<br>
-                                <strong>最新视频：</strong>右侧侧边栏展示最近7天最新视频。
+                            <strong>最新视频：</strong>右侧侧边栏展示最近7天最新视频。
+                        </div>
                     </div>
-                </div>
-            </div>
+                    </div>
 
-            <!-- 月度播放量统计对比 -->
-            <div class="bilibili-trends-section monthly-stats">
-                <div class="bilibili-trends-header">
-                    <div class="bilibili-trends-title">
+                    <!-- 月度播放量统计对比 -->
+                    <div class="bilibili-trends-section monthly-stats">
+                        <div class="bilibili-trends-header">
+                            <div class="bilibili-trends-title">
                                 <i class="fas fa-chart-bar"></i> 月度播放量对比（近1年）
-                    </div>
-                </div>
-                
-                <div class="bilibili-trends-chart" style="min-height: 500px;">
+                            </div>
+                        </div>
+                        
+                        <div class="bilibili-trends-chart" style="min-height: 500px;">
                             <div id="monthlyStatsHeatmap" style="width: 100%; overflow-x: auto;"></div>
                             <canvas id="monthlyStatsChart" style="display: none;"></canvas>
-                </div>
-                
-                <div class="bilibili-trends-info">
-                    <div class="bilibili-trends-info-title">
-                        <i class="fas fa-info-circle"></i> 统计说明
-                    </div>
-                    <div class="bilibili-trends-info-content">
-                        <strong>数据来源：</strong>基于各公司B站账号发布的视频播放量，按月汇总统计。<br>
-                        <strong>统计方式：</strong>各公司当月发布的所有视频的播放量合计对比。<br>
+                        </div>
+                        
+                        <div class="bilibili-trends-info">
+                            <div class="bilibili-trends-info-title">
+                                <i class="fas fa-info-circle"></i> 统计说明
+                            </div>
+                            <div class="bilibili-trends-info-content">
+                                <strong>数据来源：</strong>基于各公司B站账号发布的视频播放量，按月汇总统计。<br>
+                                <strong>统计方式：</strong>各公司当月发布的所有视频的播放量合计对比。<br>
                                 <strong>统计范围：</strong>显示最近12个月的播放量数据（基于已获取的视频）。
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 公司卡片模块 -->
+                    <div class="bilibili-cards-section">
+                        <div class="bilibili-cards-header">
+                            <div class="bilibili-cards-title">
+                                <i class="fas fa-users"></i> 公司列表
+                            </div>
+                            <div class="bilibili-cards-filter">
+                                <input type="text" id="companyFilterInput" class="bilibili-filter-input" placeholder="搜索公司名称...">
+                            </div>
+                        </div>
+                        
+                        <div id="bilibiliCardsContainer">
+                            <div class="loading-container">
+                                <div class="loading-spinner"></div>
+                                <p style="margin-top: 16px; color: #718096;">加载B站视频数据中...</p>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            <!-- 公司卡片模块 -->
-            <div class="bilibili-cards-section">
-                <div class="bilibili-cards-header">
-                    <div class="bilibili-cards-title">
-                        <i class="fas fa-users"></i> 公司列表
-                    </div>
-                    <div class="bilibili-cards-filter">
-                        <input type="text" id="companyFilterInput" class="bilibili-filter-input" placeholder="搜索公司名称...">
-                    </div>
-                </div>
-                
-                <div id="bilibiliCardsContainer">
-                    <div class="loading-container">
-                        <div class="loading-spinner"></div>
-                        <p style="margin-top: 16px; color: #718096;">加载B站视频数据中...</p>
-                    </div>
-                </div>
-                </div>
-                </div>
-                <!-- 右侧侧边栏 -->
-                <aside class="bilibili-sidebar">
+            <!-- 右侧独立挂窗区域（与具身论文页面 side-widgets 一致） -->
+            <aside class="side-widgets">
                     <div class="bilibili-sidebar-widget">
                         <div class="bilibili-latest-header">
                             <div class="bilibili-latest-title">
@@ -1012,10 +1030,9 @@
                             </div>
                         </div>
                     </div>
-                </aside>
-            </div>
-        </div>
-    </div>
+            </aside>
+        </div> <!-- 结束 main-content-wrapper -->
+    </div> <!-- 结束 container -->
 
     <script>
         let trendsChart = null;
