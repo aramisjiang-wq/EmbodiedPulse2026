@@ -1,3 +1,40 @@
+#!/usr/bin/env bash
+set -e
+
+APP_DIR="/srv/EmbodiedPulse2026"
+
+echo "[deploy] 切换到应用目录: $APP_DIR"
+cd "$APP_DIR"
+
+echo "[deploy] 拉取最新代码..."
+git fetch origin
+git checkout main
+git pull origin main
+
+echo "[deploy] 激活虚拟环境并更新依赖..."
+if [ -f "venv/bin/activate" ]; then
+  # shellcheck disable=SC1091
+  source venv/bin/activate
+else
+  echo "[deploy] 未找到 venv，自动创建..."
+  python3 -m venv venv
+  # shellcheck disable=SC1091
+  source venv/bin/activate
+fi
+
+pip install --upgrade pip
+pip install -r requirements.txt
+
+echo "[deploy] 重启 systemd 服务 embodiedpulse..."
+if command -v systemctl >/dev/null 2>&1; then
+  systemctl restart embodiedpulse
+  systemctl status embodiedpulse --no-pager -l || true
+else
+  echo "[deploy] 未检测到 systemctl，请手动重启 Gunicorn 或 Flask 服务。"
+fi
+
+echo "[deploy] 部署完成。"
+
 #!/bin/bash
 # 服务器端部署脚本（在服务器上直接运行）
 

@@ -7,7 +7,7 @@
 const currentPath = window.location.pathname;
 
 // 不需要强制登录的页面（白名单）
-const publicPages = ['/login', '/auth/callback', '/admin/login', '/test'];
+const publicPages = ['/login', '/auth/callback', '/admin/login', '/test', '/bilibili'];
 
 // 检查是否是公开页面
 function isPublicPage() {

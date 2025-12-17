@@ -1,0 +1,27 @@
+name: Deploy to Server
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout (for completeness, though不依赖本地代码)
+        uses: actions/checkout@v4
+
+      - name: SSH Deploy to Production
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          port: ${{ secrets.SERVER_SSH_PORT }}
+          script: |
+            echo "[CI] 开始部署 EmbodiedPulse2026 ..."
+            /srv/EmbodiedPulse2026/deploy.sh
+            echo "[CI] 部署脚本执行完毕。"
+
+
