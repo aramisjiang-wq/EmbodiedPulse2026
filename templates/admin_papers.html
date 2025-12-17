@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>用户管理 - Embodied Pulse Admin</title>
+    <title>论文管理 - Embodied Pulse Admin</title>
     <link rel="stylesheet" href="/static/css/admin.css">
 </head>
 <body>
@@ -19,13 +19,13 @@
                 </svg>
                 仪表盘
             </a>
-            <a href="/admin/users" class="nav-item active">
+            <a href="/admin/users" class="nav-item">
                 <svg class="nav-icon" viewBox="0 0 24 24" width="20" height="20">
                     <path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/>
                 </svg>
                 用户管理
             </a>
-            <a href="/admin/papers" class="nav-item">
+            <a href="/admin/papers" class="nav-item active">
                 <svg class="nav-icon" viewBox="0 0 24 24" width="20" height="20">
                     <path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/>
                 </svg>
@@ -64,38 +64,50 @@
     <main class="admin-main">
         <!-- 顶部栏 -->
         <header class="admin-header">
-            <h1>用户管理</h1>
+            <h1>论文管理</h1>
             <div class="header-right">
                 <span class="admin-user-name" id="admin-user-name">加载中...</span>
             </div>
         </header>
         
-        <!-- 搜索和筛选 -->
-        <section class="filters-section">
-            <div class="filters-container">
-                <input type="text" id="search-input" class="form-control" placeholder="搜索用户名、邮箱、手机号...">
-                <select id="status-filter" class="form-select">
-                    <option value="">全部状态</option>
-                    <option value="active">正常</option>
-                    <option value="inactive">未激活</option>
-                    <option value="banned">已禁用</option>
-                </select>
-                <select id="role-filter" class="form-select">
-                    <option value="">全部角色</option>
-                    <option value="user">普通用户</option>
-                    <option value="admin">管理员</option>
-                    <option value="super_admin">超级管理员</option>
-                </select>
-                <button id="search-btn" class="btn btn-primary">搜索</button>
-                <button id="reset-btn" class="btn btn-secondary">重置</button>
-            </div>
-            <div class="batch-actions">
-                <button id="batch-active-btn" class="btn btn-success" disabled>批量激活</button>
-                <button id="batch-ban-btn" class="btn btn-danger" disabled>批量禁用</button>
+        <!-- 统计卡片 -->
+        <section class="stats-section">
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-label">总论文数</div>
+                    <div class="stat-value" id="stat-total">-</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">今日新增</div>
+                    <div class="stat-value" id="stat-today">-</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">平均引用数</div>
+                    <div class="stat-value" id="stat-avg-citations">-</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">类别数</div>
+                    <div class="stat-value" id="stat-categories">-</div>
+                </div>
             </div>
         </section>
         
-        <!-- 用户表格 -->
+        <!-- 搜索和筛选 -->
+        <section class="filters-section">
+            <div class="filters-container">
+                <input type="text" id="search-input" class="form-control" placeholder="搜索标题、作者、摘要...">
+                <select id="category-filter" class="form-select">
+                    <option value="">全部类别</option>
+                </select>
+                <input type="date" id="date-from" class="form-control" placeholder="开始日期">
+                <input type="date" id="date-to" class="form-control" placeholder="结束日期">
+                <input type="number" id="min-citations" class="form-control" placeholder="最小引用数" min="0">
+                <button id="search-btn" class="btn btn-primary">搜索</button>
+                <button id="reset-btn" class="btn btn-secondary">重置</button>
+            </div>
+        </section>
+        
+        <!-- 论文表格 -->
         <section class="table-section">
             <div class="table-container">
                 <table>
@@ -103,20 +115,17 @@
                         <tr>
                             <th><input type="checkbox" id="select-all"></th>
                             <th>ID</th>
-                            <th>姓名</th>
-                            <th>邮箱</th>
-                            <th>手机</th>
-                            <th>类型</th>
-                            <th>角色</th>
-                            <th>状态</th>
-                            <th>注册时间</th>
-                            <th>最后登录</th>
+                            <th>标题</th>
+                            <th>作者</th>
+                            <th>发布日期</th>
+                            <th>类别</th>
+                            <th>引用数</th>
                             <th>操作</th>
                         </tr>
                     </thead>
-                    <tbody id="users-tbody">
+                    <tbody id="papers-tbody">
                         <tr>
-                            <td colspan="11" class="loading-text">加载中...</td>
+                            <td colspan="8" class="loading-text">加载中...</td>
                         </tr>
                     </tbody>
                 </table>
@@ -125,60 +134,42 @@
         </section>
     </main>
     
-    <!-- 用户详情模态框 -->
-    <div id="user-modal" class="modal">
-        <div class="modal-content">
+    <!-- 论文详情模态框 -->
+    <div id="paper-modal" class="modal">
+        <div class="modal-content modal-large">
             <div class="modal-header">
-                <h3>用户详情</h3>
+                <h3>论文详情</h3>
                 <button class="modal-close">&times;</button>
             </div>
-            <div class="modal-body" id="modal-body">
+            <div class="modal-body" id="paper-modal-body">
                 <p class="loading-text">加载中...</p>
             </div>
         </div>
     </div>
     
-    <!-- 编辑用户模态框 -->
+    <!-- 编辑论文模态框 -->
     <div id="edit-modal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
-                <h3>编辑用户</h3>
+                <h3>编辑论文</h3>
                 <button class="modal-close">&times;</button>
             </div>
             <div class="modal-body">
                 <form id="edit-form">
-                    <input type="hidden" id="edit-user-id">
+                    <input type="hidden" id="edit-paper-id">
                     <div class="form-group">
-                        <label class="form-label">姓名</label>
-                        <input type="text" id="edit-name" class="form-control" required>
+                        <label class="form-label">标题</label>
+                        <input type="text" id="edit-title" class="form-control" required>
                     </div>
                     <div class="form-group">
-                        <label class="form-label">邮箱</label>
-                        <input type="email" id="edit-email" class="form-control">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">手机</label>
-                        <input type="tel" id="edit-mobile" class="form-control">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">部门</label>
-                        <input type="text" id="edit-department" class="form-control">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">状态</label>
-                        <select id="edit-status" class="form-select">
-                            <option value="active">正常</option>
-                            <option value="inactive">未激活</option>
-                            <option value="banned">已禁用</option>
+                        <label class="form-label">类别</label>
+                        <select id="edit-category" class="form-select">
+                            <option value="">未分类</option>
                         </select>
                     </div>
-                    <div class="form-group" id="role-group">
-                        <label class="form-label">角色</label>
-                        <select id="edit-role" class="form-select">
-                            <option value="user">普通用户</option>
-                            <option value="admin">管理员</option>
-                            <option value="super_admin">超级管理员</option>
-                        </select>
+                    <div class="form-group">
+                        <label class="form-label">代码链接</label>
+                        <input type="url" id="edit-code-url" class="form-control" placeholder="https://github.com/...">
                     </div>
                     <div class="form-actions">
                         <button type="submit" class="btn btn-primary">保存</button>
@@ -192,7 +183,7 @@
     <!-- Toast提示 -->
     <div id="toast" class="toast"></div>
     
-    <script src="/static/js/admin_users.js"></script>
+    <script src="/static/js/admin_papers.js"></script>
 </body>
 </html>
 

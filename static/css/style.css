@@ -2264,7 +2264,7 @@ body {
 .category-count {
     color: inherit;
     font-weight: 500;
-    background: rgba(0, 0, 0, 0.05);
+    background: transparent;
     padding: 2px 8px;
     border-radius: 12px;
     font-size: 0.8rem;

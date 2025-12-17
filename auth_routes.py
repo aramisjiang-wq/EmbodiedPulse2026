@@ -1275,5 +1275,580 @@ def get_trends_stats():
         }), 500
 
 
+# ==================== 管理端API - 论文管理 ====================
+
+@admin_bp.route('/papers', methods=['GET'])
+@admin_required
+def get_papers():
+    """
+    获取论文列表（分页、搜索、筛选）
+    
+    GET /api/admin/papers?page=1&per_page=20&search=&category=&date_from=&date_to=&min_citations=
+    """
+    try:
+        from models import get_session, Paper
+        from sqlalchemy import or_, func
+        
+        # 获取查询参数
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', 20, type=int)
+        search = request.args.get('search', '').strip()
+        category_filter = request.args.get('category', '').strip()
+        date_from = request.args.get('date_from', '').strip()
+        date_to = request.args.get('date_to', '').strip()
+        min_citations = request.args.get('min_citations', type=int)
+        
+        session = get_session()
+        
+        try:
+            # 构建查询
+            query = session.query(Paper)
+            
+            # 搜索过滤
+            if search:
+                query = query.filter(
+                    or_(
+                        Paper.title.contains(search),
+                        Paper.authors.contains(search),
+                        Paper.abstract.contains(search)
+                    )
+                )
+            
+            # 类别过滤
+            if category_filter:
+                query = query.filter(Paper.category == category_filter)
+            
+            # 日期范围过滤
+            if date_from:
+                try:
+                    from datetime import datetime as dt
+                    date_from_obj = dt.strptime(date_from, '%Y-%m-%d').date()
+                    query = query.filter(Paper.publish_date >= date_from_obj)
+                except:
+                    pass
+            
+            if date_to:
+                try:
+                    from datetime import datetime as dt
+                    date_to_obj = dt.strptime(date_to, '%Y-%m-%d').date()
+                    query = query.filter(Paper.publish_date <= date_to_obj)
+                except:
+                    pass
+            
+            # 引用数过滤
+            if min_citations is not None:
+                query = query.filter(Paper.citation_count >= min_citations)
+            
+            # 排序（按发布日期倒序）
+            query = query.order_by(Paper.publish_date.desc(), Paper.created_at.desc())
+            
+            # 分页
+            total = query.count()
+            papers = query.offset((page - 1) * per_page).limit(per_page).all()
+            
+            return jsonify({
+                'success': True,
+                'papers': [paper.to_dict() for paper in papers],
+                'pagination': {
+                    'current_page': page,
+                    'per_page': per_page,
+                    'total': total,
+                    'total_pages': (total + per_page - 1) // per_page
+                }
+            })
+        finally:
+            session.close()
+            
+    except Exception as e:
+        logger.error(f"获取论文列表失败: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return jsonify({
+            'success': False,
+            'message': f'获取论文列表失败: {str(e)}'
+        }), 500
+
+
+@admin_bp.route('/papers/<paper_id>', methods=['GET'])
+@admin_required
+def get_paper_detail(paper_id):
+    """
+    获取论文详情
+    
+    GET /api/admin/papers/{paper_id}
+    """
+    try:
+        from models import get_session, Paper
+        
+        session = get_session()
+        try:
+            paper = session.query(Paper).filter_by(id=paper_id).first()
+            if not paper:
+                return jsonify({
+                    'success': False,
+                    'message': '论文不存在'
+                }), 404
+            
+            return jsonify({
+                'success': True,
+                'paper': paper.to_dict()
+            })
+        finally:
+            session.close()
+            
+    except Exception as e:
+        logger.error(f"获取论文详情失败: {e}")
+        return jsonify({
+            'success': False,
+            'message': f'获取论文详情失败: {str(e)}'
+        }), 500
+
+
+@admin_bp.route('/papers/<paper_id>', methods=['PUT'])
+@admin_required
+def update_paper(paper_id):
+    """
+    更新论文信息
+    
+    PUT /api/admin/papers/{paper_id}
+    {
+        "category": "Perception/3D Perception",
+        "code_url": "https://github.com/...",
+        "title": "修正后的标题"
+    }
+    """
+    try:
+        from models import get_session, Paper
+        
+        data = request.get_json()
+        if not data:
+            return jsonify({
+                'success': False,
+                'message': '请求数据不能为空'
+            }), 400
+        
+        session = get_session()
+        try:
+            paper = session.query(Paper).filter_by(id=paper_id).first()
+            if not paper:
+                return jsonify({
+                    'success': False,
+                    'message': '论文不存在'
+                }), 404
+            
+            # 可更新字段
+            if 'category' in data:
+                paper.category = data['category']
+            if 'code_url' in data:
+                paper.code_url = data['code_url']
+            if 'title' in data:
+                paper.title = data['title']
+            
+            paper.updated_at = datetime.now()
+            session.commit()
+            
+            logger.info(f"论文已更新 - paper_id: {paper_id}")
+            
+            return jsonify({
+                'success': True,
+                'message': '论文更新成功',
+                'paper': paper.to_dict()
+            })
+        except Exception as e:
+            session.rollback()
+            raise e
+        finally:
+            session.close()
+            
+    except Exception as e:
+        logger.error(f"更新论文失败: {e}")
+        return jsonify({
+            'success': False,
+            'message': f'更新论文失败: {str(e)}'
+        }), 500
+
+
+@admin_bp.route('/papers/<paper_id>', methods=['DELETE'])
+@admin_required
+def delete_paper(paper_id):
+    """
+    删除论文
+    
+    DELETE /api/admin/papers/{paper_id}
+    """
+    try:
+        from models import get_session, Paper
+        
+        session = get_session()
+        try:
+            paper = session.query(Paper).filter_by(id=paper_id).first()
+            if not paper:
+                return jsonify({
+                    'success': False,
+                    'message': '论文不存在'
+                }), 404
+            
+            session.delete(paper)
+            session.commit()
+            
+            logger.info(f"论文已删除 - paper_id: {paper_id}")
+            
+            return jsonify({
+                'success': True,
+                'message': '论文删除成功'
+            })
+        except Exception as e:
+            session.rollback()
+            raise e
+        finally:
+            session.close()
+            
+    except Exception as e:
+        logger.error(f"删除论文失败: {e}")
+        return jsonify({
+            'success': False,
+            'message': f'删除论文失败: {str(e)}'
+        }), 500
+
+
+@admin_bp.route('/papers/stats', methods=['GET'])
+@admin_required
+def get_papers_stats():
+    """
+    获取论文统计信息
+    
+    GET /api/admin/papers/stats
+    """
+    try:
+        from models import get_session, Paper
+        from sqlalchemy import func
+        from datetime import datetime, timedelta
+        
+        session = get_session()
+        try:
+            # 总论文数
+            total = session.query(func.count(Paper.id)).scalar()
+            
+            # 今日新增
+            today = datetime.now().date()
+            today_count = session.query(func.count(Paper.id)).filter(
+                func.date(Paper.created_at) == today
+            ).scalar()
+            
+            # 平均引用数
+            avg_citations = session.query(func.avg(Paper.citation_count)).scalar() or 0
+            
+            # 类别数
+            from sqlalchemy import distinct
+            category_count = session.query(func.count(distinct(Paper.category))).scalar()
+            
+            return jsonify({
+                'success': True,
+                'stats': {
+                    'total': total,
+                    'today': today_count,
+                    'avg_citations': round(float(avg_citations), 2),
+                    'categories': category_count
+                }
+            })
+        finally:
+            session.close()
+            
+    except Exception as e:
+        logger.error(f"获取论文统计失败: {e}")
+        return jsonify({
+            'success': False,
+            'message': f'获取论文统计失败: {str(e)}'
+        }), 500
+
+
+# ==================== 管理端API - 视频管理 ====================
+
+@admin_bp.route('/bilibili/ups', methods=['GET'])
+@admin_required
+def get_bilibili_ups():
+    """
+    获取UP主列表（分页、搜索、筛选）
+    
+    GET /api/admin/bilibili/ups?page=1&per_page=20&search=&is_active=
+    """
+    try:
+        from bilibili_models import get_bilibili_session, BilibiliUp
+        
+        # 获取查询参数
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', 20, type=int)
+        search = request.args.get('search', '').strip()
+        is_active = request.args.get('is_active', '').strip()
+        
+        session = get_bilibili_session()
+        
+        try:
+            # 构建查询
+            query = session.query(BilibiliUp)
+            
+            # 搜索过滤
+            if search:
+                query = query.filter(BilibiliUp.name.contains(search))
+            
+            # 状态过滤
+            if is_active == 'true':
+                query = query.filter(BilibiliUp.is_active == True)
+            elif is_active == 'false':
+                query = query.filter(BilibiliUp.is_active == False)
+            
+            # 排序（按粉丝数倒序）
+            query = query.order_by(BilibiliUp.fans.desc())
+            
+            # 分页
+            total = query.count()
+            ups = query.offset((page - 1) * per_page).limit(per_page).all()
+            
+            return jsonify({
+                'success': True,
+                'ups': [up.to_dict() for up in ups],
+                'pagination': {
+                    'current_page': page,
+                    'per_page': per_page,
+                    'total': total,
+                    'total_pages': (total + per_page - 1) // per_page
+                }
+            })
+        finally:
+            session.close()
+            
+    except Exception as e:
+        logger.error(f"获取UP主列表失败: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return jsonify({
+            'success': False,
+            'message': f'获取UP主列表失败: {str(e)}'
+        }), 500
+
+
+@admin_bp.route('/bilibili/videos', methods=['GET'])
+@admin_required
+def get_bilibili_videos():
+    """
+    获取视频列表（分页、搜索、筛选）
+    
+    GET /api/admin/bilibili/videos?page=1&per_page=20&search=&uid=&date_from=&date_to=&min_play=
+    """
+    try:
+        from bilibili_models import get_bilibili_session, BilibiliVideo, BilibiliUp
+        
+        # 获取查询参数
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', 20, type=int)
+        search = request.args.get('search', '').strip()
+        uid = request.args.get('uid', type=int)
+        date_from = request.args.get('date_from', '').strip()
+        date_to = request.args.get('date_to', '').strip()
+        min_play = request.args.get('min_play', type=int)
+        
+        session = get_bilibili_session()
+        
+        try:
+            # 构建查询（关联UP主表）
+            query = session.query(BilibiliVideo, BilibiliUp).join(
+                BilibiliUp, BilibiliVideo.uid == BilibiliUp.uid
+            )
+            
+            # 搜索过滤
+            if search:
+                query = query.filter(
+                    BilibiliVideo.title.contains(search)
+                )
+            
+            # UP主过滤
+            if uid:
+                query = query.filter(BilibiliVideo.uid == uid)
+            
+            # 日期范围过滤
+            if date_from:
+                try:
+                    from datetime import datetime as dt
+                    date_from_obj = dt.strptime(date_from, '%Y-%m-%d')
+                    query = query.filter(BilibiliVideo.pubdate >= date_from_obj)
+                except:
+                    pass
+            
+            if date_to:
+                try:
+                    from datetime import datetime as dt
+                    date_to_obj = dt.strptime(date_to, '%Y-%m-%d')
+                    query = query.filter(BilibiliVideo.pubdate <= date_to_obj)
+                except:
+                    pass
+            
+            # 播放量过滤
+            if min_play is not None:
+                query = query.filter(BilibiliVideo.play >= min_play)
+            
+            # 排序（按发布时间倒序）
+            query = query.order_by(BilibiliVideo.pubdate.desc())
+            
+            # 分页
+            total = query.count()
+            results = query.offset((page - 1) * per_page).limit(per_page).all()
+            
+            # 组装数据
+            videos = []
+            for video, up in results:
+                video_dict = video.to_dict()
+                video_dict['up_name'] = up.name
+                videos.append(video_dict)
+            
+            return jsonify({
+                'success': True,
+                'videos': videos,
+                'pagination': {
+                    'current_page': page,
+                    'per_page': per_page,
+                    'total': total,
+                    'total_pages': (total + per_page - 1) // per_page
+                }
+            })
+        finally:
+            session.close()
+            
+    except Exception as e:
+        logger.error(f"获取视频列表失败: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return jsonify({
+            'success': False,
+            'message': f'获取视频列表失败: {str(e)}'
+        }), 500
+
+
+@admin_bp.route('/bilibili/ups/<int:uid>', methods=['GET'])
+@admin_required
+def get_bilibili_up_detail(uid):
+    """
+    获取UP主详情
+    
+    GET /api/admin/bilibili/ups/{uid}
+    """
+    try:
+        from bilibili_models import get_bilibili_session, BilibiliUp
+        
+        session = get_bilibili_session()
+        try:
+            up = session.query(BilibiliUp).filter_by(uid=uid).first()
+            if not up:
+                return jsonify({
+                    'success': False,
+                    'message': 'UP主不存在'
+                }), 404
+            
+            return jsonify({
+                'success': True,
+                'up': up.to_dict()
+            })
+        finally:
+            session.close()
+            
+    except Exception as e:
+        logger.error(f"获取UP主详情失败: {e}")
+        return jsonify({
+            'success': False,
+            'message': f'获取UP主详情失败: {str(e)}'
+        }), 500
+
+
+@admin_bp.route('/bilibili/videos/<bvid>', methods=['GET'])
+@admin_required
+def get_bilibili_video_detail(bvid):
+    """
+    获取视频详情
+    
+    GET /api/admin/bilibili/videos/{bvid}
+    """
+    try:
+        from bilibili_models import get_bilibili_session, BilibiliVideo, BilibiliUp
+        
+        session = get_bilibili_session()
+        try:
+            video = session.query(BilibiliVideo).filter_by(bvid=bvid).first()
+            if not video:
+                return jsonify({
+                    'success': False,
+                    'message': '视频不存在'
+                }), 404
+            
+            # 获取UP主信息
+            up = session.query(BilibiliUp).filter_by(uid=video.uid).first()
+            
+            video_dict = video.to_dict()
+            if up:
+                video_dict['up_name'] = up.name
+            
+            return jsonify({
+                'success': True,
+                'video': video_dict
+            })
+        finally:
+            session.close()
+            
+    except Exception as e:
+        logger.error(f"获取视频详情失败: {e}")
+        return jsonify({
+            'success': False,
+            'message': f'获取视频详情失败: {str(e)}'
+        }), 500
+
+
+@admin_bp.route('/bilibili/stats', methods=['GET'])
+@admin_required
+def get_bilibili_stats():
+    """
+    获取视频统计信息
+    
+    GET /api/admin/bilibili/stats
+    """
+    try:
+        from bilibili_models import get_bilibili_session, BilibiliUp, BilibiliVideo
+        from sqlalchemy import func
+        from datetime import datetime, timedelta
+        
+        session = get_bilibili_session()
+        try:
+            # 总UP主数
+            total_ups = session.query(func.count(BilibiliUp.uid)).scalar()
+            
+            # 总视频数
+            total_videos = session.query(func.count(BilibiliVideo.bvid)).scalar()
+            
+            # 总播放量
+            total_plays = session.query(func.sum(BilibiliVideo.play)).scalar() or 0
+            
+            # 今日新增视频数
+            today = datetime.now().date()
+            today_videos = session.query(func.count(BilibiliVideo.bvid)).filter(
+                func.date(BilibiliVideo.created_at) == today
+            ).scalar()
+            
+            return jsonify({
+                'success': True,
+                'stats': {
+                    'total_ups': total_ups,
+                    'total_videos': total_videos,
+                    'total_plays': int(total_plays),
+                    'today_videos': today_videos
+                }
+            })
+        finally:
+            session.close()
+            
+    except Exception as e:
+        logger.error(f"获取视频统计失败: {e}")
+        return jsonify({
+            'success': False,
+            'message': f'获取视频统计失败: {str(e)}'
+        }), 500
+
+
 # ==================== Phase 3 管理端API开发完成 ====================
 

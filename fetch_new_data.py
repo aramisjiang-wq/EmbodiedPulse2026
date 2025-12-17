@@ -24,7 +24,7 @@ def fetch_papers(fetch_status=None, fetch_status_lock=None):
     config['update_paper_links'] = False
     config['enable_dedup'] = True
     config['enable_incremental'] = True
-    config['days_back'] = 14  # 只抓取最近14天的论文
+    config['days_back'] = 21  # 只抓取最近21天的论文（增加天数避免漏抓）
     config['fetch_semantic_scholar'] = True  # 启用Semantic Scholar数据获取
     config['publish_gitpage'] = False  # 不更新gitpage
     config['publish_wechat'] = False  # 不更新wechat
@@ -34,7 +34,8 @@ def fetch_papers(fetch_status=None, fetch_status_lock=None):
         config['fetch_status'] = fetch_status
         config['fetch_status_lock'] = fetch_status_lock
         # 设置总数（关键词数量）
-        keywords = config.get('keywords', {})
+        # 注意：load_config 会将 keywords 处理成 kv 键，所以这里使用 kv
+        keywords = config.get('kv', {})
         if fetch_status_lock:
             with fetch_status_lock:
                 fetch_status['total'] = len(keywords)

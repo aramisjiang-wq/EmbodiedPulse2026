@@ -1,0 +1,604 @@
+/**
+ * 视频管理页面逻辑
+ */
+
+// 全局变量
+const token = localStorage.getItem('auth_token');
+let currentTab = 'ups'; // 'ups' 或 'videos'
+let currentPage = 1;
+let perPage = 20;
+let currentFilters = {
+    search: '',
+    uid: '',
+    date_from: '',
+    date_to: '',
+    min_play: ''
+};
+let selectedUps = new Set();
+let selectedVideos = new Set();
+let currentUserRole = '';
+let upsList = [];
+
+// 检查登录状态
+if (!token) {
+    window.location.href = '/admin/login';
+}
+
+// DOM元素
+const adminUserName = document.getElementById('admin-user-name');
+const logoutBtn = document.getElementById('logout-btn');
+const tabBtns = document.querySelectorAll('.tab-btn');
+const searchInput = document.getElementById('search-input');
+const upFilter = document.getElementById('up-filter');
+const dateFrom = document.getElementById('date-from');
+const dateTo = document.getElementById('date-to');
+const minPlay = document.getElementById('min-play');
+const searchBtn = document.getElementById('search-btn');
+const resetBtn = document.getElementById('reset-btn');
+const selectAllUps = document.getElementById('select-all-ups');
+const selectAllVideos = document.getElementById('select-all-videos');
+const upsTbody = document.getElementById('ups-tbody');
+const videosTbody = document.getElementById('videos-tbody');
+const upsSection = document.getElementById('ups-section');
+const videosSection = document.getElementById('videos-section');
+const upsPagination = document.getElementById('ups-pagination');
+const videosPagination = document.getElementById('videos-pagination');
+const upModal = document.getElementById('up-modal');
+const videoModal = document.getElementById('video-modal');
+const toast = document.getElementById('toast');
+
+// Tab切换
+tabBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+        const tab = btn.dataset.tab;
+        switchTab(tab);
+    });
+});
+
+function switchTab(tab) {
+    currentTab = tab;
+    currentPage = 1;
+    
+    // 更新Tab按钮状态
+    tabBtns.forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.tab === tab);
+    });
+    
+    // 显示/隐藏对应的section
+    if (tab === 'ups') {
+        upsSection.style.display = 'block';
+        videosSection.style.display = 'none';
+        upFilter.style.display = 'none';
+        minPlay.style.display = 'none';
+        loadUps(1);
+    } else {
+        upsSection.style.display = 'none';
+        videosSection.style.display = 'block';
+        upFilter.style.display = 'inline-block';
+        minPlay.style.display = 'inline-block';
+        loadVideos(1);
+    }
+}
+
+// 加载统计信息
+async function loadStats() {
+    try {
+        const response = await fetch('/api/admin/bilibili/stats', {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            if (data.success) {
+                document.getElementById('stat-total-ups').textContent = data.stats.total_ups || 0;
+                document.getElementById('stat-total-videos').textContent = data.stats.total_videos || 0;
+                document.getElementById('stat-total-plays').textContent = formatNumber(data.stats.total_plays || 0);
+                document.getElementById('stat-today-videos').textContent = data.stats.today_videos || 0;
+            }
+        }
+    } catch (error) {
+        console.error('加载统计信息失败:', error);
+    }
+}
+
+// 加载UP主列表
+async function loadUps(page = 1) {
+    try {
+        currentPage = page;
+        const params = new URLSearchParams({
+            page: page,
+            per_page: perPage,
+            search: currentFilters.search,
+            is_active: ''
+        });
+        
+        const response = await fetch(`/api/admin/bilibili/ups?${params}`, {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        
+        if (!response.ok) {
+            if (response.status === 401) {
+                localStorage.removeItem('auth_token');
+                window.location.href = '/admin/login';
+                return;
+            }
+            throw new Error('获取UP主列表失败');
+        }
+        
+        const data = await response.json();
+        if (data.success) {
+            displayUps(data.ups);
+            displayPagination(upsPagination, data.pagination.current_page, data.pagination.total, data.pagination.per_page, 'loadUps');
+            upsList = data.ups;
+            updateUpFilter();
+        } else {
+            showToast('获取UP主列表失败: ' + data.message, 'error');
+        }
+    } catch (error) {
+        console.error('加载UP主列表失败:', error);
+        showToast('加载UP主列表失败', 'error');
+    }
+}
+
+// 显示UP主列表
+function displayUps(ups) {
+    if (ups.length === 0) {
+        upsTbody.innerHTML = '<tr><td colspan="8" class="no-data">暂无UP主数据</td></tr>';
+        return;
+    }
+    
+    upsTbody.innerHTML = ups.map(up => `
+        <tr>
+            <td><input type="checkbox" class="up-checkbox" data-up-id="${up.uid}"></td>
+            <td>${up.uid}</td>
+            <td>${up.name}</td>
+            <td>${up.fans_formatted || formatNumber(up.fans || 0)}</td>
+            <td>${up.videos_count || 0}</td>
+            <td>${up.views_formatted || formatNumber(up.views_count || 0)}</td>
+            <td>${formatDateTime(up.last_fetch_at)}</td>
+            <td>
+                <button class="btn-icon" onclick="viewUp(${up.uid})" title="查看">
+                    <svg viewBox="0 0 24 24" width="18" height="18">
+                        <path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/>
+                    </svg>
+                </button>
+            </td>
+        </tr>
+    `).join('');
+    
+    // 添加复选框事件监听
+    document.querySelectorAll('.up-checkbox').forEach(checkbox => {
+        checkbox.addEventListener('change', handleUpCheckboxChange);
+    });
+}
+
+// 加载视频列表
+async function loadVideos(page = 1) {
+    try {
+        currentPage = page;
+        const params = new URLSearchParams({
+            page: page,
+            per_page: perPage,
+            search: currentFilters.search,
+            uid: currentFilters.uid,
+            date_from: currentFilters.date_from,
+            date_to: currentFilters.date_to,
+            min_play: currentFilters.min_play
+        });
+        
+        const response = await fetch(`/api/admin/bilibili/videos?${params}`, {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        
+        if (!response.ok) {
+            if (response.status === 401) {
+                localStorage.removeItem('auth_token');
+                window.location.href = '/admin/login';
+                return;
+            }
+            throw new Error('获取视频列表失败');
+        }
+        
+        const data = await response.json();
+        if (data.success) {
+            displayVideos(data.videos);
+            displayPagination(videosPagination, data.pagination.current_page, data.pagination.total, data.pagination.per_page, 'loadVideos');
+        } else {
+            showToast('获取视频列表失败: ' + data.message, 'error');
+        }
+    } catch (error) {
+        console.error('加载视频列表失败:', error);
+        showToast('加载视频列表失败', 'error');
+    }
+}
+
+// 显示视频列表
+function displayVideos(videos) {
+    if (videos.length === 0) {
+        videosTbody.innerHTML = '<tr><td colspan="9" class="no-data">暂无视频数据</td></tr>';
+        return;
+    }
+    
+    videosTbody.innerHTML = videos.map(video => `
+        <tr>
+            <td><input type="checkbox" class="video-checkbox" data-video-id="${video.bvid}"></td>
+            <td>${video.bvid}</td>
+            <td class="title-cell" title="${video.title}">${video.title.length > 40 ? video.title.substring(0, 40) + '...' : video.title}</td>
+            <td>${video.up_name || '-'}</td>
+            <td>${formatDateTime(video.pubdate)}</td>
+            <td>${video.play_formatted || formatNumber(video.play || 0)}</td>
+            <td>${video.video_review_formatted || formatNumber(video.video_review || 0)}</td>
+            <td>${video.favorites_formatted || formatNumber(video.favorites || 0)}</td>
+            <td>
+                <button class="btn-icon" onclick="viewVideo('${video.bvid}')" title="查看">
+                    <svg viewBox="0 0 24 24" width="18" height="18">
+                        <path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/>
+                    </svg>
+                </button>
+            </td>
+        </tr>
+    `).join('');
+    
+    // 添加复选框事件监听
+    document.querySelectorAll('.video-checkbox').forEach(checkbox => {
+        checkbox.addEventListener('change', handleVideoCheckboxChange);
+    });
+}
+
+// 显示分页
+function displayPagination(paginationEl, current, total, per_page, loadFunc) {
+    if (!paginationEl) return;
+    
+    const totalPages = Math.ceil(total / per_page);
+    
+    if (totalPages <= 1) {
+        paginationEl.innerHTML = '';
+        return;
+    }
+    
+    let html = '';
+    
+    if (current > 1) {
+        html += `<button class="page-btn" onclick="${loadFunc}(${current - 1})">上一页</button>`;
+    }
+    
+    for (let i = 1; i <= Math.min(totalPages, 10); i++) {
+        if (i === current) {
+            html += `<button class="page-btn active">${i}</button>`;
+        } else {
+            html += `<button class="page-btn" onclick="${loadFunc}(${i})">${i}</button>`;
+        }
+    }
+    
+    if (totalPages > 10) {
+        html += '<span>...</span>';
+    }
+    
+    if (current < totalPages) {
+        html += `<button class="page-btn" onclick="${loadFunc}(${current + 1})">下一页</button>`;
+    }
+    
+    html += `<span class="page-info">共 ${total} ${currentTab === 'ups' ? '个UP主' : '个视频'}</span>`;
+    
+    paginationEl.innerHTML = html;
+}
+
+// 更新UP主筛选下拉框
+function updateUpFilter() {
+    upFilter.innerHTML = '<option value="">全部UP主</option>';
+    upsList.forEach(up => {
+        const option = document.createElement('option');
+        option.value = up.uid;
+        option.textContent = up.name;
+        upFilter.appendChild(option);
+    });
+}
+
+// 查看UP主详情
+async function viewUp(uid) {
+    try {
+        const response = await fetch(`/api/admin/bilibili/ups/${uid}`, {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        
+        const data = await response.json();
+        if (data.success) {
+            displayUpDetail(data.up);
+            upModal.style.display = 'flex';
+        } else {
+            showToast('获取UP主详情失败', 'error');
+        }
+    } catch (error) {
+        console.error('获取UP主详情失败:', error);
+        showToast('获取UP主详情失败', 'error');
+    }
+}
+
+// 显示UP主详情
+function displayUpDetail(up) {
+    const modalBody = document.getElementById('up-modal-body');
+    modalBody.innerHTML = `
+        <div class="up-detail">
+            <h4>基本信息</h4>
+            <div class="detail-grid">
+                <div class="detail-item">
+                    <label>UID</label>
+                    <span>${up.uid}</span>
+                </div>
+                <div class="detail-item">
+                    <label>名称</label>
+                    <span>${up.name}</span>
+                </div>
+                <div class="detail-item">
+                    <label>粉丝数</label>
+                    <span>${up.fans_formatted || formatNumber(up.fans || 0)}</span>
+                </div>
+                <div class="detail-item">
+                    <label>视频数</label>
+                    <span>${up.videos_count || 0}</span>
+                </div>
+                <div class="detail-item">
+                    <label>总播放量</label>
+                    <span>${up.views_formatted || formatNumber(up.views_count || 0)}</span>
+                </div>
+                <div class="detail-item">
+                    <label>获赞数</label>
+                    <span>${up.likes_formatted || formatNumber(up.likes_count || 0)}</span>
+                </div>
+                <div class="detail-item">
+                    <label>最后更新</label>
+                    <span>${formatDateTime(up.last_fetch_at)}</span>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+// 查看视频详情
+async function viewVideo(bvid) {
+    try {
+        const response = await fetch(`/api/admin/bilibili/videos/${bvid}`, {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        
+        const data = await response.json();
+        if (data.success) {
+            displayVideoDetail(data.video);
+            videoModal.style.display = 'flex';
+        } else {
+            showToast('获取视频详情失败', 'error');
+        }
+    } catch (error) {
+        console.error('获取视频详情失败:', error);
+        showToast('获取视频详情失败', 'error');
+    }
+}
+
+// 显示视频详情
+function displayVideoDetail(video) {
+    const modalBody = document.getElementById('video-modal-body');
+    modalBody.innerHTML = `
+        <div class="video-detail">
+            <h4>基本信息</h4>
+            <div class="detail-grid">
+                <div class="detail-item">
+                    <label>BV号</label>
+                    <span>${video.bvid}</span>
+                </div>
+                <div class="detail-item full-width">
+                    <label>标题</label>
+                    <span>${video.title}</span>
+                </div>
+                <div class="detail-item">
+                    <label>UP主</label>
+                    <span>${video.up_name || '-'}</span>
+                </div>
+                <div class="detail-item">
+                    <label>发布时间</label>
+                    <span>${formatDateTime(video.pubdate)}</span>
+                </div>
+                <div class="detail-item">
+                    <label>播放量</label>
+                    <span>${video.play_formatted || formatNumber(video.play || 0)}</span>
+                </div>
+                <div class="detail-item">
+                    <label>评论数</label>
+                    <span>${video.video_review_formatted || formatNumber(video.video_review || 0)}</span>
+                </div>
+                <div class="detail-item">
+                    <label>收藏数</label>
+                    <span>${video.favorites_formatted || formatNumber(video.favorites || 0)}</span>
+                </div>
+                <div class="detail-item full-width">
+                    <label>视频链接</label>
+                    <a href="${video.url}" target="_blank">${video.url}</a>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+// 搜索和筛选
+if (searchBtn) {
+    searchBtn.addEventListener('click', () => {
+        currentFilters.search = searchInput.value.trim();
+        if (currentTab === 'videos') {
+            currentFilters.uid = upFilter.value;
+            currentFilters.date_from = dateFrom.value;
+            currentFilters.date_to = dateTo.value;
+            currentFilters.min_play = minPlay.value;
+        }
+        if (currentTab === 'ups') {
+            loadUps(1);
+        } else {
+            loadVideos(1);
+        }
+    });
+}
+
+if (resetBtn) {
+    resetBtn.addEventListener('click', () => {
+        searchInput.value = '';
+        upFilter.value = '';
+        dateFrom.value = '';
+        dateTo.value = '';
+        minPlay.value = '';
+        currentFilters = { search: '', uid: '', date_from: '', date_to: '', min_play: '' };
+        if (currentTab === 'ups') {
+            loadUps(1);
+        } else {
+            loadVideos(1);
+        }
+    });
+}
+
+// 复选框处理
+function handleUpCheckboxChange(e) {
+    const uid = e.target.dataset.upId;
+    if (e.target.checked) {
+        selectedUps.add(uid);
+    } else {
+        selectedUps.delete(uid);
+        selectAllUps.checked = false;
+    }
+    updateBatchButtons();
+}
+
+function handleVideoCheckboxChange(e) {
+    const bvid = e.target.dataset.videoId;
+    if (e.target.checked) {
+        selectedVideos.add(bvid);
+    } else {
+        selectedVideos.delete(bvid);
+        selectAllVideos.checked = false;
+    }
+    updateBatchButtons();
+}
+
+function updateBatchButtons() {
+    // 批量操作功能暂时不实现
+}
+
+// 模态框关闭
+document.querySelectorAll('.modal-close').forEach(btn => {
+    btn.addEventListener('click', () => {
+        upModal.style.display = 'none';
+        videoModal.style.display = 'none';
+    });
+});
+
+window.addEventListener('click', (e) => {
+    if (e.target === upModal) {
+        upModal.style.display = 'none';
+    }
+    if (e.target === videoModal) {
+        videoModal.style.display = 'none';
+    }
+});
+
+// 退出登录
+if (logoutBtn) {
+    logoutBtn.addEventListener('click', async () => {
+        try {
+            await fetch('/api/auth/logout', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+        } catch (error) {
+            console.error('退出登录失败:', error);
+        } finally {
+            localStorage.removeItem('auth_token');
+            window.location.href = '/admin/login';
+        }
+    });
+}
+
+// 工具函数
+function formatDateTime(dateStr) {
+    if (!dateStr) return '-';
+    const date = new Date(dateStr);
+    return date.toLocaleString('zh-CN');
+}
+
+function formatNumber(num) {
+    if (num >= 100000000) {
+        return (num / 100000000).toFixed(1) + '亿';
+    } else if (num >= 10000) {
+        return (num / 10000).toFixed(1) + '万';
+    }
+    return num.toString();
+}
+
+function showToast(message, type = 'info') {
+    if (!toast) return;
+    
+    toast.textContent = message;
+    toast.className = `toast toast-${type} show`;
+    
+    setTimeout(() => {
+        toast.classList.remove('show');
+    }, 3000);
+}
+
+// 页面加载时执行
+document.addEventListener('DOMContentLoaded', async () => {
+    // 验证身份
+    try {
+        const response = await fetch('/api/admin/profile', {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        
+        if (!response.ok) {
+            localStorage.removeItem('auth_token');
+            window.location.href = '/admin/login';
+            return;
+        }
+        
+        const data = await response.json();
+        if (data.success && data.user) {
+            if (adminUserName) {
+                adminUserName.textContent = data.user.name;
+            }
+            
+            currentUserRole = data.user.role;
+            
+            // 检查权限
+            if (data.user.role !== 'admin' && data.user.role !== 'super_admin') {
+                showToast('权限不足，您不是管理员', 'error');
+                setTimeout(() => {
+                    window.location.href = '/';
+                }, 2000);
+                return;
+            }
+            
+            // 加载数据
+            await loadStats();
+            loadUps(1);
+        }
+    } catch (error) {
+        console.error('验证身份失败:', error);
+        localStorage.removeItem('auth_token');
+        window.location.href = '/admin/login';
+    }
+});
+
+// 全局函数（供onclick使用）
+window.viewUp = viewUp;
+window.viewVideo = viewVideo;
+window.loadUps = loadUps;
+window.loadVideos = loadVideos;
+

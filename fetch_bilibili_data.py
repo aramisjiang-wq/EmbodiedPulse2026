@@ -103,8 +103,9 @@ def fetch_and_save_up_data(uid, video_count=50):
         session.commit()
         logger.info(f"UP主 {up.name} 信息已更新")
         
-        # 处理视频数据
-        saved_count = 0
+        # 处理视频数据（更新为主，只更新已存在的记录，不创建新记录）
+        updated_count = 0
+        created_count = 0
         for video_data in videos:
             bvid = video_data.get('bvid', '')
             if not bvid:
@@ -112,18 +113,24 @@ def fetch_and_save_up_data(uid, video_count=50):
             
             # 查找或创建视频记录
             video = session.query(BilibiliVideo).filter_by(bvid=bvid).first()
+            is_new = False
             if not video:
+                # 只创建新视频记录（如果数据库中不存在）
                 video = BilibiliVideo(bvid=bvid, uid=uid)
                 session.add(video)
+                is_new = True
+                created_count += 1
+            else:
+                updated_count += 1
             
-            # 更新视频信息
+            # 更新视频信息（无论新旧都更新，确保数据最新）
             video.aid = video_data.get('aid', 0)
             video.title = video_data.get('title', '')
             video.pic = video_data.get('pic', '')
             video.description = video_data.get('description', '')
             video.length = video_data.get('length', '')
             
-            # 统计数据
+            # 统计数据（每次更新，确保播放量、评论数等数据最新）
             play_raw = video_data.get('play', 0) or 0
             video.play = play_raw
             video.play_formatted = format_number(play_raw)
@@ -132,7 +139,7 @@ def fetch_and_save_up_data(uid, video_count=50):
             video.favorites = video_data.get('favorites', 0) or 0
             video.favorites_formatted = format_number(video.favorites)
             
-            # 时间
+            # 时间（如果API返回了新的时间，也更新）
             pubdate_raw = video_data.get('pubdate', 0)
             if pubdate_raw:
                 video.pubdate_raw = pubdate_raw
@@ -141,11 +148,10 @@ def fetch_and_save_up_data(uid, video_count=50):
             video.url = f"https://www.bilibili.com/video/{bvid}"
             video.is_deleted = False
             video.updated_at = datetime.now()
-            
-            saved_count += 1
         
         session.commit()
-        logger.info(f"UP主 {up.name} 的视频数据已更新，共 {saved_count} 条")
+        total_count = updated_count + created_count
+        logger.info(f"UP主 {up.name} 的视频数据已更新: 更新{updated_count}条, 新增{created_count}条, 共{total_count}条")
         
         return True
         
@@ -154,15 +160,17 @@ def fetch_and_save_up_data(uid, video_count=50):
         import traceback
         logger.error(traceback.format_exc())
         
-        # 更新错误信息
+        # 更新错误信息（改进：记录详细错误信息和时间）
         try:
             up = session.query(BilibiliUp).filter_by(uid=uid).first()
             if up:
-                up.fetch_error = str(e)
+                error_msg = f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}: {str(e)}"
+                up.fetch_error = error_msg
                 up.last_fetch_at = datetime.now()
                 session.commit()
-        except:
-            pass
+                logger.error(f"已记录错误信息到数据库: {error_msg}")
+        except Exception as db_error:
+            logger.error(f"更新错误信息到数据库失败: {db_error}")
         
         return False
     

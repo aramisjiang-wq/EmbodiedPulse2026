@@ -14,6 +14,70 @@ let tagActivityChart = null;  // 子标签活跃度图表实例
 let currentActivityWeeks = 8;  // 当前选择周数
 let currentActivityView = 'category';  // 当前视图：'category' 或 'tag'
 let currentTagCategoryFilter = '';  // 当前子标签分类筛选
+
+// 显示通知消息
+function showNotification(message, type = 'info') {
+    // 创建通知元素
+    const notification = document.createElement('div');
+    notification.className = `notification notification-${type}`;
+    notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        padding: 12px 20px;
+        background: ${type === 'success' ? '#10b981' : type === 'error' ? '#ef4444' : type === 'warning' ? '#f59e0b' : '#3b82f6'};
+        color: white;
+        border-radius: 8px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        z-index: 10000;
+        font-size: 14px;
+        font-weight: 500;
+        max-width: 400px;
+        animation: slideIn 0.3s ease-out;
+    `;
+    notification.textContent = message;
+    
+    // 添加动画样式（如果还没有）
+    if (!document.getElementById('notification-styles')) {
+        const style = document.createElement('style');
+        style.id = 'notification-styles';
+        style.textContent = `
+            @keyframes slideIn {
+                from {
+                    transform: translateX(100%);
+                    opacity: 0;
+                }
+                to {
+                    transform: translateX(0);
+                    opacity: 1;
+                }
+            }
+            @keyframes slideOut {
+                from {
+                    transform: translateX(0);
+                    opacity: 1;
+                }
+                to {
+                    transform: translateX(100%);
+                    opacity: 0;
+                }
+            }
+        `;
+        document.head.appendChild(style);
+    }
+    
+    document.body.appendChild(notification);
+    
+    // 3秒后自动移除
+    setTimeout(() => {
+        notification.style.animation = 'slideOut 0.3s ease-out';
+        setTimeout(() => {
+            if (notification.parentNode) {
+                notification.parentNode.removeChild(notification);
+            }
+        }, 300);
+    }, 3000);
+}
 // 当后端元数据不可用时的回退
 function ensureCategoryMetaFromData(data) {
     if (!CATEGORY_META.display) CATEGORY_META.display = {};
@@ -273,6 +337,48 @@ async function syncCategoryMeta() {
     }
 }
 
+// 检查并恢复论文抓取状态（页面刷新或切换后恢复进度条）
+async function checkAndRestoreFetchStatus() {
+    try {
+        const response = await fetch('/api/fetch-status');
+        const status = await response.json();
+        
+        if (status.running) {
+            console.log('🔄 检测到后台任务正在运行，恢复进度条显示...', status);
+            
+            const statusDiv = document.getElementById('fetchStatus');
+            const messageSpan = document.getElementById('statusMessage');
+            const progressFill = document.getElementById('progressFill');
+            
+            if (statusDiv && messageSpan && progressFill) {
+                // 显示进度条
+                statusDiv.classList.remove('hidden');
+                
+                // 更新消息和进度
+                let displayMessage = status.message || '正在抓取论文...';
+                if (status.current_keyword) {
+                    displayMessage = `正在抓取 ${status.current_keyword}...`;
+                }
+                messageSpan.textContent = displayMessage;
+                
+                if (status.total > 0) {
+                    const progress = Math.min((status.progress / status.total) * 100, 100);
+                    progressFill.style.width = progress + '%';
+                } else {
+                    progressFill.style.width = '10%';
+                }
+                
+                // 启动状态轮询
+                startStatusPolling();
+                
+                console.log('✅ 进度条已恢复，开始轮询状态更新');
+            }
+        }
+    } catch (error) {
+        console.error('检查抓取状态失败:', error);
+    }
+}
+
 // 初始化
 document.addEventListener('DOMContentLoaded', async () => {
     // 初始化研究方向活跃度模块
@@ -304,8 +410,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         setupEventListeners();
         setupFilterSortListeners();
         initResearchActivity();
-        // 注意：startStatusPolling() 只在需要时启动（点击抓取新论文按钮时）
-        // 不在页面初始化时启动，避免与新闻抓取状态冲突
+        
+        // 检查并恢复论文抓取状态（如果后台任务正在运行）
+        await checkAndRestoreFetchStatus();
+        
         console.log('初始化完成');
     } catch (error) {
         console.error('初始化失败:', error);
@@ -324,6 +432,15 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (refreshStatusInterval) {
             clearInterval(refreshStatusInterval);
             refreshStatusInterval = null;
+        }
+    });
+    
+    // 页面可见性变化时检查状态（切换标签页回来时）
+    document.addEventListener('visibilitychange', async () => {
+        if (!document.hidden) {
+            // 页面变为可见时，检查是否有正在运行的任务
+            console.log('📄 页面变为可见，检查后台任务状态...');
+            await checkAndRestoreFetchStatus();
         }
     });
 });
@@ -346,34 +463,181 @@ function setupEventListeners() {
             
             const originalText = this.innerHTML;
             this.classList.add('loading');
-            this.innerHTML = '<i class="fas fa-sync-alt"></i> 抓取中...';
+            this.innerHTML = '<i class="fas fa-sync-alt fa-spin"></i> 抓取中...';
             
             try {
+                console.log('🚀 开始抓取论文数据...');
                 const response = await fetch('/api/fetch', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'}
                 });
                 
                 const result = await response.json();
+                console.log('📊 抓取API响应:', result);
                 
                 if (result.success) {
-                    // 显示成功消息
-                    this.innerHTML = '<i class="fas fa-check"></i> 抓取完成';
-                    setTimeout(() => {
-                        this.innerHTML = originalText;
-                        this.classList.remove('loading');
-                        // 刷新页面数据
-                        location.reload();
-                    }, 2000);
+                    // 显示状态条
+                    const statusDiv = document.getElementById('fetchStatus');
+                    const statusMessage = document.getElementById('statusMessage');
+                    const progressFill = document.getElementById('progressFill');
+                    
+                    if (statusDiv) {
+                        statusDiv.classList.remove('hidden');
+                    }
+                    if (statusMessage) {
+                        statusMessage.textContent = '抓取任务已启动，请稍候...';
+                    }
+                    if (progressFill) {
+                        progressFill.style.width = '0%';
+                    }
+                    
+                    // 更新按钮状态
+                    this.innerHTML = '<i class="fas fa-sync-alt fa-spin"></i> 抓取中...';
+                    
+                    // 等待抓取任务完成（轮询状态）
+                    console.log('⏳ 等待抓取任务完成...');
+                    let pollCount = 0;
+                    const maxPolls = 300; // 最多轮询300次（10分钟，每2秒一次）
+                    let statusPollInterval = null;
+                    
+                    const checkStatus = async () => {
+                        try {
+                            const statusResponse = await fetch('/api/fetch-status');
+                            const statusResult = await statusResponse.json();
+                            
+                            console.log('📊 抓取状态:', statusResult);
+                            
+                            if (!statusResult.running) {
+                                // 任务完成
+                                console.log('✅ 抓取任务完成');
+                                
+                                // 清除轮询
+                                if (statusPollInterval) {
+                                    clearInterval(statusPollInterval);
+                                    statusPollInterval = null;
+                                }
+                                
+                                // 更新状态条
+                                if (statusMessage) {
+                                    statusMessage.textContent = '抓取完成！正在更新数据...';
+                                }
+                                if (progressFill) {
+                                    progressFill.style.width = '100%';
+                                }
+                                
+                                this.innerHTML = '<i class="fas fa-check"></i> 更新中...';
+                                
+                                // 等待1秒后刷新数据
+                                setTimeout(() => {
+                                    // 隐藏状态条
+                                    if (statusDiv) {
+                                        statusDiv.classList.add('hidden');
+                                    }
+                                    
+                                    this.innerHTML = originalText;
+                                    this.classList.remove('loading');
+                                    
+                                    // 重新加载论文数据（不刷新整个页面）
+                                    console.log('🔄 重新加载论文数据...');
+                                    loadPapers(true).then(() => {
+                                        console.log('✅ 论文数据已更新');
+                                        // 显示成功提示
+                                        showNotification('论文数据已更新', 'success');
+                                    }).catch(err => {
+                                        console.error('❌ 加载论文数据失败:', err);
+                                        showNotification('数据更新失败，请刷新页面', 'error');
+                                    });
+                                }, 1000);
+                            } else {
+                                // 任务还在运行，继续轮询
+                                pollCount++;
+                                if (pollCount < maxPolls) {
+                                    // 更新状态条和按钮状态显示进度
+                                    const progress = statusResult.progress || 0;
+                                    const total = statusResult.total || 0;
+                                    const currentKeyword = statusResult.current_keyword || '';
+                                    const message = statusResult.message || '正在抓取论文...';
+                                    
+                                    // 更新状态条（更详细的显示）
+                                    if (statusMessage) {
+                                        if (total > 0 && currentKeyword) {
+                                            statusMessage.textContent = `${message} (${progress}/${total}) - 当前: ${currentKeyword}`;
+                                        } else {
+                                            statusMessage.textContent = message;
+                                        }
+                                    }
+                                    if (progressFill && total > 0) {
+                                        const progressPercent = Math.min((progress / total) * 100, 100);
+                                        progressFill.style.width = progressPercent + '%';
+                                    }
+                                    
+                                    // 更新按钮状态（更详细的显示）
+                                    if (total > 0) {
+                                        const percent = Math.round((progress / total) * 100);
+                                        this.innerHTML = `<i class="fas fa-sync-alt fa-spin"></i> 抓取中 ${percent}% (${progress}/${total})`;
+                                        if (currentKeyword) {
+                                            this.title = `正在抓取: ${currentKeyword}`;
+                                        }
+                                    } else {
+                                        this.innerHTML = `<i class="fas fa-sync-alt fa-spin"></i> ${message}`;
+                                    }
+                                    
+                                    // 继续轮询（每2秒）
+                                    // 注意：这里不再使用setTimeout，而是使用setInterval来确保更稳定的轮询
+                                } else {
+                                    // 超时
+                                    console.warn('⏰ 抓取任务超时');
+                                    
+                                    // 清除轮询
+                                    if (statusPollInterval) {
+                                        clearInterval(statusPollInterval);
+                                        statusPollInterval = null;
+                                    }
+                                    
+                                    // 隐藏状态条
+                                    if (statusDiv) {
+                                        statusDiv.classList.add('hidden');
+                                    }
+                                    
+                                    this.innerHTML = originalText;
+                                    this.classList.remove('loading');
+                                    showNotification('抓取任务超时，请稍后重试', 'warning');
+                                }
+                            }
+                        } catch (error) {
+                            console.error('❌ 获取抓取状态失败:', error);
+                            pollCount++;
+                            if (pollCount < maxPolls) {
+                                // 继续尝试
+                                setTimeout(checkStatus, 2000);
+                            } else {
+                                // 超时，停止轮询
+                                if (statusPollInterval) {
+                                    clearInterval(statusPollInterval);
+                                    statusPollInterval = null;
+                                }
+                                this.innerHTML = originalText;
+                                this.classList.remove('loading');
+                                showNotification('获取状态失败，请刷新页面', 'error');
+                            }
+                        }
+                    };
+                    
+                    // 立即开始第一次检查
+                    checkStatus();
+                    
+                    // 设置定时轮询（每2秒）
+                    statusPollInterval = setInterval(checkStatus, 2000);
                 } else {
                     throw new Error(result.message || '抓取失败');
                 }
             } catch (error) {
-                console.error('抓取失败:', error);
+                console.error('❌ 抓取失败:', error);
                 this.innerHTML = '<i class="fas fa-times"></i> 抓取失败';
                 setTimeout(() => {
                     this.innerHTML = originalText;
                     this.classList.remove('loading');
+                    showNotification('抓取失败: ' + error.message, 'error');
                 }, 2000);
             }
         });
@@ -548,7 +812,7 @@ async function loadStats() {
         } else {
             console.error('加载统计信息失败:', result.error);
             // 显示错误提示
-            const totalElement = document.getElementById('totalPapersValue');
+            const totalElement = document.getElementById('totalPapers');
             if (totalElement) {
                 totalElement.textContent = '加载失败';
             }
@@ -557,7 +821,7 @@ async function loadStats() {
         console.error('加载统计信息失败:', error);
         console.error('错误堆栈:', error.stack);
         // 显示错误提示
-        const totalElement = document.getElementById('totalPapersValue');
+        const totalElement = document.getElementById('totalPapers');
         if (totalElement) {
             totalElement.textContent = '加载失败: ' + error.message;
         }
@@ -586,13 +850,13 @@ let donutChart = null;
 
 function renderStats(stats, total) {
     console.log('renderStats 被调用，stats:', stats, 'total:', total);
-    // 更新总论文数
-    const totalElement = document.getElementById('totalPapersValue');
+    // 更新总论文数（HTML中的ID是totalPapers，不是totalPapersValue）
+    const totalElement = document.getElementById('totalPapers');
     if (totalElement) {
         totalElement.textContent = total.toLocaleString();
         console.log('总论文数已更新:', total.toLocaleString());
     } else {
-        console.error('找不到totalPapersValue元素');
+        console.warn('找不到totalPapers元素（可能已移除统计挂件）');
     }
     // 仪表盘已下线，图表渲染逻辑留空以避免报错
 }
@@ -2301,6 +2565,11 @@ async function loadCategories() {
         
         if (result.success) {
             const categoryFilter = document.getElementById('categoryFilter');
+            // 检查元素是否存在
+            if (!categoryFilter) {
+                console.warn('loadCategories: 找不到categoryFilter元素，跳过加载');
+                return;
+            }
             // 清空现有选项（保留"所有类别"）
             categoryFilter.innerHTML = '<option value="">所有类别</option>';
             

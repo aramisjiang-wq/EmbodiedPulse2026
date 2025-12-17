@@ -36,14 +36,17 @@ logger = logging.getLogger(__name__)
 class BilibiliClient:
     """Bilibili API客户端（使用 bilibili-api-python 库）"""
     
-    def __init__(self, timeout=10):
+    def __init__(self, timeout=10, min_request_interval=2.0):
         """
         初始化Bilibili客户端
         
         Args:
             timeout: 请求超时时间（秒）
+            min_request_interval: 最小请求间隔（秒），用于频率限制
         """
         self.timeout = timeout
+        self.min_request_interval = min_request_interval
+        self.last_request_time = 0
         if not BILIBILI_API_AVAILABLE:
             raise ImportError("bilibili-api-python 未安装，请运行: pip install bilibili-api-python aiohttp")
         # 读取 Cookie/SESSDATA，提高通过风控概率
@@ -63,12 +66,24 @@ class BilibiliClient:
                 logger.info("已加载 B 站凭证，用于减轻 412 风控")
             except Exception as e:
                 logger.warning(f"加载 B 站凭证失败: {e}")
+    
+    def _rate_limit(self):
+        """请求频率限制，避免触发风控"""
+        import time
+        current_time = time.time()
+        time_since_last = current_time - self.last_request_time
+        if time_since_last < self.min_request_interval:
+            sleep_time = self.min_request_interval - time_since_last
+            logger.debug(f"频率限制: 等待 {sleep_time:.2f} 秒...")
+            time.sleep(sleep_time)
+        self.last_request_time = time.time()
 
-    def _request_json(self, url: str, params: Optional[Dict] = None, timeout: int = 10, retry: int = 2) -> Optional[Dict]:
+    def _request_json(self, url: str, params: Optional[Dict] = None, timeout: int = 10, retry: int = 3) -> Optional[Dict]:
         """
         直接通过 HTTP 请求获取 JSON（用于被风控 412 时的兜底）
         可配置环境变量 BILI_COOKIE / BILI_SESSDATA 提升成功率。
         添加重试机制和延迟，避免触发风控。
+        使用指数退避策略：2秒、4秒、8秒
         """
         headers = {
             "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118.0 Safari/537.36",
@@ -81,9 +96,9 @@ class BilibiliClient:
         import time
         for attempt in range(retry + 1):
             try:
-                # 如果不是第一次请求，添加延迟
+                # 如果不是第一次请求，使用指数退避策略
                 if attempt > 0:
-                    delay = 2.0 * attempt  # 2秒、4秒...
+                    delay = 2.0 * (2 ** (attempt - 1))  # 2秒、4秒、8秒...
                     logger.debug(f"HTTP请求重试 {attempt+1}/{retry+1}，等待 {delay}秒...")
                     time.sleep(delay)
                 
@@ -93,7 +108,8 @@ class BilibiliClient:
                 if resp.status_code == 412:
                     logger.warning(f"检测到412风控，等待更长时间后重试...")
                     if attempt < retry:
-                        time.sleep(5.0 * (attempt + 1))  # 5秒、10秒...
+                        # 对于412错误，使用更长的等待时间：10秒、20秒、30秒
+                        time.sleep(10.0 * (attempt + 1))
                         continue
                     else:
                         logger.error(f"HTTP请求被412风控拦截: {url}")
@@ -398,17 +414,18 @@ class BilibiliClient:
                 'views': 0,
             }
     
-    def get_user_info(self, mid: int, retry: int = 2) -> Optional[Dict]:
+    def get_user_info(self, mid: int, retry: int = 3) -> Optional[Dict]:
         """
         获取UP主基本信息（同步接口）
         
         Args:
             mid: UP主的UID
-            retry: 重试次数
+            retry: 重试次数（增加到3次）
             
         Returns:
             UP主信息字典
         """
+        self._rate_limit()  # 添加频率限制
         for attempt in range(retry + 1):
             try:
                 result = asyncio.run(self._get_user_info_async(mid))
@@ -424,7 +441,7 @@ class BilibiliClient:
                     time.sleep(2 ** attempt)
         return None
     
-    def get_user_videos(self, mid: int, pn: int = 1, ps: int = 10, retry: int = 2) -> Optional[List[Dict]]:
+    def get_user_videos(self, mid: int, pn: int = 1, ps: int = 10, retry: int = 3) -> Optional[List[Dict]]:
         """
         获取UP主的视频列表（同步接口）
         
@@ -432,11 +449,12 @@ class BilibiliClient:
             mid: UP主的UID
             pn: 页码
             ps: 每页数量
-            retry: 重试次数
+            retry: 重试次数（增加到3次）
             
         Returns:
             视频列表
         """
+        self._rate_limit()  # 添加频率限制
         for attempt in range(retry + 1):
             try:
                 result = asyncio.run(self._get_user_videos_async(mid, pn, ps))
@@ -452,17 +470,18 @@ class BilibiliClient:
                     time.sleep(2 ** attempt)
         return None
     
-    def get_user_stat(self, mid: int, retry: int = 2) -> Optional[Dict]:
+    def get_user_stat(self, mid: int, retry: int = 3) -> Optional[Dict]:
         """
         获取UP主统计数据（同步接口）
         
         Args:
             mid: UP主的UID
-            retry: 重试次数
+            retry: 重试次数（增加到3次）
             
         Returns:
             统计数据字典
         """
+        self._rate_limit()  # 添加频率限制
         for attempt in range(retry + 1):
             try:
                 result = asyncio.run(self._get_user_stat_async(mid))

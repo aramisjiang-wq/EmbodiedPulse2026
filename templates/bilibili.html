@@ -28,34 +28,38 @@
             padding: 24px;
         }
         
-        /* 主布局：左侧主内容 + 右侧侧边栏 */
+        /* 主布局：左侧主内容 + 右侧侧边栏 - 参考 index.html 的布局方式 */
         .bilibili-main-layout {
-            display: grid;
-            grid-template-columns: 1fr 420px;
+            display: flex;
             gap: 24px;
-            align-items: start;
+            align-items: flex-start;
         }
         
         /* Banner模块覆盖整个宽度 */
         .bilibili-page-header-wrapper {
-            grid-column: 1 / -1;
+            width: 100%;
             margin-bottom: 24px;
         }
         
         /* 主内容区域 */
         .bilibili-main-content {
+            flex: 1;
+            min-width: 0;
             display: flex;
             flex-direction: column;
             gap: 16px;
         }
         
-        /* 右侧侧边栏 */
+        /* 右侧侧边栏 - 参考 index.html 的 side-widgets */
         .bilibili-sidebar {
-            position: sticky;
-            top: 24px;
+            width: 500px;
+            flex-shrink: 0;
             display: flex;
             flex-direction: column;
             gap: 24px;
+            position: sticky;
+            top: 24px;
+            align-self: flex-start;
             max-height: calc(100vh - 48px);
             overflow-y: auto;
         }
@@ -111,19 +115,20 @@
             background: #94a3b8;
         }
         
-        /* 响应式设计 */
+        /* 响应式设计 - 参考 index.html 的响应式方式 */
         @media (max-width: 1400px) {
-            .bilibili-main-layout {
-                grid-template-columns: 1fr 380px;
+            .bilibili-sidebar {
+                width: 420px;
             }
         }
         
         @media (max-width: 1200px) {
             .bilibili-main-layout {
-                grid-template-columns: 1fr;
+                flex-direction: column;
             }
             
             .bilibili-sidebar {
+                width: 100%;
                 position: static;
                 max-height: none;
                 display: grid;
@@ -133,8 +138,16 @@
         }
         
         @media (max-width: 768px) {
+            .bilibili-page-container {
+                padding: 16px;
+            }
+            
             .bilibili-sidebar {
                 grid-template-columns: 1fr;
+            }
+            
+            .bilibili-main-content {
+                width: 100%;
             }
         }
         
@@ -821,55 +834,55 @@
     </style>
 </head>
 <body>
-    <div class="container">
-        <!-- 顶部导航栏 - 全屏宽度 -->
-        <div class="top-nav-fullwidth-wrapper">
-            <nav class="top-nav">
-                <div class="nav-tabs">
-                    <a href="/" class="nav-logo">
-                        <img src="{{ url_for('static', filename='images/LimX logo.svg') }}" alt="LimX Logo" class="logo-img">
-                    </a>
-                    <a href="/" class="nav-tab">
-                        <span>具身论文（Embodied Pulse）</span>
-                    </a>
-                    <a href="/bilibili" class="nav-tab active">
-                        <span>具身视频Hub</span>
-                    </a>
-                    <a href="https://gradmotion.com/" target="_blank" class="nav-tab">
-                        <span>具身算法工具箱（GradMotion）</span>
-                    </a>
-                    <a href="https://paj5uamwttr.feishu.cn/wiki/GaozwfU3iiWA9Nk0LVUcUzKZnHc" target="_blank" class="nav-tab">
-                        <span>具身知识库</span>
-                    </a>
-                    <a href="https://paj5uamwttr.feishu.cn/share/base/form/shrcnYlYb0NorOBVv2P8xRAArDe" target="_blank" class="nav-tab">
-                        <span>产品反馈</span>
-                    </a>
-                    
-                    <!-- 个人中心/登录按钮 - 右对齐 -->
-                    <a href="/login" class="nav-tab nav-tab-right" id="userLoginBtn">
-                        <i class="fas fa-sign-in-alt"></i>
-                        <span>登录</span>
-                    </a>
-                    <a href="/profile" class="nav-tab nav-tab-right" id="userProfileBtn" style="display: none;">
-                        <i class="fas fa-user-circle"></i>
-                        <span id="userNameText">加载中...</span>
-                    </a>
-                </div>
-            </nav>
-        </div>
+    <!-- 顶部导航栏 - 全屏宽度 -->
+    <div class="top-nav-fullwidth-wrapper">
+        <nav class="top-nav">
+            <div class="nav-tabs">
+                <a href="/" class="nav-logo">
+                    <img src="{{ url_for('static', filename='images/LimX logo.svg') }}" alt="LimX Logo" class="logo-img">
+                </a>
+                <a href="/" class="nav-tab">
+                    <span>具身论文（Embodied Pulse）</span>
+                </a>
+                <a href="/bilibili" class="nav-tab active">
+                    <span>具身视频Hub</span>
+                </a>
+                <a href="https://gradmotion.com/" target="_blank" class="nav-tab">
+                    <span>具身算法工具箱（GradMotion）</span>
+                </a>
+                <a href="https://paj5uamwttr.feishu.cn/wiki/GaozwfU3iiWA9Nk0LVUcUzKZnHc" target="_blank" class="nav-tab">
+                    <span>具身知识库</span>
+                </a>
+                <a href="https://paj5uamwttr.feishu.cn/share/base/form/shrcnYlYb0NorOBVv2P8xRAArDe" target="_blank" class="nav-tab">
+                    <span>产品反馈</span>
+                </a>
+                
+                <!-- 个人中心/登录按钮 - 右对齐 -->
+                <a href="/login" class="nav-tab nav-tab-right" id="userLoginBtn">
+                    <i class="fas fa-sign-in-alt"></i>
+                    <span>登录</span>
+                </a>
+                <a href="/profile" class="nav-tab nav-tab-right" id="userProfileBtn" style="display: none;">
+                    <span id="userNameText">加载中...</span>
+                </a>
+            </div>
+        </nav>
+    </div>
 
+    <div class="container">
         <div class="bilibili-page-container">
+            <!-- 页面头部 - 覆盖整个宽度 -->
+            <div class="bilibili-page-header-wrapper">
+                <div class="bilibili-page-header">
+                    <h1><i class="fab fa-bilibili"></i> 具身视频Hub</h1>
+                    <p>追踪具身智能领域的优质视频内容</p>
+                </div>
+            </div>
+            
             <!-- 主内容区域 + 右侧侧边栏 -->
             <div class="bilibili-main-layout">
-                <!-- 页面头部 - 覆盖整个宽度 -->
-                <div class="bilibili-page-header-wrapper">
-            <div class="bilibili-page-header">
-                <h1><i class="fab fa-bilibili"></i> 具身视频Hub</h1>
-                <p>追踪具身智能领域的优质视频内容</p>
-            </div>
-                </div>
-        <!-- 主内容区域 -->
-        <div class="bilibili-main-content">
+                <!-- 主内容区域 -->
+                <div class="bilibili-main-content">
             <!-- 视频发布趋势 -->
                 <div class="bilibili-trends-section">
                     <div class="bilibili-trends-header">
@@ -954,9 +967,8 @@
                         <p style="margin-top: 16px; color: #718096;">加载B站视频数据中...</p>
                     </div>
                 </div>
-                    </div>
                 </div>
-
+                </div>
                 <!-- 右侧侧边栏 -->
                 <aside class="bilibili-sidebar">
                     <div class="bilibili-sidebar-widget">
@@ -1028,18 +1040,25 @@
             }
         }
         
-        // 现代粉蓝系调色板（高区分度）
+        // 优化配色算法：确保每个公司颜色都有差别，降低饱和度
         function generatePalette(n) {
-            // 使用HSL颜色空间，均匀分配色相，确保每个公司颜色唯一
+            // 使用HSL颜色空间，采用黄金角度分割法，确保每个公司颜色唯一且区分度高
             const palette = [];
-            const saturation = 60; // 降低饱和度
-            const lightness = 55;  // 稍微提高亮度，配合较低饱和度
+            const saturation = 72; // 提高饱和度到72%，确保颜色鲜明且易于区分
+            const lightness = 57;  // 保持亮度在57%，确保颜色清晰可见
+            
+            // 使用黄金角度（约137.5度）分割色相，确保颜色分布均匀且不重复
+            const goldenAngle = 137.508; // 黄金角度
             
             for (let i = 0; i < n; i++) {
-                // 均匀分配色相（0-360度）
-                const hue = (i * 360) / n;
+                // 使用黄金角度分割，确保每个颜色都有明显差别
+                // 从不同起点开始，避免颜色过于相似
+                const hue = (i * goldenAngle) % 360;
+                
+                // 对于堆叠面积图，使用更柔和的填充色
                 const borderColor = `hsl(${hue}, ${saturation}%, ${lightness}%)`;
-                const fillColor = `hsla(${hue}, ${saturation}%, ${lightness}%, 0.5)`;
+                const fillColor = `hsla(${hue}, ${saturation}%, ${lightness}%, 0.5)`; // 提高透明度到0.5，使颜色更鲜明
+                
                 palette.push({
                     border: borderColor,
                     fill: fillColor
@@ -1049,37 +1068,87 @@
         }
         
         function generateTrendsData(cards) {
-            // 近30天，按周聚合（周粒度）
+            // 近30天，按自然周聚合（周一到周日）
             const today = new Date();
             today.setHours(23, 59, 59, 999); // 设置为今天的最后一刻
+            
+            // 计算30天前的日期
             const start = new Date(today);
             start.setDate(start.getDate() - 29);
             start.setHours(0, 0, 0, 0); // 设置为30天前的0点
 
-            // 生成周区间（7天一组）
+            // 生成自然周区间（周一到周日）
             const weeks = [];
-            let cursor = new Date(start);
+            
+            // 找到第一个周一（从30天前开始往前找）
+            let firstMonday = new Date(start);
+            // 计算距离最近的周一
+            const dayOfWeek = firstMonday.getDay(); // 0=周日, 1=周一, ..., 6=周六
+            // 正确的计算：找到最近的周一
+            // 如果start是周日，往前1天到周一
+            // 如果start是周一，就是它自己
+            // 如果start是周二到周六，往前(dayOfWeek-1)天到周一
+            const daysToMonday = dayOfWeek === 0 ? 1 : (dayOfWeek === 1 ? 0 : dayOfWeek - 1);
+            firstMonday.setDate(firstMonday.getDate() - daysToMonday);
+            firstMonday.setHours(0, 0, 0, 0);
+            
+            // 如果第一个周一在start之前，从下一个周一开始
+            if (firstMonday < start) {
+                firstMonday.setDate(firstMonday.getDate() + 7);
+            }
+            
+            // 从第一个周一开始，生成所有自然周（周一到周日）
+            let cursor = new Date(firstMonday);
             while (cursor <= today) {
-                const weekStart = new Date(cursor);
+                const weekStart = new Date(cursor); // 周一
                 const weekEnd = new Date(cursor);
-                weekEnd.setDate(weekEnd.getDate() + 6);
-                weekEnd.setHours(23, 59, 59, 999); // 设置为该周最后一天的最后一刻
-                if (weekEnd > today) weekEnd.setTime(today.getTime());
-                weeks.push({ start: new Date(weekStart), end: new Date(weekEnd) });
+                weekEnd.setDate(weekEnd.getDate() + 6); // 周日
+                weekEnd.setHours(23, 59, 59, 999); // 设置为该周最后一天（周日）的最后一刻
+                
+                // 如果周结束时间超过今天，则截断到今天
+                if (weekEnd > today) {
+                    weekEnd.setTime(today.getTime());
+                }
+                
+                // 只添加与30天范围有交集的周
+                if (weekStart <= today && weekEnd >= start) {
+                    weeks.push({ 
+                        start: new Date(weekStart), 
+                        end: new Date(weekEnd) 
+                    });
+                }
+                
+                // 移动到下一周（下周一）
                 cursor.setDate(cursor.getDate() + 7);
             }
 
+            // 生成周标签（格式：MM/DD-MM/DD，显示周一到周日）
             const labels = weeks.map(w => {
-                const s = `${w.start.getMonth() + 1}/${w.start.getDate()}`;
-                const e = `${w.end.getMonth() + 1}/${w.end.getDate()}`;
+                const s = `${String(w.start.getMonth() + 1).padStart(2, '0')}/${String(w.start.getDate()).padStart(2, '0')}`;
+                const e = `${String(w.end.getMonth() + 1).padStart(2, '0')}/${String(w.end.getDate()).padStart(2, '0')}`;
                 return `${s}-${e}`;
             });
 
             const datasets = [];
-            // 先收集所有有效的公司，确保颜色分配正确
+            // 先收集所有有效的公司，按固定顺序排序，确保颜色分配一致
             const validCards = cards.filter(card => !card.error && card.videos && card.videos.length > 0);
+            // 按公司名称排序，确保每次颜色分配一致
+            validCards.sort((a, b) => {
+                const nameA = (a.user_info || {}).name || `UP主${a.user_info?.mid || 0}`;
+                const nameB = (b.user_info || {}).name || `UP主${b.user_info?.mid || 0}`;
+                return nameA.localeCompare(nameB);
+            });
+            
+            // 为所有有效公司生成调色板
             const palette = generatePalette(validCards.length || 1);
-            let colorIndex = 0;
+            
+            // 创建公司名称到颜色索引的映射，确保每个公司颜色固定
+            const companyColorMap = new Map();
+            validCards.forEach((card, index) => {
+                const userInfo = card.user_info || {};
+                const userName = userInfo.name || `UP主${userInfo.mid}`;
+                companyColorMap.set(userName, index);
+            });
             
             cards.forEach((card, index) => {
                 if (card.error || !card.videos || card.videos.length === 0) {
@@ -1101,6 +1170,7 @@
                         const pubDate = new Date(video.pubdate_raw * 1000);
                         // 只考虑最近30天
                         if (pubDate < start || pubDate > today) return;
+                        // 找到视频所属的自然周（周一到周日）
                         const idx = weeks.findIndex(w => pubDate >= w.start && pubDate <= w.end);
                         if (idx >= 0) {
                             weekCounts[idx] += 1;
@@ -1108,10 +1178,10 @@
                     }
                 });
                 
-                // 使用当前colorIndex，然后递增
+                // 使用公司名称映射获取固定的颜色索引，确保每个公司颜色一致
+                const colorIndex = companyColorMap.get(userName) || 0;
                 const baseColor = palette[colorIndex].border;
                 const bgColor = palette[colorIndex].fill;
-                colorIndex++;
                 
                 datasets.push({
                     label: userName,
@@ -1154,14 +1224,23 @@
             legendContainer.style.display = 'flex';
             let html = '';
             
-            const palette = generatePalette(validCards.length || 1);
-            validCards.forEach((card, index) => {
+            // 按公司名称排序，确保颜色分配与图表一致
+            const sortedCards = [...validCards].sort((a, b) => {
+                const nameA = (a.user_info || {}).name || `UP主${a.user_info?.mid || 0}`;
+                const nameB = (b.user_info || {}).name || `UP主${b.user_info?.mid || 0}`;
+                return nameA.localeCompare(nameB);
+            });
+            
+            const palette = generatePalette(sortedCards.length || 1);
+            
+            sortedCards.forEach((card, index) => {
                 try {
                     const userInfo = card.user_info || {};
                     const userName = escapeHtml(userInfo.name || `UP主${userInfo.mid}`);
                     const escapedUserName = escapeJsString(userName);
                     const isSelected = selectedCompanies.size === 0 || selectedCompanies.has(userInfo.name || `UP主${userInfo.mid}`);
-                    const color = palette[index % palette.length].border;
+                    // 使用排序后的索引，确保颜色分配与图表一致
+                    const color = palette[index].border;
                     
                     html += `
                         <div class="bilibili-trends-legend-item ${isSelected ? 'selected' : ''}" 
@@ -1207,21 +1286,25 @@
             renderTrendsChart(allCardsData);
         }
         
-        async function refreshBilibiliData() {
+        async function refreshBilibiliData(silent = false) {
             const refreshBtn = document.getElementById('refreshBilibiliBtn');
             const refreshIcon = document.getElementById('refreshIcon');
             
-            if (refreshBtn && refreshBtn.disabled) {
-                return;
-            }
-            
-            if (refreshBtn) {
-                refreshBtn.disabled = true;
-                refreshIcon.className = 'fas fa-sync-alt fa-spin';
+            // 如果是静默刷新（自动刷新），不显示按钮状态
+            if (!silent) {
+                if (refreshBtn && refreshBtn.disabled) {
+                    return;
+                }
+                
+                if (refreshBtn) {
+                    refreshBtn.disabled = true;
+                    refreshIcon.className = 'fas fa-sync-alt fa-spin';
+                }
             }
             
             try {
                 const timestamp = new Date().getTime();
+                // 使用force=1强制刷新，绕过缓存，从数据库重新获取最新数据
                 const response = await fetchWithTimeout(`/api/bilibili/all?force=1&t=${timestamp}`);
                 const result = await response.json();
                 
@@ -1230,14 +1313,20 @@
                     selectedCompanies.clear();
                     
                     await loadAllBilibiliCards();
+                    
+                    if (!silent) {
+                        console.log('✅ 数据刷新成功');
+                    }
                 } else {
                     throw new Error(result.error || '刷新失败');
                 }
             } catch (error) {
                 console.error('刷新数据失败:', error);
-                alert('刷新数据失败: ' + error.message);
+                if (!silent) {
+                    alert('刷新数据失败: ' + error.message);
+                }
             } finally {
-                if (refreshBtn) {
+                if (!silent && refreshBtn) {
                     refreshBtn.disabled = false;
                     refreshIcon.className = 'fas fa-sync-alt';
                 }
@@ -1452,7 +1541,7 @@
             });
         }
 
-        // 热力图渲染（按周统计，30天分为4-5周）
+        // 热力图渲染（按自然周统计，周一到周日）
         function renderTrendsHeatmap(cards) {
             const container = document.getElementById('trendsHeatmap');
             if (!container) return;
@@ -1469,29 +1558,53 @@
                 return;
             }
             
-            // 生成周区间（7天一组，近30天）
+            // 生成自然周区间（周一到周日，近30天）
             const today = new Date();
             today.setHours(23, 59, 59, 999); // 设置为今天的最后一刻
             const start = new Date(today);
             start.setDate(start.getDate() - 29);
             start.setHours(0, 0, 0, 0); // 设置为30天前的0点
             
+            // 找到第一个周一（从30天前开始往前找）
+            let firstMonday = new Date(start);
+            const dayOfWeek = firstMonday.getDay(); // 0=周日, 1=周一, ..., 6=周六
+            // 正确的计算：找到最近的周一
+            // 如果start是周日，往前1天到周一
+            // 如果start是周一，就是它自己
+            // 如果start是周二到周六，往前(dayOfWeek-1)天到周一
+            const daysToMonday = dayOfWeek === 0 ? 1 : (dayOfWeek === 1 ? 0 : dayOfWeek - 1);
+            firstMonday.setDate(firstMonday.getDate() - daysToMonday);
+            firstMonday.setHours(0, 0, 0, 0);
+            
+            // 如果第一个周一在start之前，从下一个周一开始
+            if (firstMonday < start) {
+                firstMonday.setDate(firstMonday.getDate() + 7);
+            }
+            
             const weeks = [];
-            let cursor = new Date(start);
+            let cursor = new Date(firstMonday);
             while (cursor <= today) {
-                const weekStart = new Date(cursor);
+                const weekStart = new Date(cursor); // 周一
                 const weekEnd = new Date(cursor);
-                weekEnd.setDate(weekEnd.getDate() + 6);
-                weekEnd.setHours(23, 59, 59, 999); // 设置为该周最后一天的最后一刻
-                if (weekEnd > today) weekEnd.setTime(today.getTime());
-                weeks.push({ start: new Date(weekStart), end: new Date(weekEnd) });
+                weekEnd.setDate(weekEnd.getDate() + 6); // 周日
+                weekEnd.setHours(23, 59, 59, 999);
+                
+                if (weekEnd > today) {
+                    weekEnd.setTime(today.getTime());
+                }
+                
+                // 只添加与30天范围有交集的周
+                if (weekStart <= today && weekEnd >= start) {
+                    weeks.push({ start: new Date(weekStart), end: new Date(weekEnd) });
+                }
+                
                 cursor.setDate(cursor.getDate() + 7);
             }
             
-            // 生成周标签
+            // 生成周标签（格式：MM/DD-MM/DD，显示周一到周日）
             const weekLabels = weeks.map(w => {
-                const s = `${w.start.getMonth() + 1}/${w.start.getDate()}`;
-                const e = `${w.end.getMonth() + 1}/${w.end.getDate()}`;
+                const s = `${String(w.start.getMonth() + 1).padStart(2, '0')}/${String(w.start.getDate()).padStart(2, '0')}`;
+                const e = `${String(w.end.getMonth() + 1).padStart(2, '0')}/${String(w.end.getDate()).padStart(2, '0')}`;
                 return `${s}-${e}`;
             });
             
@@ -2410,10 +2523,41 @@
             heatmapContainer.innerHTML = html;
         }
 
+        // 自动刷新定时器
+        let autoRefreshInterval = null;
+        
+        // 自动刷新数据（每5分钟）
+        function startAutoRefresh() {
+            // 清除已有定时器
+            if (autoRefreshInterval) {
+                clearInterval(autoRefreshInterval);
+            }
+            
+            // 每5分钟（300000毫秒）刷新一次数据（静默刷新，不显示按钮状态）
+            autoRefreshInterval = setInterval(() => {
+                console.log('🔄 自动刷新B站数据（每5分钟）...');
+                refreshBilibiliData(true); // true表示静默刷新
+            }, 5 * 60 * 1000); // 5分钟 = 300000毫秒
+            
+            console.log('✅ 已启动自动刷新，每5分钟刷新一次数据');
+        }
+        
+        // 停止自动刷新
+        function stopAutoRefresh() {
+            if (autoRefreshInterval) {
+                clearInterval(autoRefreshInterval);
+                autoRefreshInterval = null;
+                console.log('已停止自动刷新');
+            }
+        }
+        
         // 页面加载时获取数据
         document.addEventListener('DOMContentLoaded', () => {
             initTrendsViewToggle();
             loadAllBilibiliCards();
+            
+            // 启动自动刷新（每5分钟）
+            startAutoRefresh();
             
             // 绑定搜索框事件
             const filterInput = document.getElementById('companyFilterInput');
@@ -2422,6 +2566,11 @@
                     filterCards(e.target.value);
                 });
             }
+        });
+        
+        // 页面卸载时清理定时器
+        window.addEventListener('beforeunload', () => {
+            stopAutoRefresh();
         });
     </script>
     <script src="{{ url_for('static', filename='js/user_menu.js') }}"></script>

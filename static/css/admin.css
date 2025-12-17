@@ -846,6 +846,37 @@ tr:hover {
     box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
 }
 
+/* 模态框大小变体 */
+.modal-large {
+    max-width: 900px;
+}
+
+/* 摘要文本 */
+.abstract-text {
+    max-height: 200px;
+    overflow-y: auto;
+    padding: 12px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    line-height: 1.6;
+    font-size: 14px;
+}
+
+/* 表格单元格样式 */
+.title-cell {
+    max-width: 300px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.author-cell {
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
 /* 日志Tab */
 .log-tab {
     display: none;

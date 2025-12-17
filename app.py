@@ -113,9 +113,9 @@ news_fetch_status_lock = threading.Lock()
 
 # Bilibili数据缓存
 bilibili_cache = {
-    'data': None,  # 单个UP主数据缓存
+    'data': None,  # 单个UP主数据缓存（用于 /api/bilibili）
     'expires_at': None,
-    'all_data': None,  # 所有UP主数据缓存
+    'all_data': None,  # 所有UP主数据缓存（用于 /api/bilibili/all）
     'all_expires_at': None
 }
 bilibili_cache_lock = threading.Lock()
@@ -434,6 +434,16 @@ def admin_users_page():
 def admin_logs_page():
     """日志监控页面"""
     return render_template('admin_logs.html')
+
+@app.route('/admin/papers')
+def admin_papers_page():
+    """论文管理页面"""
+    return render_template('admin_papers.html')
+
+@app.route('/admin/bilibili')
+def admin_bilibili_page():
+    """视频管理页面"""
+    return render_template('admin_bilibili.html')
 
 # ==================== API路由（已通过蓝图注册） ====================
 
@@ -1209,10 +1219,23 @@ def get_all_bilibili():
     try:
         force = request.args.get('force') == '1'
         now_ts = datetime.now().timestamp()
+        # 缩短缓存时间到5分钟，确保前端能及时获取最新数据
+        CACHE_DURATION = 300  # 5分钟（300秒）
         if not force:
             with bilibili_cache_lock:
-                if bilibili_cache['data'] and bilibili_cache['expires_at'] > now_ts:
-                    return jsonify(bilibili_cache['data'])
+                # 使用 all_data 缓存，而不是 data 缓存
+                # 同时验证缓存数据格式是否正确（必须是数组）
+                cached_data = bilibili_cache.get('all_data')
+                cache_expires_at = bilibili_cache.get('all_expires_at')
+                if cached_data and cache_expires_at and cache_expires_at > now_ts:
+                    # 验证数据格式：data字段必须是数组
+                    if isinstance(cached_data.get('data'), list):
+                        logger.info(f"使用B站所有数据缓存（剩余{int(cache_expires_at - now_ts)}秒）")
+                        return jsonify(cached_data)
+                    else:
+                        logger.warning("缓存数据格式错误（不是数组），清除缓存并重新获取")
+                        bilibili_cache['all_data'] = None
+                        bilibili_cache['all_expires_at'] = None
 
         session = get_bilibili_session()
         all_data = []
@@ -1334,6 +1357,14 @@ def get_all_bilibili():
         }
         
         logger.info(f"从数据库获取B站数据，共 {len(all_data)} 个UP主")
+        
+        # 保存到 all_data 缓存（只有成功获取数据时才缓存）
+        # 缓存时间缩短到5分钟，与前端刷新频率一致
+        CACHE_DURATION = 300  # 5分钟（300秒）
+        with bilibili_cache_lock:
+            bilibili_cache['all_data'] = response_data
+            bilibili_cache['all_expires_at'] = datetime.now().timestamp() + CACHE_DURATION
+            logger.info(f"B站所有数据已缓存，有效期至: {datetime.fromtimestamp(bilibili_cache['all_expires_at'])} (5分钟)")
         
         return jsonify(response_data)
         
@@ -2093,11 +2124,12 @@ def search_papers():
 def trigger_fetch():
     """触发论文抓取 - 通过命令行执行 python3 fetch_new_data.py --papers"""
     global fetch_status
+    from datetime import datetime, timedelta  # 在函数开头导入，确保整个函数可用
     
+    # 使用锁保护整个检查-设置过程，确保原子性操作
     with fetch_status_lock:
         # 检查状态，如果running为True但last_update超过10分钟，认为任务已卡死，重置状态
         if fetch_status['running']:
-            from datetime import datetime, timedelta
             last_update_str = fetch_status.get('last_update', '')
             if last_update_str:
                 try:
@@ -2107,14 +2139,18 @@ def trigger_fetch():
                         fetch_status['running'] = False
                         fetch_status['progress'] = 0
                         fetch_status['current_keyword'] = ''
+                        fetch_status['message'] = '检测到任务可能已卡死，已重置状态'
                     else:
+                        # 任务正在运行，拒绝新请求
+                        logger.info(f"拒绝新的抓取请求：任务正在运行中（{last_update.strftime('%Y-%m-%d %H:%M:%S')}）")
                         return jsonify({
                             'success': False,
-                            'message': '抓取任务正在运行中，请稍候...'
+                            'message': '抓取任务正在运行中，请稍候...',
+                            'status': fetch_status.copy()
                         }), 400
-                except:
+                except Exception as e:
                     # 如果解析失败，重置状态
-                    logger.warning("无法解析last_update时间，重置状态")
+                    logger.warning(f"无法解析last_update时间，重置状态: {e}")
                     fetch_status['running'] = False
                     fetch_status['progress'] = 0
                     fetch_status['current_keyword'] = ''
@@ -2124,101 +2160,56 @@ def trigger_fetch():
                 fetch_status['running'] = False
                 fetch_status['progress'] = 0
                 fetch_status['current_keyword'] = ''
+        
+        # 原子性设置running状态，防止并发问题
+        # 在锁内检查并设置，确保不会有多个任务同时启动
+        if fetch_status['running']:
+            # 如果检查后状态仍然是running，说明确实有任务在运行
+            return jsonify({
+                'success': False,
+                'message': '抓取任务正在运行中，请稍候...',
+                'status': fetch_status.copy()
+            }), 400
+        
+        # 设置running状态（在锁内，确保原子性）
+        fetch_status['running'] = True
+        fetch_status['message'] = '准备启动抓取任务...'
+        fetch_status['progress'] = 0
+        fetch_status['total'] = 0
+        fetch_status['current_keyword'] = ''
+        fetch_status['last_update'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     
     # 简化版：不需要配置参数，直接执行脚本
     # 脚本内部已配置好所有参数（max_results=100, days_back=14等）
     
     def fetch_task():
-        """后台抓取任务 - 通过命令行执行 python3 fetch_new_data.py --papers"""
+        """后台抓取任务 - 直接调用 fetch_new_data.fetch_papers() 函数"""
         global fetch_status
-        import subprocess
-        import sys
+        from datetime import datetime  # 在函数内部导入，避免作用域问题
         
         try:
+            # 注意：running状态已经在trigger_fetch中设置，这里只需要更新消息
             with fetch_status_lock:
-                fetch_status['running'] = True
                 fetch_status['message'] = '开始抓取论文...'
-                fetch_status['progress'] = 0
-                fetch_status['total'] = 0
-                fetch_status['current_keyword'] = ''
                 fetch_status['last_update'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
             logger.info("=" * 60)
             logger.info("开始抓取论文数据（通过/api/fetch接口）...")
             logger.info("=" * 60)
             
-            # 获取脚本路径
-            script_path = os.path.join(os.path.dirname(__file__), 'fetch_new_data.py')
-            if not os.path.exists(script_path):
-                raise FileNotFoundError(f"脚本文件不存在: {script_path}")
+            # 直接导入并调用 fetch_papers 函数，传递 fetch_status 和 fetch_status_lock
+            # 这样可以实时更新状态，而不需要解析 stdout
+            from fetch_new_data import fetch_papers
             
-            logger.info(f"执行命令: python3 {script_path} --papers")
+            logger.info("调用 fetch_papers() 函数...")
             
-            # 通过subprocess执行命令，实时捕获输出
-            process = subprocess.Popen(
-                [sys.executable, script_path, '--papers'],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT,
-                text=True,
-                bufsize=1,  # 行缓冲
-                universal_newlines=True
-            )
+            # 调用函数，传递状态更新参数
+            fetch_papers(fetch_status=fetch_status, fetch_status_lock=fetch_status_lock)
             
-            # 实时读取输出并更新进度
-            current_keyword = ''
-            total_keywords = 0
-            current_progress = 0
-            
-            for line in process.stdout:
-                line = line.strip()
-                if line:
-                    logger.info(f"抓取输出: {line}")
-                    
-                    # 解析输出，提取进度信息
-                    # 例如："正在抓取 Perception (1/9)..." 或 "Keyword: Perception (1/9)"
-                    if '正在抓取' in line or 'Keyword:' in line:
-                        # 尝试提取类别和进度
-                        import re
-                        # 匹配 "正在抓取 {类别} ({进度}/{总数})..."
-                        match = re.search(r'正在抓取\s+(\w+)\s+\((\d+)/(\d+)\)', line)
-                        if not match:
-                            match = re.search(r'Keyword:\s+(\w+)\s+\((\d+)/(\d+)\)', line)
-                        
-                        if match:
-                            keyword = match.group(1)
-                            progress = int(match.group(2))
-                            total = int(match.group(3))
-                            
-                            with fetch_status_lock:
-                                fetch_status['current_keyword'] = keyword
-                                fetch_status['message'] = f'正在抓取 {keyword} ({progress}/{total})...'
-                                fetch_status['progress'] = progress
-                                fetch_status['total'] = total
-                            current_keyword = keyword
-                            current_progress = progress
-                            total_keywords = total
-                    
-                    # 如果检测到"GET daily papers begin"，说明开始抓取
-                    if 'GET daily papers begin' in line:
-                        with fetch_status_lock:
-                            fetch_status['message'] = '准备开始抓取论文...'
-                    
-                    # 如果检测到完成信息
-                    if '论文抓取完成' in line or 'GET daily papers end' in line:
-                        with fetch_status_lock:
-                            fetch_status['message'] = '抓取完成！'
-                            if total_keywords > 0:
-                                fetch_status['progress'] = total_keywords
-            
-            # 等待进程完成
-            return_code = process.wait()
-            
-            if return_code != 0:
-                raise Exception(f"抓取脚本执行失败，返回码: {return_code}")
-            
+            # 任务完成，更新状态
             with fetch_status_lock:
                 fetch_status['message'] = '抓取完成！'
-                if total_keywords > 0:
-                    fetch_status['progress'] = total_keywords
+                fetch_status['running'] = False  # 关键：标记任务已完成
+                fetch_status['current_keyword'] = ''
                 fetch_status['last_update'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
             
             logger.info("=" * 60)
@@ -2495,6 +2486,58 @@ def start_scheduler():
                     )
                     logger.info(f"定时任务已配置 ({job_name}): {cron_expr}")
         
+        # 配置全量抓取定时任务（每天凌晨2点执行，避免与关键词抓取冲突）
+        try:
+            def scheduled_full_fetch():
+                """定时全量抓取论文任务 - 使用宽泛关键词查询"""
+                global fetch_status
+                if fetch_status['running']:
+                    logger.info("全量抓取任务跳过：已有任务正在运行")
+                    return
+                
+                try:
+                    logger.info("=" * 60)
+                    logger.info("开始执行定时全量论文抓取任务...")
+                    logger.info("=" * 60)
+                    
+                    from scripts.full_fetch_papers import fetch_full_papers
+                    fetch_full_papers(days_back=3, max_results_per_query=100)
+                    
+                    logger.info("=" * 60)
+                    logger.info("定时全量论文抓取任务完成")
+                    logger.info("=" * 60)
+                except Exception as e:
+                    logger.error("=" * 60)
+                    logger.error(f"定时全量论文抓取任务失败: {e}")
+                    logger.error("=" * 60)
+                    import traceback
+                    logger.error(traceback.format_exc())
+            
+            # 每天凌晨2点执行全量抓取（避免与关键词抓取和Semantic Scholar更新冲突）
+            full_fetch_schedule = os.getenv('AUTO_FETCH_FULL_SCHEDULE', '0 2 * * *')
+            if full_fetch_schedule:
+                parts = full_fetch_schedule.split()
+                if len(parts) == 5:
+                    minute, hour, day, month, weekday = parts
+                    scheduler.add_job(
+                        scheduled_full_fetch,
+                        trigger=CronTrigger(
+                            minute=minute,
+                            hour=hour,
+                            day=day,
+                            month=month,
+                            day_of_week=weekday
+                        ),
+                        id='daily_full_fetch_papers',
+                        name='每天全量论文抓取',
+                        replace_existing=True
+                    )
+                    logger.info(f"全量抓取定时任务已配置: {full_fetch_schedule}")
+        except Exception as e:
+            logger.warning(f"配置全量抓取定时任务失败: {e}")
+            import traceback
+            logger.warning(traceback.format_exc())
+        
         # 配置招聘信息抓取定时任务（使用cron表达式，可选）
         try:
             # 支持通过环境变量自定义招聘信息抓取时间（cron表达式）
@@ -2588,47 +2631,142 @@ def start_scheduler():
             import traceback
             logger.warning(traceback.format_exc())
         
-        # 配置Semantic Scholar数据更新定时任务（每天凌晨3点执行）
+        # 配置B站数据抓取定时任务（每6小时执行一次，避免触发风控）
         try:
-            def scheduled_update_semantic_scholar():
-                """定时更新Semantic Scholar数据任务"""
+            def scheduled_fetch_bilibili():
+                """定时抓取B站数据任务"""
                 try:
-                    logger.info("开始执行定时Semantic Scholar数据更新任务...")
-                    from update_semantic_scholar_data import update_all_papers
-                    # 每次更新100篇论文（避免一次性更新太多导致API限制）
-                    # 只更新没有Semantic Scholar数据的论文
-                    update_all_papers(limit=100, skip_existing=True)
+                    logger.info("=" * 60)
+                    logger.info("开始执行定时B站数据抓取任务...")
+                    logger.info("=" * 60)
+                    from fetch_bilibili_data import fetch_all_bilibili_data
+                    # 使用较长的延迟避免触发风控
+                    fetch_all_bilibili_data(video_count=50, delay_between_requests=2.0)
+                    logger.info("=" * 60)
+                    logger.info("定时B站数据抓取任务完成")
+                    logger.info("=" * 60)
+                except Exception as e:
+                    logger.error("=" * 60)
+                    logger.error(f"定时B站数据抓取任务失败: {e}")
+                    logger.error("=" * 60)
+                    import traceback
+                    logger.error(traceback.format_exc())
+            
+            # 支持通过环境变量自定义B站数据抓取的cron表达式
+            # 格式：分钟 小时 日 月 星期，如 "0 */6 * * *" 表示每6小时执行一次
+            # 如果环境变量未设置，默认每6小时执行一次（避免触发风控）
+            bilibili_schedule_cron = os.getenv('AUTO_FETCH_BILIBILI_SCHEDULE', '0 */6 * * *')  # 默认每6小时执行
+            
+            # 解析 cron 表达式（支持多个，用分号分隔）
+            if bilibili_schedule_cron:
+                cron_list = bilibili_schedule_cron.split(';')
+                for idx, cron_expr in enumerate(cron_list):
+                    cron_expr = cron_expr.strip()
+                    if not cron_expr:
+                        continue
+                    parts = cron_expr.split()
+                    if len(parts) == 5:
+                        minute, hour, day, month, weekday = parts
+                        job_id = f'hourly_fetch_bilibili_{idx}'
+                        job_name = f'B站数据抓取_{idx+1}'
+                        scheduler.add_job(
+                            scheduled_fetch_bilibili,
+                            trigger=CronTrigger(
+                                minute=minute,
+                                hour=hour,
+                                day=day,
+                                month=month,
+                                day_of_week=weekday
+                            ),
+                            id=job_id,
+                            name=job_name,
+                            replace_existing=True
+                        )
+                        logger.info(f"B站数据抓取定时任务已配置 ({job_name}): {cron_expr}")
+        except Exception as e:
+            logger.warning(f"配置B站数据抓取定时任务失败: {e}")
+            import traceback
+            logger.warning(traceback.format_exc())
+        
+        # 配置Semantic Scholar数据更新定时任务（支持增量更新）
+        try:
+            # 每天凌晨3点：更新最近30天的论文（增量更新）
+            def scheduled_update_recent_semantic_scholar():
+                """定时更新最近30天的Semantic Scholar数据（增量更新）"""
+                try:
+                    logger.info("开始执行定时Semantic Scholar数据更新任务（最近30天，增量更新）...")
+                    from scripts.improve_semantic_update import update_recent_papers
+                    update_limit = int(os.getenv('SEMANTIC_UPDATE_LIMIT', 200))
+                    update_recent_papers(days=30, limit=update_limit)
                     logger.info("定时Semantic Scholar数据更新任务完成")
                 except Exception as e:
                     logger.error(f"定时Semantic Scholar数据更新任务失败: {e}")
+                    import traceback
+                    logger.error(traceback.format_exc())
             
-            # 每天凌晨3点执行一次（避免与论文抓取任务冲突）
-            # 可以通过环境变量 SEMANTIC_UPDATE_LIMIT 自定义每次更新的数量（默认200篇）
+            # 每周日凌晨3点：更新最近90天的论文（增量更新）
+            def scheduled_update_weekly_semantic_scholar():
+                """定时更新最近90天的Semantic Scholar数据（增量更新）"""
+                try:
+                    logger.info("开始执行定时Semantic Scholar数据更新任务（最近90天，增量更新）...")
+                    from scripts.improve_semantic_update import update_recent_papers
+                    update_recent_papers(days=90, limit=500)
+                    logger.info("定时Semantic Scholar数据更新任务完成")
+                except Exception as e:
+                    logger.error(f"定时Semantic Scholar数据更新任务失败: {e}")
+                    import traceback
+                    logger.error(traceback.format_exc())
+            
+            # 每月1日凌晨3点：更新所有论文（增量更新）
+            def scheduled_update_monthly_semantic_scholar():
+                """定时更新所有论文的Semantic Scholar数据（增量更新）"""
+                try:
+                    logger.info("开始执行定时Semantic Scholar数据更新任务（所有论文，增量更新）...")
+                    from scripts.improve_semantic_update import update_all_papers_incremental
+                    update_all_papers_incremental(limit=1000, skip_recent=True)
+                    logger.info("定时Semantic Scholar数据更新任务完成")
+                except Exception as e:
+                    logger.error(f"定时Semantic Scholar数据更新任务失败: {e}")
+                    import traceback
+                    logger.error(traceback.format_exc())
+            
             update_limit = int(os.getenv('SEMANTIC_UPDATE_LIMIT', 200))
             
-            # 修改函数以使用配置的limit
-            def scheduled_update_semantic_scholar_with_limit():
-                """定时更新Semantic Scholar数据任务（带配置的limit）"""
-                try:
-                    logger.info(f"开始执行定时Semantic Scholar数据更新任务（每次{update_limit}篇）...")
-                    from update_semantic_scholar_data import update_all_papers
-                    # 每次更新指定数量的论文（避免一次性更新太多导致API限制）
-                    # 只更新没有Semantic Scholar数据的论文
-                    update_all_papers(limit=update_limit, skip_existing=True)
-                    logger.info("定时Semantic Scholar数据更新任务完成")
-                except Exception as e:
-                    logger.error(f"定时Semantic Scholar数据更新任务失败: {e}")
-            
+            # 每天凌晨3点：更新最近30天的论文
             scheduler.add_job(
-                scheduled_update_semantic_scholar_with_limit,
+                scheduled_update_recent_semantic_scholar,
                 trigger=CronTrigger(hour=3, minute=0),
-                id='daily_update_semantic_scholar',
-                name='每天Semantic Scholar数据更新',
+                id='daily_update_semantic_scholar_recent',
+                name='每天Semantic Scholar数据更新（最近30天）',
                 replace_existing=True
             )
-            logger.info(f"Semantic Scholar数据更新定时任务已配置: 每天凌晨3点执行，每次更新{update_limit}篇")
+            
+            # 每周日凌晨3点：更新最近90天的论文
+            scheduler.add_job(
+                scheduled_update_weekly_semantic_scholar,
+                trigger=CronTrigger(day_of_week=6, hour=3, minute=0),  # 周日 = 6
+                id='weekly_update_semantic_scholar',
+                name='每周Semantic Scholar数据更新（最近90天）',
+                replace_existing=True
+            )
+            
+            # 每月1日凌晨3点：更新所有论文
+            scheduler.add_job(
+                scheduled_update_monthly_semantic_scholar,
+                trigger=CronTrigger(day=1, hour=3, minute=0),
+                id='monthly_update_semantic_scholar',
+                name='每月Semantic Scholar数据更新（所有论文）',
+                replace_existing=True
+            )
+            
+            logger.info(f"Semantic Scholar数据更新定时任务已配置:")
+            logger.info(f"  - 每天凌晨3点：更新最近30天的论文（每次{update_limit}篇）")
+            logger.info(f"  - 每周日凌晨3点：更新最近90天的论文（每次500篇）")
+            logger.info(f"  - 每月1日凌晨3点：更新所有论文（每次1000篇，跳过7天内已更新的）")
         except Exception as e:
             logger.warning(f"配置Semantic Scholar数据更新定时任务失败: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
         
         scheduler.start()
         return scheduler
@@ -2641,6 +2779,13 @@ def start_scheduler():
         return None
 
 if __name__ == '__main__':
+    # 确保加载.env文件
+    try:
+        from dotenv import load_dotenv
+        load_dotenv()
+    except ImportError:
+        pass
+    
     # 确保数据库已初始化
     try:
         init_db()

@@ -8,7 +8,12 @@ import logging
 import json
 from utils import is_duplicate_title
 from taxonomy import normalize_category
-from scripts.reclassify_all_papers import classify_paper_by_keywords
+# 优先使用改进的分类算法
+try:
+    from scripts.improved_classifier import classify_paper_by_keywords_improved as classify_paper_by_keywords
+except ImportError:
+    # 如果改进版本不存在，使用原版本
+    from scripts.reclassify_all_papers import classify_paper_by_keywords
 
 logger = logging.getLogger(__name__)
 
