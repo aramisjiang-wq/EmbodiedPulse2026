@@ -10,11 +10,14 @@ env/
 ENV/
 .venv
 
-# 数据库文件
+# 数据库文件（重要：不要推送数据库文件到GitHub，避免覆盖服务器数据）
 *.db
 *.db-journal
 *.sqlite
 *.sqlite3
+# 备份目录（包含数据库备份）
+backups/
+instance/*.db
 
 # 环境变量和配置
 .env
