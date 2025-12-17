@@ -66,9 +66,13 @@ function handleTokenCallback() {
         // 清除URL中的token参数
         window.history.replaceState({}, '', '/login');
         
-        // 跳转到主页或个人中心
+        // 获取保存的跳转地址，如果没有则跳转到主页
+        const redirectUrl = localStorage.getItem('redirect_after_login') || '/';
+        localStorage.removeItem('redirect_after_login');
+        
+        // 跳转到目标页面
         setTimeout(() => {
-            window.location.href = '/';
+            window.location.href = redirectUrl;
         }, 500);
     }
 }

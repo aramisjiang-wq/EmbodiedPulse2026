@@ -844,41 +844,16 @@
                     <a href="https://paj5uamwttr.feishu.cn/share/base/form/shrcnYlYb0NorOBVv2P8xRAArDe" target="_blank" class="nav-tab">
                         <span>产品反馈</span>
                     </a>
-                </div>
-                
-                <!-- 用户菜单 -->
-                <div class="user-menu" id="userMenu">
-                    <!-- 未登录状态 -->
-                    <a href="/login" class="login-btn" id="loginBtn">
+                    
+                    <!-- 个人中心/登录按钮 - 右对齐 -->
+                    <a href="/login" class="nav-tab nav-tab-right" id="userLoginBtn">
                         <i class="fas fa-sign-in-alt"></i>
                         <span>登录</span>
                     </a>
-                    
-                    <!-- 已登录状态 -->
-                    <div class="user-profile" id="userProfile" style="display: none;">
-                        <div class="user-avatar" id="userAvatar">
-                            <i class="fas fa-user"></i>
-                        </div>
-                        <div class="user-dropdown">
-                            <div class="user-info">
-                                <div class="user-name" id="userName">加载中...</div>
-                            </div>
-                            <div class="dropdown-divider"></div>
-                            <a href="/profile" class="dropdown-item">
-                                <i class="fas fa-user-circle"></i>
-                                <span>个人中心</span>
-                            </a>
-                            <a href="/admin/dashboard" class="dropdown-item" id="adminLink" style="display: none;">
-                                <i class="fas fa-crown"></i>
-                                <span>管理后台</span>
-                            </a>
-                            <div class="dropdown-divider"></div>
-                            <a href="javascript:void(0)" class="dropdown-item" id="logoutBtn">
-                                <i class="fas fa-sign-out-alt"></i>
-                                <span>退出登录</span>
-                            </a>
-                        </div>
-                    </div>
+                    <a href="/profile" class="nav-tab nav-tab-right" id="userProfileBtn" style="display: none;">
+                        <i class="fas fa-user-circle"></i>
+                        <span id="userNameText">加载中...</span>
+                    </a>
                 </div>
             </nav>
         </div>

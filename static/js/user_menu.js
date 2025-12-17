@@ -1,25 +1,38 @@
 /**
- * 用户菜单 - 全局用户登录状态和菜单
+ * 用户认证和导航栏管理
+ * 功能：强制登录检测 + 用户按钮状态更新
  */
 
-// 检查用户登录状态并更新UI
-async function checkUserLoginStatus() {
-    const token = localStorage.getItem('auth_token');
-    const loginBtn = document.getElementById('loginBtn');
-    const userProfile = document.getElementById('userProfile');
-    const userName = document.getElementById('userName');
-    const userAvatar = document.getElementById('userAvatar');
-    const adminLink = document.getElementById('adminLink');
-    
-    if (!token) {
-        // 未登录
-        if (loginBtn) loginBtn.style.display = 'flex';
-        if (userProfile) userProfile.style.display = 'none';
-        return;
+// 获取当前页面路径
+const currentPath = window.location.pathname;
+
+// 不需要强制登录的页面（白名单）
+const publicPages = ['/login', '/auth/callback', '/admin/login', '/test'];
+
+// 检查是否是公开页面
+function isPublicPage() {
+    return publicPages.some(page => currentPath.startsWith(page));
+}
+
+// 强制登录检测
+async function checkAuthRequired() {
+    // 如果是公开页面，不需要检测
+    if (isPublicPage()) {
+        return true;
     }
     
+    const token = localStorage.getItem('auth_token');
+    
+    if (!token) {
+        // 未登录，保存当前页面，跳转到登录页
+        console.log('未登录，跳转到登录页');
+        localStorage.setItem('redirect_after_login', currentPath + window.location.search);
+        window.location.href = '/login';
+        return false;
+    }
+    
+    // 验证token是否有效
     try {
-        // 验证token并获取用户信息
         const response = await fetch('/api/user/profile', {
             headers: {
                 'Authorization': `Bearer ${token}`
@@ -27,103 +40,84 @@ async function checkUserLoginStatus() {
         });
         
         if (!response.ok) {
-            // Token无效，清除并显示登录按钮
+            // Token无效，清除并跳转登录
+            console.log('Token无效，跳转到登录页');
             localStorage.removeItem('auth_token');
-            if (loginBtn) loginBtn.style.display = 'flex';
-            if (userProfile) userProfile.style.display = 'none';
-            return;
+            localStorage.setItem('redirect_after_login', currentPath + window.location.search);
+            window.location.href = '/login';
+            return false;
         }
         
-        const data = await response.json();
-        
-        if (data.success && data.user) {
-            // 已登录，显示用户信息
-            if (loginBtn) loginBtn.style.display = 'none';
-            if (userProfile) userProfile.style.display = 'flex';
-            if (userName) userName.textContent = data.user.name || '用户';
-            
-            // 如果有头像，显示头像
-            if (data.user.avatar_url && userAvatar) {
-                userAvatar.innerHTML = `<img src="${data.user.avatar_url}" alt="${data.user.name}">`;
-            }
-            
-            // 如果是管理员，显示管理后台链接
-            if (adminLink && (data.user.role === 'admin' || data.user.role === 'super_admin')) {
-                adminLink.style.display = 'flex';
-            }
-        } else {
-            // 数据格式错误
-            localStorage.removeItem('auth_token');
-            if (loginBtn) loginBtn.style.display = 'flex';
-            if (userProfile) userProfile.style.display = 'none';
-        }
+        return true;
     } catch (error) {
-        console.error('检查登录状态失败:', error);
-        // 网络错误，保持当前状态（不清除token）
+        console.error('验证登录失败:', error);
+        return true; // 网络错误时不阻止访问
     }
 }
 
-// 退出登录
-async function handleLogout() {
+// 更新导航栏用户按钮
+async function updateUserButton() {
+    const loginBtn = document.getElementById('userLoginBtn');
+    const profileBtn = document.getElementById('userProfileBtn');
+    const userNameText = document.getElementById('userNameText');
+    
+    if (!loginBtn || !profileBtn) {
+        return; // 页面上没有这些元素
+    }
+    
     const token = localStorage.getItem('auth_token');
     
-    if (token) {
-        try {
-            // 调用退出API
-            await fetch('/api/auth/logout', {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${token}`
+    if (!token) {
+        // 未登录状态
+        loginBtn.style.display = 'flex';
+        profileBtn.style.display = 'none';
+        return;
+    }
+    
+    try {
+        // 获取用户信息
+        const response = await fetch('/api/user/profile', {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            if (data.success && data.user) {
+                // 已登录，显示用户名
+                if (userNameText) {
+                    userNameText.textContent = data.user.name || '用户';
                 }
-            });
-        } catch (error) {
-            console.error('退出登录失败:', error);
+                loginBtn.style.display = 'none';
+                profileBtn.style.display = 'flex';
+            } else {
+                // 数据格式错误
+                loginBtn.style.display = 'flex';
+                profileBtn.style.display = 'none';
+            }
+        } else {
+            // Token无效
+            localStorage.removeItem('auth_token');
+            loginBtn.style.display = 'flex';
+            profileBtn.style.display = 'none';
         }
+    } catch (error) {
+        console.error('获取用户信息失败:', error);
+        // 网络错误，显示登录按钮
+        loginBtn.style.display = 'flex';
+        profileBtn.style.display = 'none';
     }
-    
-    // 清除token
-    localStorage.removeItem('auth_token');
-    
-    // 刷新页面
-    window.location.reload();
 }
 
-// 用户头像点击事件（显示/隐藏下拉菜单）
-function toggleUserDropdown(event) {
-    event.stopPropagation();
-    const userProfile = document.getElementById('userProfile');
-    if (userProfile) {
-        userProfile.classList.toggle('active');
-    }
-}
-
-// 点击页面其他地方关闭下拉菜单
-document.addEventListener('click', function(event) {
-    const userProfile = document.getElementById('userProfile');
-    const userAvatar = document.getElementById('userAvatar');
+// 页面加载时执行
+document.addEventListener('DOMContentLoaded', async function() {
+    // 1. 先执行强制登录检测
+    const isAuthenticated = await checkAuthRequired();
     
-    if (userProfile && userAvatar) {
-        if (!userProfile.contains(event.target) && !userAvatar.contains(event.target)) {
-            userProfile.classList.remove('active');
-        }
-    }
-});
-
-// 页面加载时初始化
-document.addEventListener('DOMContentLoaded', function() {
-    // 检查登录状态
-    checkUserLoginStatus();
-    
-    // 绑定退出登录按钮
-    const logoutBtn = document.getElementById('logoutBtn');
-    if (logoutBtn) {
-        logoutBtn.addEventListener('click', handleLogout);
-    }
-    
-    // 绑定用户头像点击事件
-    const userAvatar = document.getElementById('userAvatar');
-    if (userAvatar) {
-        userAvatar.addEventListener('click', toggleUserDropdown);
+    // 2. 如果通过验证，更新导航栏按钮
+    if (isAuthenticated) {
+        updateUserButton();
     }
 });
 
