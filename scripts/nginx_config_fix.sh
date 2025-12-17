@@ -91,22 +91,9 @@ server {
         proxy_set_header X-Forwarded-Proto $scheme;
     }
 
-    # 登录页面（如果用户从bilibili页面跳转过来）- 精确匹配
+    # 登录页面 - 直接跳转到专门的登录域名（更简单可靠）
     location = /login {
-        proxy_pass http://127.0.0.1:5001;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-    
-    # 登录页面的其他路径（如 /login/xxx）
-    location ~ ^/login/ {
-        proxy_pass http://127.0.0.1:5001;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
+        return 301 http://login.gradmotion.com/login;
     }
 
     # 视频页面
