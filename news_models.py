@@ -90,8 +90,15 @@ def get_news_session():
 def init_news_db():
     """初始化新闻数据库（创建表）"""
     engine = get_news_engine()
-    Base.metadata.create_all(engine)
-    print("新闻数据库表创建成功！")
+    try:
+        Base.metadata.create_all(engine, checkfirst=True)
+        print("新闻数据库表创建成功！")
+    except Exception as e:
+        # 如果索引已存在，忽略错误（PostgreSQL中索引可能已存在）
+        if 'already exists' in str(e).lower() or 'duplicate' in str(e).lower():
+            print(f"⚠️  部分索引已存在，跳过创建: {e}")
+        else:
+            raise
 
 
 

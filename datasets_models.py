@@ -98,6 +98,13 @@ def get_datasets_session():
 def init_datasets_db():
     """初始化数据集数据库（创建表）"""
     engine = get_datasets_engine()
-    Base.metadata.create_all(engine)
-    print("数据集数据库表创建成功！")
+    try:
+        Base.metadata.create_all(engine, checkfirst=True)
+        print("数据集数据库表创建成功！")
+    except Exception as e:
+        # 如果索引已存在，忽略错误（PostgreSQL中索引可能已存在）
+        if 'already exists' in str(e).lower() or 'duplicate' in str(e).lower():
+            print(f"⚠️  部分索引已存在，跳过创建: {e}")
+        else:
+            raise
 
