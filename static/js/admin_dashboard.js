@@ -375,7 +375,7 @@ function showToast(message, type = 'info') {
 document.addEventListener('DOMContentLoaded', async () => {
     // 验证身份并加载管理员信息
     try {
-        const response = await fetch('/api/user/profile', {
+        const response = await fetch('/api/admin/profile', {
             headers: {
                 'Authorization': `Bearer ${token}`
             }

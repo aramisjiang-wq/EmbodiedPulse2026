@@ -288,6 +288,11 @@ def profile_page():
     """个人中心页面"""
     return render_template('profile.html')
 
+@app.route('/auth/callback')
+def auth_callback_page():
+    """登录成功回调页面"""
+    return render_template('auth_callback.html')
+
 @app.route('/test')
 def test_page():
     """快速测试页面"""

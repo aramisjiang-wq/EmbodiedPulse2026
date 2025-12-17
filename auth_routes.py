@@ -92,7 +92,7 @@ def feishu_callback():
             return redirect('/?error=invalid_state')
         
         state_data = _state_storage.pop(state)
-        final_redirect = state_data.get('redirect_uri', '/')
+        final_redirect = state_data.get('redirect_uri', '/auth/callback')
         
         # 获取用户信息
         feishu_auth = get_feishu_auth()
@@ -554,6 +554,50 @@ def admin_login():
         return jsonify({
             'success': False,
             'message': f'登录失败: {str(e)}'
+        }), 500
+
+
+@admin_bp.route('/profile', methods=['GET'])
+@admin_required
+def get_admin_profile():
+    """
+    获取管理员个人信息
+    
+    GET /api/admin/profile
+    Header: Authorization: Bearer <token>
+    """
+    try:
+        user = get_current_user()
+        
+        # 管理员信息
+        user_data = {
+            'id': user.id,
+            'name': user.name,
+            'role': user.role,
+            'status': user.status
+        }
+        
+        # 如果是admin_users表的管理员，返回username
+        if hasattr(user, 'username'):
+            user_data['username'] = user.username
+            user_data['email'] = user.email
+        # 如果是auth_users表的管理员（飞书登录的管理员）
+        else:
+            user_data['email'] = user.email
+            user_data['feishu_id'] = user.feishu_id
+        
+        logger.info(f"获取管理员信息成功 - user_id: {user.id}")
+        
+        return jsonify({
+            'success': True,
+            'user': user_data
+        })
+        
+    except Exception as e:
+        logger.error(f"获取管理员信息失败: {e}")
+        return jsonify({
+            'success': False,
+            'message': f'获取管理员信息失败: {str(e)}'
         }), 500
 
 

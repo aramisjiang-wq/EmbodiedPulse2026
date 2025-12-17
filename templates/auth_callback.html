@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>登录成功 - Embodied Pulse</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .container {
+            background: white;
+            padding: 60px 40px;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            text-align: center;
+            max-width: 500px;
+            width: 90%;
+            animation: slideUp 0.5s ease;
+        }
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .success-icon {
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 24px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            animation: scaleIn 0.5s ease 0.2s both;
+        }
+        @keyframes scaleIn {
+            from { transform: scale(0); }
+            to { transform: scale(1); }
+        }
+        .success-icon svg {
+            width: 50px;
+            height: 50px;
+            stroke: white;
+            stroke-width: 3;
+            fill: none;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+        h1 {
+            color: #333;
+            font-size: 28px;
+            margin-bottom: 16px;
+        }
+        .message {
+            color: #666;
+            font-size: 16px;
+            margin-bottom: 32px;
+            line-height: 1.6;
+        }
+        .countdown {
+            font-size: 14px;
+            color: #999;
+            margin-top: 24px;
+        }
+        .countdown strong {
+            color: #667eea;
+            font-size: 18px;
+        }
+        .btn {
+            display: inline-block;
+            padding: 14px 32px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            transition: all 0.3s;
+            margin-top: 16px;
+        }
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(102,126,234,0.4);
+        }
+        .error {
+            color: #c62828;
+            background: #ffebee;
+            padding: 16px;
+            border-radius: 8px;
+            margin-top: 24px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="success-icon">
+            <svg viewBox="0 0 24 24">
+                <polyline points="20 6 9 17 4 12"></polyline>
+            </svg>
+        </div>
+        
+        <h1>🎉 登录成功！</h1>
+        <p class="message" id="message">正在为您跳转...</p>
+        
+        <div class="countdown">
+            <strong id="countdown">3</strong> 秒后自动跳转到个人中心
+        </div>
+        
+        <a href="/profile" class="btn" id="manual-btn" style="display:none;">立即进入</a>
+        
+        <div id="error" class="error" style="display:none;"></div>
+    </div>
+    
+    <script>
+        // 获取URL参数中的token
+        const urlParams = new URLSearchParams(window.location.search);
+        const token = urlParams.get('token');
+        const messageDiv = document.getElementById('message');
+        const countdownSpan = document.getElementById('countdown');
+        const manualBtn = document.getElementById('manual-btn');
+        const errorDiv = document.getElementById('error');
+        
+        if (!token) {
+            // 没有token，显示错误
+            messageDiv.textContent = '登录验证失败，未获取到认证信息';
+            errorDiv.textContent = '请返回登录页面重新登录';
+            errorDiv.style.display = 'block';
+            document.querySelector('.countdown').style.display = 'none';
+        } else {
+            // 保存token到localStorage
+            localStorage.setItem('auth_token', token);
+            
+            // 验证token并获取用户信息
+            fetch('/api/user/profile', {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success && data.user) {
+                    messageDiv.textContent = `欢迎回来，${data.user.name}！`;
+                } else {
+                    messageDiv.textContent = '登录成功！';
+                }
+            })
+            .catch(err => {
+                console.error('获取用户信息失败:', err);
+                messageDiv.textContent = '登录成功！';
+            });
+            
+            // 倒计时跳转
+            let seconds = 3;
+            const timer = setInterval(() => {
+                seconds--;
+                countdownSpan.textContent = seconds;
+                
+                if (seconds <= 0) {
+                    clearInterval(timer);
+                    window.location.href = '/profile';
+                }
+            }, 1000);
+            
+            // 显示手动跳转按钮
+            setTimeout(() => {
+                manualBtn.style.display = 'inline-block';
+            }, 1000);
+        }
+        
+        // 清除URL中的token参数（安全考虑）
+        if (token) {
+            window.history.replaceState({}, '', '/auth/callback');
+        }
+    </script>
+</body>
+</html>
+
