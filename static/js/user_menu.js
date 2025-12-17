@@ -7,7 +7,7 @@
 const currentPath = window.location.pathname;
 
 // 不需要强制登录的页面（白名单）
-const publicPages = ['/login', '/auth/callback', '/admin/login', '/test', '/bilibili'];
+const publicPages = ['/login', '/auth/callback', '/admin/login', '/test'];
 
 // 检查是否是公开页面
 function isPublicPage() {
@@ -77,7 +77,12 @@ async function checkAuthRequired() {
         return true;
     } catch (error) {
         console.error('验证登录失败:', error);
-        return true; // 网络错误时不阻止访问
+        // 网络错误时也要求登录，避免未授权访问
+        console.log('网络错误，跳转到登录页');
+        localStorage.removeItem('auth_token');
+        localStorage.setItem('redirect_after_login', currentPath + window.location.search);
+        window.location.href = '/login';
+        return false;
     }
 }
 
