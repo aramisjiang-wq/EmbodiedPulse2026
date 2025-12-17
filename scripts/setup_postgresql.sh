@@ -8,7 +8,7 @@ DB_NAME="embodied_pulse"
 DB_USER="embodied_user"
 
 # ⚠️ 重要：请修改为你的强密码（包含大小写字母、数字、特殊字符）
-DB_PASSWORD="ChangeThisPassword123!"
+DB_PASSWORD="MyStrongPass123!@#"
 
 # 颜色定义
 GREEN='\033[0;32m'
@@ -159,7 +159,9 @@ echo "=========================================="
 echo "5. 初始化PostgreSQL表结构"
 echo "=========================================="
 
-export DATABASE_URL="postgresql://$DB_USER:$DB_PASSWORD@localhost:5432/$DB_NAME"
+# 对密码进行URL编码，避免特殊字符问题
+ENCODED_PASSWORD=$(python3 -c "import urllib.parse; print(urllib.parse.quote('$DB_PASSWORD', safe=''))")
+export DATABASE_URL="postgresql://$DB_USER:$ENCODED_PASSWORD@localhost:5432/$DB_NAME"
 
 python3 init_database.py
 
@@ -195,8 +197,11 @@ echo "=========================================="
 # 备份.env文件
 cp .env .env.backup.$(date +%Y%m%d_%H%M%S)
 
-# 更新DATABASE_URL
-sed -i "s|DATABASE_URL=sqlite:///./papers.db|DATABASE_URL=postgresql://$DB_USER:$DB_PASSWORD@localhost:5432/$DB_NAME|" .env
+# 对密码进行URL编码
+ENCODED_PASSWORD=$(python3 -c "import urllib.parse; print(urllib.parse.quote('$DB_PASSWORD', safe=''))")
+
+# 更新DATABASE_URL（使用编码后的密码）
+sed -i "s|DATABASE_URL=sqlite:///./papers.db|DATABASE_URL=postgresql://$DB_USER:$ENCODED_PASSWORD@localhost:5432/$DB_NAME|" .env
 
 # 验证更新
 if grep -q "postgresql://" .env; then
@@ -233,7 +238,9 @@ echo "=========================================="
 
 python3 << EOF
 import os
-os.environ['DATABASE_URL'] = 'postgresql://$DB_USER:$DB_PASSWORD@localhost:5432/$DB_NAME'
+import urllib.parse
+encoded_password = urllib.parse.quote('$DB_PASSWORD', safe='')
+os.environ['DATABASE_URL'] = f'postgresql://$DB_USER:{encoded_password}@localhost:5432/$DB_NAME'
 
 try:
     from models import get_session, Paper
