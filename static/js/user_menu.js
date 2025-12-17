@@ -14,12 +14,38 @@ function isPublicPage() {
     return publicPages.some(page => currentPath.startsWith(page));
 }
 
+// 从URL参数中提取并保存token（如果存在）
+function extractAndSaveTokenFromUrl() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const token = urlParams.get('token');
+    
+    if (token) {
+        console.log('✅ 从URL参数中提取到token，正在保存...');
+        localStorage.setItem('auth_token', token);
+        
+        // 清除URL中的token参数（安全考虑）
+        const cleanUrl = window.location.pathname + 
+            (urlParams.toString().replace(/token=[^&]+&?/, '').replace(/&$/, '') ? 
+             '?' + urlParams.toString().replace(/token=[^&]+&?/, '').replace(/&$/, '') : 
+             '');
+        window.history.replaceState({}, '', cleanUrl);
+        
+        console.log('✅ Token已保存并清除URL参数');
+        return true;
+    }
+    
+    return false;
+}
+
 // 强制登录检测
 async function checkAuthRequired() {
     // 如果是公开页面，不需要检测
     if (isPublicPage()) {
         return true;
     }
+    
+    // 先从URL参数中提取token（如果有）
+    extractAndSaveTokenFromUrl();
     
     const token = localStorage.getItem('auth_token');
     

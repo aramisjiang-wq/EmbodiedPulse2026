@@ -135,6 +135,12 @@
         } else {
             // 保存token到localStorage
             localStorage.setItem('auth_token', token);
+            console.log('✅ Token已保存:', token.substring(0, 20) + '...');
+            
+            // 获取要跳转的目标页面（如果没有则跳转主页）
+            const redirectUrl = localStorage.getItem('redirect_after_login') || '/';
+            localStorage.removeItem('redirect_after_login');
+            console.log('🎯 将跳转到:', redirectUrl);
             
             // 验证token并获取用户信息
             fetch('/api/user/profile', {
@@ -146,12 +152,14 @@
             .then(data => {
                 if (data.success && data.user) {
                     messageDiv.textContent = `欢迎回来，${data.user.name}！`;
+                    console.log('✅ 用户信息验证成功:', data.user.name);
                 } else {
                     messageDiv.textContent = '登录成功！';
+                    console.log('⚠️ 用户信息验证失败:', data);
                 }
             })
             .catch(err => {
-                console.error('获取用户信息失败:', err);
+                console.error('❌ 获取用户信息失败:', err);
                 messageDiv.textContent = '登录成功！';
             });
             
@@ -163,7 +171,8 @@
                 
                 if (seconds <= 0) {
                     clearInterval(timer);
-                    window.location.href = '/profile';
+                    console.log('🚀 开始跳转到:', redirectUrl);
+                    window.location.href = redirectUrl;
                 }
             }, 1000);
             

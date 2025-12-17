@@ -159,8 +159,9 @@ def feishu_callback():
         # 生成JWT token
         token = generate_token(user.id, user.role)
         
-        # 重定向到前端页面，带上token
-        redirect_url = f"{final_redirect}?token={token}"
+        # 重定向到回调成功页面，带上token
+        # 使用专门的 /auth/callback 页面来处理token保存和跳转
+        redirect_url = f"/auth/callback?token={token}"
         logger.info(f"登录成功，重定向到: {redirect_url}")
         
         return redirect(redirect_url)
