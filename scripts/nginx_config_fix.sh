@@ -93,7 +93,7 @@ server {
 
     # 登录页面 - 直接跳转到专门的登录域名（更简单可靠）
     location = /login {
-        return 301 http://login.gradmotion.com/login;
+        return 301 http://login.gradmotion.com/;
     }
 
     # 视频页面
