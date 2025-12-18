@@ -11,6 +11,9 @@
     <!-- 用户认证和登录验证 - 必须在最前面加载，确保强制登录验证生效 -->
     <script src="{{ url_for('static', filename='js/user_menu.js') }}"></script>
     
+    <!-- 导航链接修正 - 自动修正导航链接到正确的域名 -->
+    <script src="{{ url_for('static', filename='js/nav_links.js') }}"></script>
+    
     <style>
         /* B站主题色 */
         :root {
