@@ -73,7 +73,24 @@ function fixNavLink(link) {
     }
     
     // 修正链接
-    const correctUrl = getCorrectUrl(href);
+    let correctUrl = getCorrectUrl(href);
+    
+    // ✅ 修复：如果从 login.gradmotion.com 跳转到其他域名，需要通过 URL 参数传递 token
+    const currentHost = window.location.hostname;
+    const targetUrl = new URL(correctUrl);
+    const targetHost = targetUrl.hostname;
+    
+    // 如果跨域跳转（从 login.gradmotion.com 到其他域名），且目标域名不是 login.gradmotion.com
+    if (currentHost === 'login.gradmotion.com' && targetHost !== 'login.gradmotion.com') {
+        const token = localStorage.getItem('auth_token');
+        if (token) {
+            // 通过 URL 参数传递 token，目标页面会提取并保存到自己的 localStorage
+            targetUrl.searchParams.set('token', token);
+            correctUrl = targetUrl.toString();
+            console.log('🔗 [fixNavLink] 跨域跳转，添加token参数:', targetHost);
+        }
+    }
+    
     link.setAttribute('href', correctUrl);
 }
 
@@ -103,7 +120,24 @@ if (document.readyState === 'loading') {
  * @param {string} path - 相对路径（如 '/', '/login', '/bilibili'）
  */
 function navigateTo(path) {
-    const correctUrl = getCorrectUrl(path);
+    let correctUrl = getCorrectUrl(path);
+    
+    // ✅ 修复：如果从 login.gradmotion.com 跳转到其他域名，需要通过 URL 参数传递 token
+    const currentHost = window.location.hostname;
+    const targetUrl = new URL(correctUrl);
+    const targetHost = targetUrl.hostname;
+    
+    // 如果跨域跳转（从 login.gradmotion.com 到其他域名），且目标域名不是 login.gradmotion.com
+    if (currentHost === 'login.gradmotion.com' && targetHost !== 'login.gradmotion.com') {
+        const token = localStorage.getItem('auth_token');
+        if (token) {
+            // 通过 URL 参数传递 token，目标页面会提取并保存到自己的 localStorage
+            targetUrl.searchParams.set('token', token);
+            correctUrl = targetUrl.toString();
+            console.log('🔗 [navigateTo] 跨域跳转，添加token参数:', targetHost);
+        }
+    }
+    
     window.location.href = correctUrl;
 }
 
