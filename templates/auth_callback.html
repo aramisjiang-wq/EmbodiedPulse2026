@@ -162,9 +162,9 @@
             document.querySelector('.countdown').style.display = 'none';
             console.error('未获取到token，URL参数:', window.location.search);
         } else {
-            // 保存token到localStorage
+            // 保存token到localStorage（当前域名）
             localStorage.setItem('auth_token', token);
-            console.log('✅ Token已保存:', token.substring(0, 20) + '...');
+            console.log('✅ Token已保存到当前域名:', window.location.hostname, token.substring(0, 20) + '...');
             
             // 获取要跳转的目标页面
             let redirectUrl = localStorage.getItem('redirect_after_login') || '/';
@@ -187,7 +187,13 @@
                 }
             }
             
-            console.log('🎯 将跳转到:', redirectUrl);
+            // 关键修复：由于 localStorage 是域名隔离的，需要通过 URL 参数传递 token
+            // 在目标页面提取并保存到对应域名的 localStorage
+            const url = new URL(redirectUrl);
+            url.searchParams.set('token', token);
+            redirectUrl = url.toString();
+            
+            console.log('🎯 将跳转到（带token参数）:', redirectUrl);
             
             // 验证token并获取用户信息
             fetch('/api/auth/user-info', {
