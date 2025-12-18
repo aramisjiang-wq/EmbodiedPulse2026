@@ -105,7 +105,12 @@ def feishu_callback():
             for expired_state in expired_states:
                 _state_storage.pop(expired_state, None)
             logger.warning(f"已清理 {len(expired_states)} 个过期的state")
-            return redirect('/login?error=invalid_state')
+            
+            # 检查是否是过期导致的
+            if expired_states:
+                logger.info(f"可能是state过期导致，已清理 {len(expired_states)} 个过期state")
+            
+            return redirect('/login?error=invalid_state&reason=state_not_found')
         
         state_data = _state_storage.pop(state)
         final_redirect = state_data.get('redirect_uri', '/auth/callback')
