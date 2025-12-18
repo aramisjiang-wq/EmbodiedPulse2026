@@ -20,17 +20,15 @@ function extractAndSaveTokenFromUrl() {
     const token = urlParams.get('token');
     
     if (token) {
-        console.log('✅ 从URL参数中提取到token，正在保存...');
+        console.log('✅ 从URL参数中提取到token，正在保存到当前域名:', window.location.hostname);
         localStorage.setItem('auth_token', token);
         
         // 清除URL中的token参数（安全考虑）
-        const cleanUrl = window.location.pathname + 
-            (urlParams.toString().replace(/token=[^&]+&?/, '').replace(/&$/, '') ? 
-             '?' + urlParams.toString().replace(/token=[^&]+&?/, '').replace(/&$/, '') : 
-             '');
+        urlParams.delete('token');
+        const cleanUrl = window.location.pathname + (urlParams.toString() ? '?' + urlParams.toString() : '');
         window.history.replaceState({}, '', cleanUrl);
         
-        console.log('✅ Token已保存并清除URL参数');
+        console.log('✅ Token已保存到', window.location.hostname, '并清除URL参数');
         return true;
     }
     
@@ -157,6 +155,14 @@ async function updateUserButton() {
 (function() {
     // 立即执行，不等待任何事件
     (async function initAuth() {
+        // 0. 首先从URL参数中提取token（如果有，说明是从登录回调跳转过来的）
+        // 这必须在 checkAuthRequired 之前执行，因为 token 可能通过 URL 参数传递
+        const hasTokenInUrl = extractAndSaveTokenFromUrl();
+        
+        if (hasTokenInUrl) {
+            console.log('✅ 从URL参数中提取到token，已保存到当前域名的localStorage');
+        }
+        
         // 1. 先执行强制登录检测（这会阻止未登录用户访问）
         const isAuthenticated = await checkAuthRequired();
         
@@ -176,6 +182,8 @@ async function updateUserButton() {
     document.addEventListener('visibilitychange', async function() {
         if (!document.hidden) {
             // 页面变为可见时，重新检查登录状态
+            // 也检查URL参数中是否有新的token
+            extractAndSaveTokenFromUrl();
             const isAuthenticated = await checkAuthRequired();
             if (isAuthenticated) {
                 updateUserButton();
