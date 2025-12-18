@@ -18,11 +18,11 @@ echo "1️⃣  检查飞书环境变量配置..."
 if [ -f .env ]; then
     echo "✅ .env 文件存在"
     
-    # 检查必需的变量
-    source .env
-    
+    # 安全地读取 .env 文件（只读取 KEY=VALUE 格式的行）
     MISSING_VARS=()
     
+    # 读取 FEISHU_APP_ID
+    FEISHU_APP_ID=$(grep -E "^FEISHU_APP_ID=" .env | cut -d '=' -f2- | tr -d '"' | tr -d "'" | xargs)
     if [ -z "$FEISHU_APP_ID" ]; then
         MISSING_VARS+=("FEISHU_APP_ID")
         echo "❌ FEISHU_APP_ID 未配置"
@@ -30,6 +30,8 @@ if [ -f .env ]; then
         echo "✅ FEISHU_APP_ID: ${FEISHU_APP_ID:0:8}..."
     fi
     
+    # 读取 FEISHU_APP_SECRET
+    FEISHU_APP_SECRET=$(grep -E "^FEISHU_APP_SECRET=" .env | cut -d '=' -f2- | tr -d '"' | tr -d "'" | xargs)
     if [ -z "$FEISHU_APP_SECRET" ]; then
         MISSING_VARS+=("FEISHU_APP_SECRET")
         echo "❌ FEISHU_APP_SECRET 未配置"
@@ -37,6 +39,8 @@ if [ -f .env ]; then
         echo "✅ FEISHU_APP_SECRET: 已配置"
     fi
     
+    # 读取 FEISHU_REDIRECT_URI
+    FEISHU_REDIRECT_URI=$(grep -E "^FEISHU_REDIRECT_URI=" .env | cut -d '=' -f2- | tr -d '"' | tr -d "'" | xargs)
     if [ -z "$FEISHU_REDIRECT_URI" ]; then
         echo "⚠️  FEISHU_REDIRECT_URI 未配置，将使用自动检测"
     else
