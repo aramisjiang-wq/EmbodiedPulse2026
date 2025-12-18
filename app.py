@@ -1276,6 +1276,9 @@ def get_all_bilibili():
         
         for up in ups:
             try:
+                # 刷新UP主对象，确保数据是最新的
+                session.refresh(up)
+                
                 # 获取该UP主的视频（按发布时间倒序，最多200条）
                 videos_query = session.query(BilibiliVideo).filter_by(
                     uid=up.uid,
