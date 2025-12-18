@@ -25,7 +25,16 @@ server {
         proxy_set_header X-Forwarded-Proto $scheme;
     }
 
-    # 登录页面
+    # 登录页面 - 精确匹配 /login，避免 /login/login 的问题
+    location = /login {
+        proxy_pass http://127.0.0.1:5001/login;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    # 其他路径（包括根路径）都代理到登录页
     location / {
         proxy_pass http://127.0.0.1:5001/login;
         proxy_set_header Host $host;

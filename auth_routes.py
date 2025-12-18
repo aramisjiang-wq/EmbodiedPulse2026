@@ -170,7 +170,14 @@ def feishu_callback():
         logger.error(f"飞书回调处理失败: {e}")
         import traceback
         traceback.print_exc()
-        return redirect('/?error=callback_failed')
+        # 根据错误类型返回更具体的错误信息
+        error_msg = str(e)
+        if 'app_access_token' in error_msg.lower() or 'app_id' in error_msg.lower() or 'app_secret' in error_msg.lower():
+            return redirect('/login?error=feishu_config_error')
+        elif 'code' in error_msg.lower() or 'invalid' in error_msg.lower():
+            return redirect('/login?error=invalid_code')
+        else:
+            return redirect('/login?error=callback_failed')
 
 
 @auth_bp.route('/user-info', methods=['GET'])

@@ -1,4 +1,4 @@
-
+/**
  * 用户认证和导航栏管理
  * 功能：强制登录检测 + 用户按钮状态更新
  */
@@ -59,7 +59,7 @@ async function checkAuthRequired() {
     
     // 验证token是否有效
     try {
-        const response = await fetch('/api/user/profile', {
+        const response = await fetch('/api/auth/user-info', {
             headers: {
                 'Authorization': `Bearer ${token}`
             }
@@ -107,7 +107,7 @@ async function updateUserButton() {
     
     try {
         // 获取用户信息
-        const response = await fetch('/api/user/profile', {
+        const response = await fetch('/api/auth/user-info', {
             headers: {
                 'Authorization': `Bearer ${token}`
             }

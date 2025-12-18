@@ -143,7 +143,7 @@
             console.log('🎯 将跳转到:', redirectUrl);
             
             // 验证token并获取用户信息
-            fetch('/api/user/profile', {
+            fetch('/api/auth/user-info', {
                 headers: {
                     'Authorization': `Bearer ${token}`
                 }

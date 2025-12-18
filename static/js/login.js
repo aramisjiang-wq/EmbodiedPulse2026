@@ -44,7 +44,9 @@ function handleUrlError() {
             'missing_params': '登录参数缺失，请重试',
             'invalid_state': '登录验证失败，请重试',
             'no_user_id': '无法获取用户信息，请重试',
-            'callback_failed': '登录处理失败，请重试'
+            'callback_failed': '登录处理失败，请重试',
+            'feishu_config_error': '飞书登录配置错误，请联系管理员',
+            'invalid_code': '登录验证码无效，请重新登录'
         };
         
         showError(errorMessages[error] || '登录失败，请重试');
