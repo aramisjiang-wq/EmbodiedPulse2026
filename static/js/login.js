@@ -20,21 +20,26 @@ function checkLoginStatus() {
         })
         .then(res => {
             if (res.ok) {
-                // 已登录，跳转到主页（使用正确的域名）
-                if (window.navigateTo) {
-                    window.navigateTo('/');
-                } else {
-                    window.location.href = 'https://essay.gradmotion.com/';
-                }
+                // ✅ 修复：已登录，跳转到主页（使用正确的域名，并通过URL参数传递token）
+                const targetUrl = 'https://essay.gradmotion.com/';
+                // 由于跨域，需要通过URL参数传递token
+                const url = new URL(targetUrl);
+                url.searchParams.set('token', token);
+                console.log('✅ [checkLoginStatus] 已登录，跳转到主页（带token参数）:', url.toString());
+                window.location.href = url.toString();
             } else {
                 // token无效，清除
+                console.log('⚠️ [checkLoginStatus] Token无效，清除');
                 localStorage.removeItem('auth_token');
             }
         })
         .catch(err => {
-            console.error('检查登录状态失败:', err);
-            localStorage.removeItem('auth_token');
+            console.error('❌ [checkLoginStatus] 检查登录状态失败:', err);
+            // ✅ 修复：网络错误时不自动跳转，避免循环
+            // localStorage.removeItem('auth_token'); // 不删除token，可能是临时网络问题
         });
+    } else {
+        console.log('ℹ️ [checkLoginStatus] 未登录，显示登录页面');
     }
 }
 
