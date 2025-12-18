@@ -5,6 +5,12 @@
 import sys
 import os
 from datetime import datetime, timedelta
+
+# 添加项目根目录到Python路径
+script_dir = os.path.dirname(os.path.abspath(__file__))
+project_root = os.path.dirname(script_dir)
+sys.path.insert(0, project_root)
+
 from dotenv import load_dotenv
 
 load_dotenv()
