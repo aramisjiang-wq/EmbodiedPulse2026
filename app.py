@@ -1296,6 +1296,11 @@ def get_all_bilibili():
                         'url': video.url or f"https://www.bilibili.com/video/{video.bvid}"
                     })
                 
+                # 构建user_stat（确保正确处理）
+                videos_val = format_number(up.videos_count) if up.videos_count else '0'
+                views_val = up.views_formatted or (format_number(up.views_count) if up.views_count else '0')
+                likes_val = up.likes_formatted or (format_number(up.likes_count) if up.likes_count else '0')
+                
                 # 构建响应数据
                 card_data = {
                     'user_info': {
@@ -1309,9 +1314,9 @@ def get_all_bilibili():
                         'friend': str(up.friend) if up.friend else '0',
                     },
                     'user_stat': {
-                        'videos': format_number(up.videos_count) if up.videos_count else '0',
-                        'likes': up.likes_formatted or (format_number(up.likes_count) if up.likes_count else '0'),
-                        'views': up.views_formatted or (format_number(up.views_count) if up.views_count else '0'),
+                        'videos': videos_val,
+                        'likes': likes_val,
+                        'views': views_val,
                     },
                     'videos': formatted_videos,
                     'space_url': up.space_url or f"https://space.bilibili.com/{up.uid}",
@@ -1327,6 +1332,8 @@ def get_all_bilibili():
                 
             except Exception as e:
                 logger.error(f"处理UP主 {up.uid} 数据失败: {e}")
+                import traceback
+                logger.error(traceback.format_exc())
                 # 添加错误数据
                 all_data.append({
                     'user_info': {
