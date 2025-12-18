@@ -1301,6 +1301,11 @@ def get_all_bilibili():
                 views_val = up.views_formatted or (format_number(up.views_count) if up.views_count else '0')
                 likes_val = up.likes_formatted or (format_number(up.likes_count) if up.likes_count else '0')
                 
+                # 调试日志（临时）
+                if up.name == '逐际动力':
+                    logger.info(f"DEBUG_逐际动力: videos_count={up.videos_count}, views_count={up.views_count}, views_formatted={up.views_formatted!r}")
+                    logger.info(f"DEBUG_逐际动力计算结果: videos_val={videos_val!r}, views_val={views_val!r}")
+                
                 # 构建响应数据
                 card_data = {
                     'user_info': {
