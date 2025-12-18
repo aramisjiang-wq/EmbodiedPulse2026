@@ -8,6 +8,9 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     
+    <!-- 用户认证和登录验证 - 必须在最前面加载，确保强制登录验证生效 -->
+    <script src="{{ url_for('static', filename='js/user_menu.js') }}"></script>
+    
     <!-- 51LA 网站统计 -->
     <script charset="UTF-8" id="LA_COLLECT" src="//sdk.51.la/js-sdk-pro.min.js" onerror="console.warn('51.la统计脚本加载失败，已跳过')"></script>
     <script>
@@ -325,7 +328,6 @@
 
     <!-- 抓取配置模态框已移除 - 现在直接点击按钮执行脚本 -->
 
-    <script src="{{ url_for('static', filename='js/user_menu.js') }}"></script>
     <script src="{{ url_for('static', filename='js/blessing_messages.js') }}"></script>
     <script src="{{ url_for('static', filename='js/app.js') }}"></script>
 </body>
