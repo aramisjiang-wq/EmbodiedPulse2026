@@ -50,9 +50,13 @@ async function checkAuthRequired() {
     const token = localStorage.getItem('auth_token');
     
     if (!token) {
-        // 未登录，保存当前页面，跳转到登录页
+        // 未登录，保存当前页面和域名，跳转到登录页
         console.log('未登录，跳转到登录页');
         localStorage.setItem('redirect_after_login', currentPath + window.location.search);
+        // 保存当前域名，以便登录后跳转回来
+        if (window.location.hostname !== 'login.gradmotion.com') {
+            localStorage.setItem('original_host', window.location.hostname);
+        }
         window.location.href = '/login';
         return false;
     }
@@ -70,6 +74,10 @@ async function checkAuthRequired() {
             console.log('Token无效，跳转到登录页');
             localStorage.removeItem('auth_token');
             localStorage.setItem('redirect_after_login', currentPath + window.location.search);
+            // 保存当前域名
+            if (window.location.hostname !== 'login.gradmotion.com') {
+                localStorage.setItem('original_host', window.location.hostname);
+            }
             window.location.href = '/login';
             return false;
         }
@@ -81,6 +89,10 @@ async function checkAuthRequired() {
         console.log('网络错误，跳转到登录页');
         localStorage.removeItem('auth_token');
         localStorage.setItem('redirect_after_login', currentPath + window.location.search);
+        // 保存当前域名
+        if (window.location.hostname !== 'login.gradmotion.com') {
+            localStorage.setItem('original_host', window.location.hostname);
+        }
         window.location.href = '/login';
         return false;
     }

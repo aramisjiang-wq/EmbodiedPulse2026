@@ -154,9 +154,27 @@
             localStorage.setItem('auth_token', token);
             console.log('✅ Token已保存:', token.substring(0, 20) + '...');
             
-            // 获取要跳转的目标页面（如果没有则跳转主页）
-            const redirectUrl = localStorage.getItem('redirect_after_login') || '/';
+            // 获取要跳转的目标页面
+            let redirectUrl = localStorage.getItem('redirect_after_login') || '/';
             localStorage.removeItem('redirect_after_login');
+            
+            // 如果当前在 login.gradmotion.com，且 redirectUrl 是相对路径，需要跳转到正确的域名
+            const currentHost = window.location.hostname;
+            if (currentHost === 'login.gradmotion.com') {
+                // 如果 redirectUrl 是根路径或相对路径，跳转到论文页面
+                if (redirectUrl === '/' || redirectUrl.startsWith('/')) {
+                    // 检查是否有保存的原始域名
+                    const originalHost = localStorage.getItem('original_host');
+                    if (originalHost && originalHost !== 'login.gradmotion.com') {
+                        redirectUrl = `https://${originalHost}${redirectUrl}`;
+                        localStorage.removeItem('original_host');
+                    } else {
+                        // 默认跳转到论文页面
+                        redirectUrl = 'https://essay.gradmotion.com/';
+                    }
+                }
+            }
+            
             console.log('🎯 将跳转到:', redirectUrl);
             
             // 验证token并获取用户信息
