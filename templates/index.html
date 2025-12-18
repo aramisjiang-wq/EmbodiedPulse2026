@@ -11,20 +11,28 @@
     <!-- 用户认证和登录验证 - 必须在最前面加载，确保强制登录验证生效 -->
     <script src="{{ url_for('static', filename='js/user_menu.js') }}"></script>
     
-    <!-- 51LA 网站统计 -->
-    <script charset="UTF-8" id="LA_COLLECT" src="//sdk.51.la/js-sdk-pro.min.js" onerror="console.warn('51.la统计脚本加载失败，已跳过')"></script>
+    <!-- 51LA 网站统计 - 延迟加载，避免影响登录验证 -->
     <script>
-        // 延迟初始化，确保脚本加载完成
-        if (typeof LA !== 'undefined') {
-            LA.init({id:"3OKJnG7Jx3IolNJ3",ck:"3OKJnG7Jx3IolNJ3",autoTrack:true,hashMode:true});
-        } else {
-            // 如果脚本加载失败，等待一段时间后重试
-            setTimeout(function() {
+        // 延迟加载51.la统计脚本，避免CSP错误和影响登录验证
+        window.addEventListener('load', function() {
+            const script = document.createElement('script');
+            script.charset = 'UTF-8';
+            script.id = 'LA_COLLECT';
+            script.src = '//sdk.51.la/js-sdk-pro.min.js';
+            script.onerror = function() {
+                console.warn('51.la统计脚本加载失败，已跳过');
+            };
+            script.onload = function() {
                 if (typeof LA !== 'undefined') {
-                    LA.init({id:"3OKJnG7Jx3IolNJ3",ck:"3OKJnG7Jx3IolNJ3",autoTrack:true,hashMode:true});
+                    try {
+                        LA.init({id:"3OKJnG7Jx3IolNJ3",ck:"3OKJnG7Jx3IolNJ3",autoTrack:true,hashMode:true});
+                    } catch(e) {
+                        console.warn('51.la初始化失败:', e);
+                    }
                 }
-            }, 1000);
-        }
+            };
+            document.head.appendChild(script);
+        });
     </script>
 </head>
 <body>

@@ -143,24 +143,22 @@ async function updateUserButton() {
 
 // 立即执行登录检查（不等待 DOMContentLoaded）
 (function() {
-    // 如果 DOM 已加载，立即执行
-    if (document.readyState === 'loading') {
-        // DOM 还在加载，等待 DOMContentLoaded
-        document.addEventListener('DOMContentLoaded', initAuth);
-    } else {
-        // DOM 已加载，立即执行
-        initAuth();
-    }
-    
-    async function initAuth() {
-        // 1. 先执行强制登录检测
+    // 立即执行，不等待任何事件
+    (async function initAuth() {
+        // 1. 先执行强制登录检测（这会阻止未登录用户访问）
         const isAuthenticated = await checkAuthRequired();
         
-        // 2. 如果通过验证，更新导航栏按钮
+        // 2. 如果通过验证，等待DOM加载后更新导航栏按钮
         if (isAuthenticated) {
-            updateUserButton();
+            // 等待DOM加载完成后再更新按钮（因为按钮元素可能还没渲染）
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', updateUserButton);
+            } else {
+                // DOM已加载，立即更新
+                updateUserButton();
+            }
         }
-    }
+    })();
     
     // 页面可见性变化时重新检查（切换标签页回来时）
     document.addEventListener('visibilitychange', async function() {
