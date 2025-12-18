@@ -164,7 +164,9 @@ def get_daily_papers(topic,query="slam", max_results=2, days_back=14):
             paper_first_author  = get_authors(result.authors,first_author = True)
             paper_last_author   = get_authors(result.authors,last_author = True)
             primary_category    = result.primary_category
-            publish_time        = result.published.date()
+            # 使用submitted日期作为publish_date（更准确反映论文提交时间，即用户在ArXiv上看到的新论文日期）
+            # published是首次发布日期，可能早于提交日期，不适合作为"新论文"的日期
+            publish_time        = result.submitted.date() if hasattr(result, 'submitted') else result.published.date()
             update_time         = result.updated.date()
             comments            = result.comment
 
