@@ -27,6 +27,20 @@ print("=" * 60)
 print()
 
 try:
+    # 检查数据库类型
+    import os
+    database_url = os.getenv('DATABASE_URL', 'sqlite:///./papers.db')
+    
+    # 如果是PostgreSQL，检查psycopg2是否安装
+    if database_url.startswith('postgresql://') or database_url.startswith('postgres://'):
+        try:
+            import psycopg2
+        except ImportError:
+            print("❌ 缺少 psycopg2 模块（PostgreSQL驱动）")
+            print("   请运行: bash scripts/install_psycopg2.sh")
+            print("   或者: pip install psycopg2-binary")
+            raise
+    
     from models import get_session, Paper
     
     session = get_session()
@@ -103,6 +117,20 @@ print("=" * 60)
 print()
 
 try:
+    # 检查数据库类型
+    import os
+    bilibili_db_url = os.getenv('BILIBILI_DATABASE_URL', os.getenv('DATABASE_URL', 'sqlite:///./bilibili.db'))
+    
+    # 如果是PostgreSQL，检查psycopg2是否安装
+    if bilibili_db_url.startswith('postgresql://') or bilibili_db_url.startswith('postgres://'):
+        try:
+            import psycopg2
+        except ImportError:
+            print("❌ 缺少 psycopg2 模块（PostgreSQL驱动）")
+            print("   请运行: bash scripts/install_psycopg2.sh")
+            print("   或者: pip install psycopg2-binary")
+            raise
+    
     from bilibili_models import get_bilibili_session, BilibiliUp, BilibiliVideo
     
     bilibili_session = get_bilibili_session()
