@@ -16,7 +16,12 @@ const toast = document.getElementById('toast');
 
 // 检查登录状态
 if (!token) {
-    window.location.href = '/login';
+    // 使用导航链接修正工具确保跳转到正确的登录域名
+    if (window.navigateTo) {
+        window.navigateTo('/login');
+    } else {
+        window.location.href = 'https://login.gradmotion.com/login';
+    }
 }
 
 // 加载用户详细信息
@@ -32,7 +37,11 @@ async function loadUserProfile() {
             if (response.status === 401) {
                 // token无效，跳转到登录页
                 localStorage.removeItem('auth_token');
-                window.location.href = '/login';
+                if (window.navigateTo) {
+                    window.navigateTo('/login');
+                } else {
+                    window.location.href = 'https://login.gradmotion.com/login';
+                }
                 return;
             }
             throw new Error('获取用户信息失败');
@@ -328,7 +337,11 @@ if (logoutBtn) {
             console.error('退出登录失败:', error);
         } finally {
             localStorage.removeItem('auth_token');
-            window.location.href = '/login';
+            if (window.navigateTo) {
+                window.navigateTo('/login');
+            } else {
+                window.location.href = 'https://login.gradmotion.com/login';
+            }
         }
     });
 }

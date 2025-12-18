@@ -98,8 +98,18 @@ if (document.readyState === 'loading') {
     fixAllNavLinks();
 }
 
+/**
+ * 安全跳转到指定路径（自动使用正确的域名）
+ * @param {string} path - 相对路径（如 '/', '/login', '/bilibili'）
+ */
+function navigateTo(path) {
+    const correctUrl = getCorrectUrl(path);
+    window.location.href = correctUrl;
+}
+
 // 导出函数供其他脚本使用
 window.getCorrectUrl = getCorrectUrl;
 window.fixNavLink = fixNavLink;
 window.fixAllNavLinks = fixAllNavLinks;
+window.navigateTo = navigateTo;
 

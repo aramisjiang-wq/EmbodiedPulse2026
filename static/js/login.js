@@ -20,8 +20,12 @@ function checkLoginStatus() {
         })
         .then(res => {
             if (res.ok) {
-                // 已登录，跳转到主页
-                window.location.href = '/';
+                // 已登录，跳转到主页（使用正确的域名）
+                if (window.navigateTo) {
+                    window.navigateTo('/');
+                } else {
+                    window.location.href = 'https://essay.gradmotion.com/';
+                }
             } else {
                 // token无效，清除
                 localStorage.removeItem('auth_token');
