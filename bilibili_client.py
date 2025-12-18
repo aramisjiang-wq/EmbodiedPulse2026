@@ -210,10 +210,11 @@ class BilibiliClient:
                 logger.debug(f"从card接口获取likes失败: {e}")
         
         total_views = sum(v.get('play', 0) or 0 for v in videos)
+        video_count = len(videos)  # ✅ 修复：视频数量（不是总播放量）
         return {
-            'videos': total_views,
+            'videos': video_count,  # ✅ 修复：视频数量
             'likes': likes,
-            'views': total_views,
+            'views': total_views,  # 总播放量
         }
     
     async def _get_user_info_async(self, mid: int) -> Optional[Dict]:
@@ -375,10 +376,12 @@ class BilibiliClient:
                 likes = info.get('likes', 0)
             
             # 如果总播放数为0，尝试从视频列表计算（仅作为备选）
+            video_count = 0
             if not total_views:
                 try:
                     videos_result = await u.get_videos(pn=1, ps=50)
                     vlist = videos_result.get('list', {}).get('vlist', [])
+                    video_count = len(vlist)  # 视频数量
                     total_views = sum(
                         v.get('play', 0) or (v.get('stat', {}).get('view', 0) if isinstance(v.get('stat'), dict) else 0)
                         for v in vlist
@@ -386,9 +389,18 @@ class BilibiliClient:
                 except Exception as video_error:
                     logger.debug(f"从视频列表计算播放数失败: {video_error}")
                     total_views = 0
+            else:
+                # 如果已经有总播放数，尝试获取视频数量
+                try:
+                    videos_result = await u.get_videos(pn=1, ps=50)
+                    vlist = videos_result.get('list', {}).get('vlist', [])
+                    video_count = len(vlist)  # 视频数量
+                except Exception as video_error:
+                    logger.debug(f"获取视频数量失败: {video_error}")
+                    video_count = 0
             
             return {
-                'videos': total_views,  # 总播放数（从视频列表计算）
+                'videos': video_count,  # ✅ 修复：视频数量（不是总播放量）
                 'likes': likes,  # 获赞数
                 'views': total_views,  # 总播放数
             }
