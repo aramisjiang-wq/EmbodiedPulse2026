@@ -79,8 +79,27 @@ function handleTokenCallback() {
         window.history.replaceState({}, '', '/login');
         
         // 获取保存的跳转地址，如果没有则跳转到主页
-        const redirectUrl = localStorage.getItem('redirect_after_login') || '/';
+        let redirectUrl = localStorage.getItem('redirect_after_login') || '/';
         localStorage.removeItem('redirect_after_login');
+        
+        // 如果是相对路径，使用导航链接修正工具确保跳转到正确的域名
+        if (redirectUrl && !redirectUrl.startsWith('http://') && !redirectUrl.startsWith('https://')) {
+            if (window.navigateTo) {
+                setTimeout(() => {
+                    window.navigateTo(redirectUrl);
+                }, 500);
+                return;
+            } else {
+                // 回退方案：根据路径判断域名
+                if (redirectUrl === '/' || redirectUrl.startsWith('/bilibili')) {
+                    redirectUrl = redirectUrl.startsWith('/bilibili') 
+                        ? 'https://blibli.gradmotion.com/' 
+                        : 'https://essay.gradmotion.com/';
+                } else {
+                    redirectUrl = 'https://essay.gradmotion.com' + redirectUrl;
+                }
+            }
+        }
         
         // 跳转到目标页面
         setTimeout(() => {
