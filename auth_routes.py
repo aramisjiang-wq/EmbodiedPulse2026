@@ -41,8 +41,17 @@ def feishu_login():
     """
     try:
         data = request.get_json() or {}
-        redirect_uri = data.get('redirect_uri') or os.getenv('FEISHU_REDIRECT_URI', 
-                                                               'http://localhost:5001/api/auth/feishu/callback')
+        
+        # 自动检测当前协议（HTTP/HTTPS）并设置回调地址
+        # 优先使用环境变量，如果没有则根据当前请求自动生成
+        default_redirect = os.getenv('FEISHU_REDIRECT_URI')
+        if not default_redirect:
+            # 根据当前请求自动生成 HTTPS 回调地址
+            scheme = 'https' if request.is_secure or request.headers.get('X-Forwarded-Proto') == 'https' else 'http'
+            host = request.headers.get('Host', 'localhost:5001')
+            default_redirect = f"{scheme}://{host}/api/auth/feishu/callback"
+        
+        redirect_uri = data.get('redirect_uri') or default_redirect
         
         # 生成随机state参数
         state = secrets.token_urlsafe(32)

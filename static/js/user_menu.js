@@ -141,14 +141,36 @@ async function updateUserButton() {
     }
 }
 
-// 页面加载时执行
-document.addEventListener('DOMContentLoaded', async function() {
-    // 1. 先执行强制登录检测
-    const isAuthenticated = await checkAuthRequired();
-    
-    // 2. 如果通过验证，更新导航栏按钮
-    if (isAuthenticated) {
-        updateUserButton();
+// 立即执行登录检查（不等待 DOMContentLoaded）
+(function() {
+    // 如果 DOM 已加载，立即执行
+    if (document.readyState === 'loading') {
+        // DOM 还在加载，等待 DOMContentLoaded
+        document.addEventListener('DOMContentLoaded', initAuth);
+    } else {
+        // DOM 已加载，立即执行
+        initAuth();
     }
-});
+    
+    async function initAuth() {
+        // 1. 先执行强制登录检测
+        const isAuthenticated = await checkAuthRequired();
+        
+        // 2. 如果通过验证，更新导航栏按钮
+        if (isAuthenticated) {
+            updateUserButton();
+        }
+    }
+    
+    // 页面可见性变化时重新检查（切换标签页回来时）
+    document.addEventListener('visibilitychange', async function() {
+        if (!document.hidden) {
+            // 页面变为可见时，重新检查登录状态
+            const isAuthenticated = await checkAuthRequired();
+            if (isAuthenticated) {
+                updateUserButton();
+            }
+        }
+    });
+})();
 
