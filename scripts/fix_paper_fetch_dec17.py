@@ -11,6 +11,13 @@ script_dir = os.path.dirname(os.path.abspath(__file__))
 project_root = os.path.dirname(script_dir)
 sys.path.insert(0, project_root)
 
+# 尝试使用虚拟环境中的Python（如果存在）
+venv_python = os.path.join(project_root, 'venv', 'bin', 'python3')
+if os.path.exists(venv_python) and sys.executable != venv_python:
+    print("⚠️  检测到虚拟环境，建议使用虚拟环境运行")
+    print(f"   使用: venv/bin/python3 scripts/fix_paper_fetch_dec17.py")
+    print()
+
 from dotenv import load_dotenv
 
 load_dotenv()

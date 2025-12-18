@@ -11,6 +11,18 @@ script_dir = os.path.dirname(os.path.abspath(__file__))
 project_root = os.path.dirname(script_dir)
 sys.path.insert(0, project_root)
 
+# 尝试使用虚拟环境中的Python（如果存在）
+venv_python = os.path.join(project_root, 'venv', 'bin', 'python3')
+if os.path.exists(venv_python):
+    # 如果虚拟环境存在，但当前不是使用虚拟环境的Python，给出提示
+    if sys.executable != venv_python:
+        print("⚠️  检测到虚拟环境，但当前使用的是系统Python")
+        print(f"   当前Python: {sys.executable}")
+        print(f"   虚拟环境Python: {venv_python}")
+        print("   建议使用虚拟环境运行: source venv/bin/activate && python3 scripts/diagnose_data_issues.py")
+        print("   或者直接使用: venv/bin/python3 scripts/diagnose_data_issues.py")
+        print()
+
 from dotenv import load_dotenv
 
 load_dotenv()
