@@ -29,7 +29,12 @@ import sys
 sys.path.insert(0, '/srv/EmbodiedPulse2026')
 
 from dotenv import load_dotenv
-load_dotenv()
+# 明确指定.env文件路径
+env_path = '/srv/EmbodiedPulse2026/.env'
+if os.path.exists(env_path):
+    load_dotenv(env_path)
+else:
+    print(f"⚠️  .env文件不存在: {env_path}")
 
 from database import db
 from app import app
@@ -57,7 +62,12 @@ import sys
 sys.path.insert(0, '/srv/EmbodiedPulse2026')
 
 from dotenv import load_dotenv
-load_dotenv()
+# 明确指定.env文件路径
+env_path = '/srv/EmbodiedPulse2026/.env'
+if os.path.exists(env_path):
+    load_dotenv(env_path)
+else:
+    print(f"⚠️  .env文件不存在: {env_path}")
 
 from app import app
 from database import db
@@ -104,7 +114,12 @@ import sys
 sys.path.insert(0, '/srv/EmbodiedPulse2026')
 
 from dotenv import load_dotenv
-load_dotenv()
+# 明确指定.env文件路径
+env_path = '/srv/EmbodiedPulse2026/.env'
+if os.path.exists(env_path):
+    load_dotenv(env_path)
+else:
+    print(f"⚠️  .env文件不存在: {env_path}")
 
 from app import app
 from database import db
