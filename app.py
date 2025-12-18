@@ -1310,8 +1310,8 @@ def get_all_bilibili():
                     },
                     'user_stat': {
                         'videos': format_number(up.videos_count) if up.videos_count else '0',
-                        'likes': up.likes_formatted or '0',
-                        'views': up.views_formatted or '0',
+                        'likes': up.likes_formatted or (format_number(up.likes_count) if up.likes_count else '0'),
+                        'views': up.views_formatted or (format_number(up.views_count) if up.views_count else '0'),
                     },
                     'videos': formatted_videos,
                     'space_url': up.space_url or f"https://space.bilibili.com/{up.uid}",

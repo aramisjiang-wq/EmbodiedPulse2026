@@ -46,21 +46,29 @@ class BilibiliUp(Base):
     
     def to_dict(self):
         """转换为字典"""
+        # 导入格式化函数（如果views_formatted为空，使用views_count格式化）
+        from bilibili_client import format_number
+        
         return {
             'uid': self.uid,
             'name': self.name,
             'face': self.face or '',
             'sign': self.sign or '',
             'level': self.level,
-            'fans': self.fans_formatted or '0',
+            'fans': self.fans_formatted or (format_number(self.fans) if self.fans else '0'),
             'fans_raw': self.fans,
+            'fans_formatted': self.fans_formatted or (format_number(self.fans) if self.fans else '0'),  # 添加格式化字段，供前端使用
             'friend': str(self.friend) if self.friend else '0',
             'space_url': self.space_url or f"https://space.bilibili.com/{self.uid}",
-            'videos_count': self.videos_count,
-            'views': self.views_formatted or '0',
-            'views_raw': self.views_count,
-            'likes': self.likes_formatted or '0',
+            'videos_count': self.videos_count or 0,  # 确保不为None
+            'views': self.views_formatted or (format_number(self.views_count) if self.views_count else '0'),  # 如果formatted为空，使用count格式化
+            'views_formatted': self.views_formatted or (format_number(self.views_count) if self.views_count else '0'),  # 添加格式化字段，供前端使用
+            'views_raw': self.views_count,  # 保持向后兼容
+            'views_count': self.views_count or 0,  # 添加原始字段，供前端使用
+            'likes': self.likes_formatted or (format_number(self.likes_count) if self.likes_count else '0'),
+            'likes_formatted': self.likes_formatted or (format_number(self.likes_count) if self.likes_count else '0'),  # 添加格式化字段
             'likes_raw': self.likes_count,
+            'likes_count': self.likes_count or 0,  # 添加原始字段
             'last_fetch_at': self.last_fetch_at.isoformat() if self.last_fetch_at else None,
             'fetch_error': self.fetch_error,
         }
