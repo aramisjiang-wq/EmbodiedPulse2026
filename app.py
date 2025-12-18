@@ -1243,12 +1243,24 @@ def get_all_bilibili():
         # 从数据库获取所有活跃的UP主
         # 排序：逐际动力(1172054289)始终在第一位，其他按UID排序
         LIMX_UID = 1172054289
+        
+        # 直接SQL查询检查（调试）
+        from sqlalchemy import text
+        direct_result = session.execute(text("""
+            SELECT uid, name, videos_count, views_count, views_formatted 
+            FROM bilibili_ups 
+            WHERE uid = :uid AND is_active = true
+        """), {"uid": LIMX_UID})
+        direct_row = direct_result.fetchone()
+        if direct_row:
+            logger.info(f"DEBUG_直接SQL查询逐际动力: uid={direct_row[0]}, name={direct_row[1]}, videos_count={direct_row[2]}, views_count={direct_row[3]}")
+        
         ups = session.query(BilibiliUp).filter_by(is_active=True).all()
         
         # 调试：检查查询到的UP主数据
         for up in ups:
             if up.uid == LIMX_UID:
-                logger.info(f"DEBUG_查询逐际动力: uid={up.uid}, name={up.name}, videos_count={up.videos_count}, views_count={up.views_count}")
+                logger.info(f"DEBUG_ORM查询逐际动力: uid={up.uid}, name={up.name}, videos_count={up.videos_count}, views_count={up.views_count}")
         
         # 分离逐际动力和其他UP主
         limx_up = None
