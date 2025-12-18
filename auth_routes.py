@@ -92,20 +92,33 @@ def feishu_callback():
         state = request.args.get('state')
         
         if not code or not state:
-            logger.error("回调参数缺失")
-            return redirect('/?error=missing_params')
+            logger.error(f"回调参数缺失 - code: {code is not None}, state: {state is not None}")
+            return redirect('/login?error=missing_params')
         
         # 验证state参数
         if state not in _state_storage:
-            logger.error(f"无效的state参数: {state[:8]}...")
-            return redirect('/?error=invalid_state')
+            logger.error(f"无效的state参数: {state[:8]}... (存储的state数量: {len(_state_storage)})")
+            # 清理过期的state（超过10分钟）
+            now = datetime.now()
+            expired_states = [s for s, data in _state_storage.items() 
+                            if (now - data['timestamp']).total_seconds() > 600]
+            for expired_state in expired_states:
+                _state_storage.pop(expired_state, None)
+            logger.warning(f"已清理 {len(expired_states)} 个过期的state")
+            return redirect('/login?error=invalid_state')
         
         state_data = _state_storage.pop(state)
         final_redirect = state_data.get('redirect_uri', '/auth/callback')
         
         # 获取用户信息
+        logger.info(f"开始处理飞书回调 - code: {code[:10]}..., state: {state[:8]}...")
         feishu_auth = get_feishu_auth()
-        user_info = feishu_auth.complete_login_flow(code)
+        try:
+            user_info = feishu_auth.complete_login_flow(code)
+            logger.info(f"成功获取用户信息 - user_id: {user_info.get('user_id', 'unknown')}")
+        except Exception as e:
+            logger.error(f"获取用户信息失败: {e}", exc_info=True)
+            raise
         
         # 提取用户信息
         feishu_id = user_info.get('user_id') or user_info.get('open_id')
@@ -115,8 +128,8 @@ def feishu_callback():
         avatar_url = user_info.get('avatar_url')
         
         if not feishu_id:
-            logger.error("无法获取飞书用户ID")
-            return redirect('/?error=no_user_id')
+            logger.error(f"无法获取飞书用户ID - user_info keys: {list(user_info.keys())}")
+            return redirect('/login?error=no_user_id')
         
         # 查询或创建用户
         user = AuthUser.query.filter_by(feishu_id=feishu_id).first()
@@ -176,16 +189,24 @@ def feishu_callback():
         return redirect(redirect_url)
         
     except Exception as e:
-        logger.error(f"飞书回调处理失败: {e}")
+        logger.error(f"飞书回调处理失败: {e}", exc_info=True)
         import traceback
         traceback.print_exc()
         # 根据错误类型返回更具体的错误信息
-        error_msg = str(e)
-        if 'app_access_token' in error_msg.lower() or 'app_id' in error_msg.lower() or 'app_secret' in error_msg.lower():
+        error_msg = str(e).lower()
+        logger.error(f"错误详情: {error_msg}")
+        
+        if 'app_access_token' in error_msg or 'app_id' in error_msg or 'app_secret' in error_msg:
+            logger.error("飞书配置错误")
             return redirect('/login?error=feishu_config_error')
-        elif 'code' in error_msg.lower() or 'invalid' in error_msg.lower():
+        elif 'code' in error_msg or 'invalid' in error_msg or 'expired' in error_msg:
+            logger.error("飞书授权码无效或已过期")
             return redirect('/login?error=invalid_code')
+        elif 'state' in error_msg:
+            logger.error("State参数验证失败")
+            return redirect('/login?error=invalid_state')
         else:
+            logger.error(f"未知错误: {error_msg}")
             return redirect('/login?error=callback_failed')
 
 
