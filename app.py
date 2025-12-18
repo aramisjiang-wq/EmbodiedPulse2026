@@ -1244,6 +1244,12 @@ def get_all_bilibili():
         # 排序：逐际动力(1172054289)始终在第一位，其他按UID排序
         LIMX_UID = 1172054289
         ups = session.query(BilibiliUp).filter_by(is_active=True).all()
+        
+        # 调试：检查查询到的UP主数据
+        for up in ups:
+            if up.uid == LIMX_UID:
+                logger.info(f"DEBUG_查询逐际动力: uid={up.uid}, name={up.name}, videos_count={up.videos_count}, views_count={up.views_count}")
+        
         # 分离逐际动力和其他UP主
         limx_up = None
         other_ups = []
