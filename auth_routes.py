@@ -227,6 +227,14 @@ def get_user_info():
     try:
         user = get_current_user()
         
+        # ✅ 修复：检查user是否为None（虽然理论上不应该，但增加安全检查）
+        if not user:
+            logger.error("get_current_user()返回None，这不应该发生")
+            return jsonify({
+                'success': False,
+                'message': '用户信息获取失败'
+            }), 500
+        
         return jsonify({
             'success': True,
             'user': {
@@ -241,8 +249,15 @@ def get_user_info():
             }
         })
         
+    except AttributeError as e:
+        # ✅ 修复：捕获AttributeError（user为None时访问属性）
+        logger.error(f"获取用户信息失败（AttributeError）: {e}")
+        return jsonify({
+            'success': False,
+            'message': '用户信息获取失败：用户对象无效'
+        }), 500
     except Exception as e:
-        logger.error(f"获取用户信息失败: {e}")
+        logger.error(f"获取用户信息失败: {e}", exc_info=True)
         return jsonify({
             'success': False,
             'message': f'获取用户信息失败: {str(e)}'

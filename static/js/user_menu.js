@@ -49,8 +49,11 @@ function extractAndSaveTokenFromUrl() {
 
 // 强制登录检测
 async function checkAuthRequired() {
+    console.log('🔍 [checkAuthRequired] 开始检查，当前路径:', currentPath, '域名:', window.location.hostname);
+    
     // 如果是公开页面，不需要检测
     if (isPublicPage()) {
+        console.log('✅ [checkAuthRequired] 是公开页面，跳过验证');
         return true;
     }
     
@@ -59,25 +62,33 @@ async function checkAuthRequired() {
     
     // ✅ 修复：如果从URL提取到token，等待一小段时间确保保存完成
     if (hasTokenInUrl) {
+        console.log('⏳ [checkAuthRequired] 从URL提取到token，等待保存完成...');
         await new Promise(resolve => setTimeout(resolve, 100)); // 等待100ms
     }
     
     const token = localStorage.getItem('auth_token');
+    console.log('🔍 [checkAuthRequired] Token检查:', token ? `存在（${token.substring(0, 20)}...）` : '不存在');
     
     if (!token) {
         // 未登录，保存当前页面和域名，跳转到登录页
-        console.log('未登录，跳转到登录页');
+        console.log('❌ [checkAuthRequired] 未登录，跳转到登录页');
         localStorage.setItem('redirect_after_login', currentPath + window.location.search);
         // 保存当前域名，以便登录后跳转回来
         if (window.location.hostname !== 'login.gradmotion.com') {
             localStorage.setItem('original_host', window.location.hostname);
         }
-        window.location.href = '/login';
+        // ✅ 修复：使用完整的登录URL，确保跳转到正确的域名
+        const loginUrl = window.location.hostname === 'login.gradmotion.com' 
+            ? '/login' 
+            : 'https://login.gradmotion.com/login';
+        console.log('🚀 [checkAuthRequired] 跳转到:', loginUrl);
+        window.location.href = loginUrl;
         return false;
     }
     
     // 验证token是否有效
     try {
+        console.log('🔍 [checkAuthRequired] 开始验证token...');
         // ✅ 修复：增加超时控制，避免长时间等待
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 5000); // 5秒超时
@@ -91,39 +102,48 @@ async function checkAuthRequired() {
         
         clearTimeout(timeoutId);
         
+        console.log('🔍 [checkAuthRequired] API响应状态:', response.status, response.statusText);
+        
         if (!response.ok) {
             // ✅ 修复：区分不同类型的错误
             if (response.status === 401) {
                 // Token无效（401），清除并跳转登录
-                console.log('Token无效（401），跳转到登录页');
+                console.log('❌ [checkAuthRequired] Token无效（401），跳转到登录页');
                 localStorage.removeItem('auth_token');
                 localStorage.setItem('redirect_after_login', currentPath + window.location.search);
                 // 保存当前域名
                 if (window.location.hostname !== 'login.gradmotion.com') {
                     localStorage.setItem('original_host', window.location.hostname);
                 }
-                window.location.href = '/login';
+                // ✅ 修复：使用完整的登录URL，确保跳转到正确的域名
+                const loginUrl = window.location.hostname === 'login.gradmotion.com' 
+                    ? '/login' 
+                    : 'https://login.gradmotion.com/login';
+                console.log('🚀 [checkAuthRequired] 跳转到:', loginUrl);
+                window.location.href = loginUrl;
                 return false;
             } else {
                 // ✅ 修复：其他错误（如500）不立即跳转，可能是服务器问题
-                console.warn('Token验证失败，但可能是服务器问题（状态码:', response.status, '），允许继续访问');
+                console.warn('⚠️ [checkAuthRequired] Token验证失败，但可能是服务器问题（状态码:', response.status, '），允许继续访问');
                 // 允许继续访问，避免循环跳转
                 return true;
             }
         }
         
+        const data = await response.json();
+        console.log('✅ [checkAuthRequired] Token验证成功，用户:', data.user?.name || '未知');
         return true;
     } catch (error) {
         // ✅ 修复：网络错误时，不立即跳转，可能是临时网络问题
         if (error.name === 'AbortError') {
-            console.warn('Token验证超时，可能是网络问题，允许继续访问，避免循环跳转');
+            console.warn('⚠️ [checkAuthRequired] Token验证超时，可能是网络问题，允许继续访问，避免循环跳转');
             return true; // 允许访问，避免循环
         }
         
-        console.error('验证登录失败:', error);
+        console.error('❌ [checkAuthRequired] 验证登录失败:', error);
         // ✅ 修复：只有确认是认证错误时才跳转
         // 网络错误时允许继续访问，避免循环跳转
-        console.warn('网络错误，但不跳转，避免循环跳转。错误类型:', error.name);
+        console.warn('⚠️ [checkAuthRequired] 网络错误，但不跳转，避免循环跳转。错误类型:', error.name);
         return true; // 允许访问，避免循环
     }
 }
@@ -187,30 +207,37 @@ async function updateUserButton() {
 (function() {
     // 立即执行，不等待任何事件
     (async function initAuth() {
+        console.log('🔐 [initAuth] 开始初始化登录验证，当前域名:', window.location.hostname, '路径:', window.location.pathname);
+        
         // 0. 首先从URL参数中提取token（如果有，说明是从登录回调跳转过来的）
         // 这必须在 checkAuthRequired 之前执行，因为 token 可能通过 URL 参数传递
         const hasTokenInUrl = extractAndSaveTokenFromUrl();
         
         if (hasTokenInUrl) {
-            console.log('✅ 从URL参数中提取到token，已保存到当前域名的localStorage');
+            console.log('✅ [initAuth] 从URL参数中提取到token，已保存到当前域名的localStorage');
             // ✅ 修复：等待一小段时间确保保存完成
-            await new Promise(resolve => setTimeout(resolve, 50));
+            await new Promise(resolve => setTimeout(resolve, 100));
         }
         
         // ✅ 修复：验证token是否已保存
         const token = localStorage.getItem('auth_token');
+        console.log('🔍 [initAuth] 检查token:', token ? `存在（${token.substring(0, 20)}...）` : '不存在');
+        
         if (!token && hasTokenInUrl) {
-            console.error('❌ Token提取失败，但URL中有token参数，重试一次');
+            console.error('❌ [initAuth] Token提取失败，但URL中有token参数，重试一次');
             // 重试一次
             extractAndSaveTokenFromUrl();
-            await new Promise(resolve => setTimeout(resolve, 50));
+            await new Promise(resolve => setTimeout(resolve, 100));
         }
         
         // 1. 先执行强制登录检测（这会阻止未登录用户访问）
+        console.log('🔍 [initAuth] 开始执行 checkAuthRequired()');
         const isAuthenticated = await checkAuthRequired();
+        console.log('🔍 [initAuth] checkAuthRequired() 返回:', isAuthenticated);
         
         // 2. 如果通过验证，等待DOM加载后更新导航栏按钮
         if (isAuthenticated) {
+            console.log('✅ [initAuth] 登录验证通过，准备更新导航栏按钮');
             // 等待DOM加载完成后再更新按钮（因为按钮元素可能还没渲染）
             if (document.readyState === 'loading') {
                 document.addEventListener('DOMContentLoaded', updateUserButton);
@@ -218,6 +245,8 @@ async function updateUserButton() {
                 // DOM已加载，立即更新
                 updateUserButton();
             }
+        } else {
+            console.log('❌ [initAuth] 登录验证失败，用户将被重定向到登录页');
         }
     })();
     
