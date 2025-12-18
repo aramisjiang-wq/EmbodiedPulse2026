@@ -77,6 +77,7 @@ function handleTokenCallback() {
     const token = urlParams.get('token');
     
     if (token) {
+        console.log('✅ [handleTokenCallback] 从URL参数中提取到token');
         // 保存token
         localStorage.setItem('auth_token', token);
         
@@ -87,30 +88,32 @@ function handleTokenCallback() {
         let redirectUrl = localStorage.getItem('redirect_after_login') || '/';
         localStorage.removeItem('redirect_after_login');
         
-        // 如果是相对路径，使用导航链接修正工具确保跳转到正确的域名
+        // ✅ 修复：如果是相对路径，转换为完整URL，并添加token参数
         if (redirectUrl && !redirectUrl.startsWith('http://') && !redirectUrl.startsWith('https://')) {
-            if (window.navigateTo) {
-                setTimeout(() => {
-                    window.navigateTo(redirectUrl);
-                }, 500);
-                return;
+            // 根据路径判断域名
+            if (redirectUrl === '/' || redirectUrl.startsWith('/papers')) {
+                redirectUrl = 'https://essay.gradmotion.com/';
+            } else if (redirectUrl.startsWith('/bilibili')) {
+                redirectUrl = 'https://blibli.gradmotion.com/';
             } else {
-                // 回退方案：根据路径判断域名
-                if (redirectUrl === '/' || redirectUrl.startsWith('/bilibili')) {
-                    redirectUrl = redirectUrl.startsWith('/bilibili') 
-                        ? 'https://blibli.gradmotion.com/' 
-                        : 'https://essay.gradmotion.com/';
-                } else {
-                    redirectUrl = 'https://essay.gradmotion.com' + redirectUrl;
-                }
+                redirectUrl = 'https://essay.gradmotion.com' + redirectUrl;
             }
         }
+        
+        // ✅ 修复：跨域跳转时，需要通过URL参数传递token
+        const url = new URL(redirectUrl);
+        url.searchParams.set('token', token);
+        redirectUrl = url.toString();
+        
+        console.log('🎯 [handleTokenCallback] 跳转到（带token参数）:', redirectUrl);
         
         // 跳转到目标页面
         setTimeout(() => {
             window.location.href = redirectUrl;
         }, 500);
+        return true; // 返回true表示已处理token
     }
+    return false; // 返回false表示没有token参数
 }
 
 // 飞书登录
@@ -197,14 +200,25 @@ if (feishuLoginBtn) {
 
 // 页面加载时执行
 document.addEventListener('DOMContentLoaded', () => {
-    // 检查是否已登录
-    checkLoginStatus();
+    console.log('🔐 [login.js] 登录页面加载，当前域名:', window.location.hostname);
+    
+    // ✅ 修复：先处理URL中的token（如果有），然后再检查登录状态
+    // 这样可以避免在已有token的情况下立即跳转
+    const urlParams = new URLSearchParams(window.location.search);
+    const tokenInUrl = urlParams.get('token');
+    
+    if (tokenInUrl) {
+        // 如果有token参数，先处理它
+        console.log('🔐 [login.js] URL中有token参数，先处理回调');
+        handleTokenCallback();
+    } else {
+        // 没有token参数，检查是否已登录
+        console.log('🔐 [login.js] URL中没有token参数，检查登录状态');
+        checkLoginStatus();
+    }
     
     // 处理URL中的错误
     handleUrlError();
-    
-    // 处理回调token
-    handleTokenCallback();
 });
 
 // 键盘事件：回车键登录
