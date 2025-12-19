@@ -184,13 +184,14 @@ def fetch_and_save_up_data(uid, video_count=50, fetch_all=False):
             video.description = video_data.get('description', '')
             video.length = video_data.get('length', '')
             
-            # 统计数据（只更新有效数据，不覆盖为0）
+            # 统计数据（总是更新，确保数据最新）
             play_raw = video_data.get('play', 0) or 0
-            if play_raw > 0:
-                # 只有播放量大于0时才更新
+            # ✅ 修复：总是更新播放量（即使为0也更新，因为播放量只会增加不会减少）
+            # 如果API返回了播放量数据，就更新；如果没有返回（None），保持原值
+            if 'play' in video_data and video_data['play'] is not None:
                 video.play = play_raw
                 video.play_formatted = format_number(play_raw)
-            # 如果 play_raw 为 0，不更新（保持原值，避免覆盖有效数据）
+            # 如果API没有返回播放量字段，保持原值（避免覆盖为0）
             video.video_review = video_data.get('video_review', 0) or 0
             video.video_review_formatted = format_number(video.video_review)
             video.favorites = video_data.get('favorites', 0) or 0
