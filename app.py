@@ -111,6 +111,18 @@ news_fetch_status = {
 # 线程锁，保护news_fetch_status的更新
 news_fetch_status_lock = threading.Lock()
 
+# 全局变量存储Semantic Scholar更新状态
+semantic_update_status = {
+    'running': False,
+    'progress': 0,
+    'total': 0,
+    'current_paper': '',
+    'message': '',
+    'last_update': None
+}
+# 线程锁，保护semantic_update_status的更新
+semantic_update_status_lock = threading.Lock()
+
 # Bilibili数据缓存
 bilibili_cache = {
     'data': None,  # 单个UP主数据缓存（用于 /api/bilibili）

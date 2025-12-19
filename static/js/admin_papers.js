@@ -563,6 +563,271 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 });
 
+// ==================== 论文数据更新功能 ====================
+
+// 状态轮询相关变量
+let arxivStatusPollInterval = null;
+let semanticStatusPollInterval = null;
+
+// ArXiv论文抓取
+const fetchArxivBtn = document.getElementById('fetch-arxiv-btn');
+const updateSemanticBtn = document.getElementById('update-semantic-btn');
+const taskStatusDiv = document.getElementById('task-status');
+const statusMessage = document.getElementById('status-message');
+const statusProgress = document.getElementById('status-progress');
+const progressFill = document.getElementById('progress-fill');
+
+// 启动ArXiv论文抓取
+async function startFetchArxiv() {
+    if (fetchArxivBtn.disabled) {
+        return;
+    }
+    
+    try {
+        fetchArxivBtn.disabled = true;
+        // 保留SVG，只更新文本
+        const svg = fetchArxivBtn.querySelector('svg');
+        fetchArxivBtn.innerHTML = '';
+        if (svg) fetchArxivBtn.appendChild(svg.cloneNode(true));
+        fetchArxivBtn.appendChild(document.createTextNode('抓取中...'));
+        taskStatusDiv.style.display = 'block';
+        statusMessage.textContent = '正在启动抓取任务...';
+        statusProgress.textContent = '0/0';
+        progressFill.style.width = '0%';
+        
+        const response = await fetch('/api/admin/papers/fetch-arxiv', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showToast('抓取任务已启动', 'success');
+            startArxivStatusPolling();
+        } else {
+            showToast('启动失败: ' + data.message, 'error');
+            resetFetchArxivButton();
+            taskStatusDiv.style.display = 'none';
+        }
+    } catch (error) {
+        console.error('启动ArXiv抓取失败:', error);
+        showToast('启动抓取失败', 'error');
+        resetFetchArxivButton();
+        taskStatusDiv.style.display = 'none';
+    }
+}
+
+// 重置ArXiv按钮
+function resetFetchArxivButton() {
+    fetchArxivBtn.disabled = false;
+    const svg = fetchArxivBtn.querySelector('svg');
+    fetchArxivBtn.innerHTML = '';
+    if (svg) {
+        fetchArxivBtn.appendChild(svg.cloneNode(true));
+    } else {
+        // 如果SVG不存在，重新创建
+        const newSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        newSvg.setAttribute('viewBox', '0 0 24 24');
+        newSvg.setAttribute('width', '18');
+        newSvg.setAttribute('height', '18');
+        newSvg.setAttribute('fill', 'currentColor');
+        newSvg.innerHTML = '<path d="M19 12h-2v3h-3v2h5v-5zM7 8h3V6H5v5h2V8zm14-4H3c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 14H3V6h18v12z"/>';
+        fetchArxivBtn.appendChild(newSvg);
+    }
+    fetchArxivBtn.appendChild(document.createTextNode(' 从ArXiv拉取新论文'));
+}
+
+// 轮询ArXiv抓取状态
+function startArxivStatusPolling() {
+    if (arxivStatusPollInterval) {
+        clearInterval(arxivStatusPollInterval);
+    }
+    
+    arxivStatusPollInterval = setInterval(async () => {
+        try {
+            const response = await fetch('/api/admin/papers/fetch-arxiv-status', {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                updateStatusDisplay(data.status, 'arxiv');
+                
+                if (!data.status.running) {
+                    // 任务完成，停止轮询
+                    clearInterval(arxivStatusPollInterval);
+                    arxivStatusPollInterval = null;
+                    resetFetchArxivButton();
+                    
+                    if (data.status.message.includes('完成') || data.status.message.includes('成功')) {
+                        showToast('抓取完成！', 'success');
+                        // 刷新论文列表和统计
+                        await loadPapers(currentPage);
+                        await loadStats();
+                    } else if (data.status.message.includes('失败')) {
+                        showToast('抓取失败: ' + data.status.message, 'error');
+                    }
+                    
+                    // 延迟隐藏状态显示
+                    setTimeout(() => {
+                        taskStatusDiv.style.display = 'none';
+                    }, 3000);
+                }
+            }
+        } catch (error) {
+            console.error('获取ArXiv抓取状态失败:', error);
+        }
+    }, 2000); // 每2秒查询一次
+}
+
+// 启动Semantic Scholar更新
+async function startUpdateSemantic() {
+    if (updateSemanticBtn.disabled) {
+        return;
+    }
+    
+    try {
+        updateSemanticBtn.disabled = true;
+        // 保留SVG，只更新文本
+        const svg = updateSemanticBtn.querySelector('svg');
+        updateSemanticBtn.innerHTML = '';
+        if (svg) updateSemanticBtn.appendChild(svg.cloneNode(true));
+        updateSemanticBtn.appendChild(document.createTextNode('更新中...'));
+        taskStatusDiv.style.display = 'block';
+        statusMessage.textContent = '正在启动更新任务...';
+        statusProgress.textContent = '0/0';
+        progressFill.style.width = '0%';
+        
+        const response = await fetch('/api/admin/papers/update-semantic', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                skip_existing: true
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showToast('更新任务已启动', 'success');
+            startSemanticStatusPolling();
+        } else {
+            showToast('启动失败: ' + data.message, 'error');
+            resetUpdateSemanticButton();
+            taskStatusDiv.style.display = 'none';
+        }
+    } catch (error) {
+        console.error('启动Semantic Scholar更新失败:', error);
+        showToast('启动更新失败', 'error');
+        resetUpdateSemanticButton();
+        taskStatusDiv.style.display = 'none';
+    }
+}
+
+// 重置Semantic Scholar按钮
+function resetUpdateSemanticButton() {
+    updateSemanticBtn.disabled = false;
+    const svg = updateSemanticBtn.querySelector('svg');
+    updateSemanticBtn.innerHTML = '';
+    if (svg) {
+        updateSemanticBtn.appendChild(svg.cloneNode(true));
+    } else {
+        // 如果SVG不存在，重新创建
+        const newSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        newSvg.setAttribute('viewBox', '0 0 24 24');
+        newSvg.setAttribute('width', '18');
+        newSvg.setAttribute('height', '18');
+        newSvg.setAttribute('fill', 'currentColor');
+        newSvg.innerHTML = '<path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>';
+        updateSemanticBtn.appendChild(newSvg);
+    }
+    updateSemanticBtn.appendChild(document.createTextNode(' 更新Semantic Scholar数据'));
+}
+
+// 轮询Semantic Scholar更新状态
+function startSemanticStatusPolling() {
+    if (semanticStatusPollInterval) {
+        clearInterval(semanticStatusPollInterval);
+    }
+    
+    semanticStatusPollInterval = setInterval(async () => {
+        try {
+            const response = await fetch('/api/admin/papers/update-semantic-status', {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                updateStatusDisplay(data.status, 'semantic');
+                
+                if (!data.status.running) {
+                    // 任务完成，停止轮询
+                    clearInterval(semanticStatusPollInterval);
+                    semanticStatusPollInterval = null;
+                    resetUpdateSemanticButton();
+                    
+                    if (data.status.message.includes('完成') || data.status.message.includes('成功')) {
+                        showToast('更新完成！', 'success');
+                        // 刷新论文列表和统计
+                        await loadPapers(currentPage);
+                        await loadStats();
+                    } else if (data.status.message.includes('失败')) {
+                        showToast('更新失败: ' + data.status.message, 'error');
+                    }
+                    
+                    // 延迟隐藏状态显示
+                    setTimeout(() => {
+                        taskStatusDiv.style.display = 'none';
+                    }, 3000);
+                }
+            }
+        } catch (error) {
+            console.error('获取Semantic Scholar更新状态失败:', error);
+        }
+    }, 2000); // 每2秒查询一次
+}
+
+// 更新状态显示
+function updateStatusDisplay(status, type) {
+    if (!status) return;
+    
+    statusMessage.textContent = status.message || '处理中...';
+    
+    const total = status.total || 0;
+    const progress = status.progress || 0;
+    
+    if (total > 0) {
+        statusProgress.textContent = `${progress}/${total}`;
+        const percentage = Math.min((progress / total) * 100, 100);
+        progressFill.style.width = `${percentage}%`;
+    } else {
+        statusProgress.textContent = '0/0';
+        progressFill.style.width = '0%';
+    }
+}
+
+// 绑定按钮事件
+if (fetchArxivBtn) {
+    fetchArxivBtn.addEventListener('click', startFetchArxiv);
+}
+
+if (updateSemanticBtn) {
+    updateSemanticBtn.addEventListener('click', startUpdateSemantic);
+}
+
 // 全局函数（供onclick使用）
 window.viewPaper = viewPaper;
 window.editPaper = editPaper;

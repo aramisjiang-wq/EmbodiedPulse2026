@@ -16,13 +16,15 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-def update_all_papers(limit=None, skip_existing=True):
+def update_all_papers(limit=None, skip_existing=True, status=None, status_lock=None):
     """
     批量更新所有论文的Semantic Scholar数据
     
     Args:
         limit: 限制更新的论文数量（None表示全部）
         skip_existing: 是否跳过已有Semantic Scholar数据的论文
+        status: 用于更新状态的字典（可选）
+        status_lock: 用于线程安全更新的锁（可选）
     """
     session = get_session()
     
@@ -49,8 +51,32 @@ def update_all_papers(limit=None, skip_existing=True):
         
         logger.info(f"找到 {total} 篇需要更新的论文")
         
+        # 更新状态
+        if status is not None:
+            if status_lock:
+                with status_lock:
+                    status['total'] = total
+                    status['progress'] = 0
+                    status['message'] = f'找到 {total} 篇需要更新的论文'
+                    status['last_update'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            else:
+                status['total'] = total
+                status['progress'] = 0
+                status['message'] = f'找到 {total} 篇需要更新的论文'
+                status['last_update'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        
         if total == 0:
             logger.info("没有需要更新的论文")
+            if status is not None:
+                if status_lock:
+                    with status_lock:
+                        status['message'] = '没有需要更新的论文'
+                        status['running'] = False
+                        status['last_update'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                else:
+                    status['message'] = '没有需要更新的论文'
+                    status['running'] = False
+                    status['last_update'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
             return
         
         success_count = 0
@@ -59,6 +85,20 @@ def update_all_papers(limit=None, skip_existing=True):
         for idx, paper in enumerate(papers, 1):
             try:
                 logger.info(f"[{idx}/{total}] 更新论文: {paper.id} - {paper.title[:50]}...")
+                
+                # 更新状态
+                if status is not None:
+                    if status_lock:
+                        with status_lock:
+                            status['progress'] = idx
+                            status['current_paper'] = paper.id
+                            status['message'] = f'正在更新: {paper.title[:50]}... ({idx}/{total})'
+                            status['last_update'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                    else:
+                        status['progress'] = idx
+                        status['current_paper'] = paper.id
+                        status['message'] = f'正在更新: {paper.title[:50]}... ({idx}/{total})'
+                        status['last_update'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                 
                 supplement_data = get_paper_supplement_data(paper.id)
                 
@@ -92,12 +132,43 @@ def update_all_papers(limit=None, skip_existing=True):
                 session.rollback()
                 continue
         
+        # 更新最终状态
+        final_message = f'更新完成！成功: {success_count}, 失败: {fail_count}'
         logger.info("=" * 60)
-        logger.info(f"更新完成！成功: {success_count}, 失败: {fail_count}")
+        logger.info(final_message)
+        logger.info("=" * 60)
+        
+        if status is not None:
+            if status_lock:
+                with status_lock:
+                    status['message'] = final_message
+                    status['progress'] = total
+                    status['current_paper'] = ''
+                    status['running'] = False
+                    status['last_update'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            else:
+                status['message'] = final_message
+                status['progress'] = total
+                status['current_paper'] = ''
+                status['running'] = False
+                status['last_update'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         
     except Exception as e:
-        logger.error(f"批量更新失败: {e}")
+        error_msg = f"批量更新失败: {e}"
+        logger.error(error_msg)
         session.rollback()
+        
+        # 更新错误状态
+        if status is not None:
+            if status_lock:
+                with status_lock:
+                    status['message'] = error_msg
+                    status['running'] = False
+                    status['last_update'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            else:
+                status['message'] = error_msg
+                status['running'] = False
+                status['last_update'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     finally:
         session.close()
 

@@ -1619,6 +1619,334 @@ def get_papers_stats():
         }), 500
 
 
+# ==================== 管理端API - 论文数据更新 ====================
+
+@admin_bp.route('/papers/fetch-arxiv', methods=['POST'])
+@admin_required
+def trigger_fetch_arxiv():
+    """
+    触发从ArXiv API拉取新论文
+    
+    POST /api/admin/papers/fetch-arxiv
+    """
+    try:
+        # 导入app模块中的全局变量
+        import app
+        import threading
+        from datetime import datetime, timedelta
+        
+        with app.fetch_status_lock:
+            # 检查状态，如果running为True但last_update超过10分钟，认为任务已卡死，重置状态
+            if app.fetch_status['running']:
+                last_update_str = app.fetch_status.get('last_update', '')
+                if last_update_str:
+                    try:
+                        last_update = datetime.strptime(last_update_str, '%Y-%m-%d %H:%M:%S')
+                        if datetime.now() - last_update > timedelta(minutes=10):
+                            logger.warning("检测到抓取任务可能已卡死，重置状态")
+                            app.fetch_status['running'] = False
+                            app.fetch_status['progress'] = 0
+                            app.fetch_status['current_keyword'] = ''
+                            app.fetch_status['message'] = '检测到任务可能已卡死，已重置状态'
+                        else:
+                            # 任务正在运行，拒绝新请求
+                            logger.info(f"拒绝新的抓取请求：任务正在运行中")
+                            return jsonify({
+                                'success': False,
+                                'message': '抓取任务正在运行中，请稍候...',
+                                'status': app.fetch_status.copy()
+                            }), 400
+                    except Exception as e:
+                        logger.warning(f"无法解析last_update时间，重置状态: {e}")
+                        app.fetch_status['running'] = False
+                        app.fetch_status['progress'] = 0
+                        app.fetch_status['current_keyword'] = ''
+                else:
+                    logger.warning("没有last_update信息，重置状态")
+                    app.fetch_status['running'] = False
+                    app.fetch_status['progress'] = 0
+                    app.fetch_status['current_keyword'] = ''
+            
+            # 原子性设置running状态
+            if app.fetch_status['running']:
+                return jsonify({
+                    'success': False,
+                    'message': '抓取任务正在运行中，请稍候...',
+                    'status': app.fetch_status.copy()
+                }), 400
+            
+            # 设置running状态
+            app.fetch_status['running'] = True
+            app.fetch_status['message'] = '准备启动抓取任务...'
+            app.fetch_status['progress'] = 0
+            app.fetch_status['total'] = 0
+            app.fetch_status['current_keyword'] = ''
+            app.fetch_status['last_update'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        
+        def fetch_task():
+            """后台抓取任务"""
+            try:
+                with app.fetch_status_lock:
+                    app.fetch_status['message'] = '开始抓取论文...'
+                    app.fetch_status['last_update'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                
+                logger.info("=" * 60)
+                logger.info("开始抓取论文数据（通过管理端API）...")
+                logger.info("=" * 60)
+                
+                from fetch_new_data import fetch_papers
+                fetch_papers(fetch_status=app.fetch_status, fetch_status_lock=app.fetch_status_lock)
+                
+                with app.fetch_status_lock:
+                    app.fetch_status['message'] = '抓取完成！'
+                    app.fetch_status['running'] = False
+                    app.fetch_status['current_keyword'] = ''
+                    app.fetch_status['last_update'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                
+                logger.info("=" * 60)
+                logger.info("论文数据抓取完成")
+                logger.info("=" * 60)
+                
+            except Exception as e:
+                error_msg = f"抓取失败: {str(e)}"
+                logger.error("=" * 60)
+                logger.error(f"论文数据抓取失败: {error_msg}")
+                logger.error("=" * 60)
+                import traceback
+                logger.error(traceback.format_exc())
+                with app.fetch_status_lock:
+                    app.fetch_status['message'] = error_msg
+                    app.fetch_status['running'] = False
+                    app.fetch_status['progress'] = 0
+                    app.fetch_status['current_keyword'] = ''
+                    app.fetch_status['last_update'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            finally:
+                with app.fetch_status_lock:
+                    if app.fetch_status.get('running', False):
+                        app.fetch_status['running'] = False
+                        app.fetch_status['progress'] = 0
+                        app.fetch_status['current_keyword'] = ''
+                        if not app.fetch_status.get('last_update'):
+                            app.fetch_status['last_update'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        
+        # 在后台线程中运行
+        thread = threading.Thread(target=fetch_task)
+        thread.daemon = True
+        thread.start()
+        
+        # 立即返回
+        with app.fetch_status_lock:
+            status_copy = app.fetch_status.copy()
+        
+        return jsonify({
+            'success': True,
+            'message': '抓取任务已启动',
+            'status': status_copy
+        })
+        
+    except Exception as e:
+        logger.error(f"触发ArXiv抓取失败: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return jsonify({
+            'success': False,
+            'message': f'触发抓取失败: {str(e)}'
+        }), 500
+
+
+@admin_bp.route('/papers/fetch-arxiv-status', methods=['GET'])
+@admin_required
+def get_fetch_arxiv_status():
+    """
+    获取ArXiv论文抓取状态
+    
+    GET /api/admin/papers/fetch-arxiv-status
+    """
+    try:
+        import app
+        
+        with app.fetch_status_lock:
+            status_copy = app.fetch_status.copy()
+        
+        return jsonify({
+            'success': True,
+            'status': status_copy
+        })
+        
+    except Exception as e:
+        logger.error(f"获取抓取状态失败: {e}")
+        return jsonify({
+            'success': False,
+            'message': f'获取状态失败: {str(e)}'
+        }), 500
+
+
+@admin_bp.route('/papers/update-semantic', methods=['POST'])
+@admin_required
+def trigger_update_semantic():
+    """
+    触发更新Semantic Scholar数据
+    
+    POST /api/admin/papers/update-semantic
+    {
+        "limit": 100,  // 可选
+        "skip_existing": true  // 可选
+    }
+    """
+    try:
+        import app
+        import threading
+        from datetime import datetime, timedelta
+        
+        data = request.get_json() or {}
+        limit = data.get('limit')
+        skip_existing = data.get('skip_existing', True)
+        
+        with app.semantic_update_status_lock:
+            # 检查状态，如果running为True但last_update超过30分钟，认为任务已卡死，重置状态
+            if app.semantic_update_status['running']:
+                last_update_str = app.semantic_update_status.get('last_update', '')
+                if last_update_str:
+                    try:
+                        last_update = datetime.strptime(last_update_str, '%Y-%m-%d %H:%M:%S')
+                        if datetime.now() - last_update > timedelta(minutes=30):
+                            logger.warning("检测到Semantic Scholar更新任务可能已卡死，重置状态")
+                            app.semantic_update_status['running'] = False
+                            app.semantic_update_status['progress'] = 0
+                            app.semantic_update_status['current_paper'] = ''
+                            app.semantic_update_status['message'] = '检测到任务可能已卡死，已重置状态'
+                        else:
+                            # 任务正在运行，拒绝新请求
+                            logger.info(f"拒绝新的更新请求：任务正在运行中")
+                            return jsonify({
+                                'success': False,
+                                'message': '更新任务正在运行中，请稍候...',
+                                'status': app.semantic_update_status.copy()
+                            }), 400
+                    except Exception as e:
+                        logger.warning(f"无法解析last_update时间，重置状态: {e}")
+                        app.semantic_update_status['running'] = False
+                        app.semantic_update_status['progress'] = 0
+                        app.semantic_update_status['current_paper'] = ''
+                else:
+                    logger.warning("没有last_update信息，重置状态")
+                    app.semantic_update_status['running'] = False
+                    app.semantic_update_status['progress'] = 0
+                    app.semantic_update_status['current_paper'] = ''
+            
+            # 原子性设置running状态
+            if app.semantic_update_status['running']:
+                return jsonify({
+                    'success': False,
+                    'message': '更新任务正在运行中，请稍候...',
+                    'status': app.semantic_update_status.copy()
+                }), 400
+            
+            # 设置running状态
+            app.semantic_update_status['running'] = True
+            app.semantic_update_status['message'] = '准备启动更新任务...'
+            app.semantic_update_status['progress'] = 0
+            app.semantic_update_status['total'] = 0
+            app.semantic_update_status['current_paper'] = ''
+            app.semantic_update_status['last_update'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        
+        def update_task():
+            """后台更新任务"""
+            try:
+                with app.semantic_update_status_lock:
+                    app.semantic_update_status['message'] = '开始更新Semantic Scholar数据...'
+                    app.semantic_update_status['last_update'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                
+                logger.info("=" * 60)
+                logger.info("开始更新Semantic Scholar数据（通过管理端API）...")
+                logger.info("=" * 60)
+                
+                from update_semantic_scholar_data import update_all_papers
+                update_all_papers(
+                    limit=limit,
+                    skip_existing=skip_existing,
+                    status=app.semantic_update_status,
+                    status_lock=app.semantic_update_status_lock
+                )
+                
+                logger.info("=" * 60)
+                logger.info("Semantic Scholar数据更新完成")
+                logger.info("=" * 60)
+                
+            except Exception as e:
+                error_msg = f"更新失败: {str(e)}"
+                logger.error("=" * 60)
+                logger.error(f"Semantic Scholar数据更新失败: {error_msg}")
+                logger.error("=" * 60)
+                import traceback
+                logger.error(traceback.format_exc())
+                with app.semantic_update_status_lock:
+                    app.semantic_update_status['message'] = error_msg
+                    app.semantic_update_status['running'] = False
+                    app.semantic_update_status['progress'] = 0
+                    app.semantic_update_status['current_paper'] = ''
+                    app.semantic_update_status['last_update'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            finally:
+                with app.semantic_update_status_lock:
+                    if app.semantic_update_status.get('running', False):
+                        app.semantic_update_status['running'] = False
+                        app.semantic_update_status['progress'] = 0
+                        app.semantic_update_status['current_paper'] = ''
+                        if not app.semantic_update_status.get('last_update'):
+                            app.semantic_update_status['last_update'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        
+        # 在后台线程中运行
+        thread = threading.Thread(target=update_task)
+        thread.daemon = True
+        thread.start()
+        
+        # 立即返回
+        with app.semantic_update_status_lock:
+            status_copy = app.semantic_update_status.copy()
+        
+        return jsonify({
+            'success': True,
+            'message': '更新任务已启动',
+            'status': status_copy
+        })
+        
+    except Exception as e:
+        logger.error(f"触发Semantic Scholar更新失败: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return jsonify({
+            'success': False,
+            'message': f'触发更新失败: {str(e)}'
+        }), 500
+
+
+@admin_bp.route('/papers/update-semantic-status', methods=['GET'])
+@admin_required
+def get_update_semantic_status():
+    """
+    获取Semantic Scholar更新状态
+    
+    GET /api/admin/papers/update-semantic-status
+    """
+    try:
+        import app
+        
+        with app.semantic_update_status_lock:
+            status_copy = app.semantic_update_status.copy()
+        
+        return jsonify({
+            'success': True,
+            'status': status_copy
+        })
+        
+    except Exception as e:
+        logger.error(f"获取更新状态失败: {e}")
+        return jsonify({
+            'success': False,
+            'message': f'获取状态失败: {str(e)}'
+        }), 500
+
+
 # ==================== 管理端API - 视频管理 ====================
 
 @admin_bp.route('/bilibili/ups', methods=['GET'])
