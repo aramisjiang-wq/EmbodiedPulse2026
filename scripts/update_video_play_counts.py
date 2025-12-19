@@ -90,11 +90,14 @@ def update_video_play_counts(specific_uids=None, force_update=False):
             query = query.filter(BilibiliVideo.uid.in_(specific_uids))
         
         # 如果不需要强制更新，只更新最近7天未更新的视频
+        # ✅ 改进：即使 updated_at 在7天内，如果播放量为0，也需要更新
         if not force_update:
             from datetime import timedelta
             cutoff_date = datetime.now() - timedelta(days=7)
             query = query.filter(
-                (BilibiliVideo.updated_at < cutoff_date) | (BilibiliVideo.updated_at.is_(None))
+                (BilibiliVideo.updated_at < cutoff_date) | 
+                (BilibiliVideo.updated_at.is_(None)) |
+                (BilibiliVideo.play == 0)  # ✅ 播放量为0的视频也需要更新
             )
         
         videos = query.order_by(BilibiliVideo.updated_at.asc()).all()
