@@ -1994,7 +1994,15 @@
                 const videoUrl = video.url || '#';
                 const videoUser = escapeHtml(video.user || '');
                 const videoPubdate = escapeHtml(video.pubdate || '');
-                const videoPlay = escapeHtml(video.play || '0');
+                // 修复：优先使用play_raw（原始数字），确保显示最新数据
+                // 如果play_raw不存在，尝试从play解析（可能是数字字符串）
+                let playRaw = video.play_raw;
+                if (!playRaw && video.play) {
+                    // 如果play是数字字符串，转换为数字
+                    const playNum = typeof video.play === 'string' ? parseFloat(video.play.replace(/[^\d.]/g, '')) : video.play;
+                    playRaw = typeof playNum === 'number' && !isNaN(playNum) ? playNum : 0;
+                }
+                const videoPlay = playRaw && typeof playRaw === 'number' ? formatNumber(playRaw) : (video.play || '0');
                 html += `
                     <a class="latest-video-item" href="${videoUrl}" target="_blank">
                         <div class="latest-video-title">${videoTitle}</div>
@@ -2047,8 +2055,10 @@
             console.log('容器元素:', container);
             
             try {
-                console.log('发送API请求: /api/bilibili/all');
-                const response = await fetchWithTimeout('/api/bilibili/all');
+                // 添加时间戳和force参数，避免使用缓存
+                const timestamp = Date.now();
+                console.log('发送API请求: /api/bilibili/all?force=1');
+                const response = await fetchWithTimeout(`/api/bilibili/all?force=1&t=${timestamp}`);
                 console.log('API响应状态:', response.status, response.statusText);
                 console.log('响应头:', Object.fromEntries(response.headers.entries()));
                 

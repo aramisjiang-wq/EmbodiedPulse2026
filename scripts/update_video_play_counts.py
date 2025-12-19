@@ -91,13 +91,17 @@ def update_video_play_counts(specific_uids=None, force_update=False):
         
         # 如果不需要强制更新，只更新最近7天未更新的视频
         # ✅ 改进：即使 updated_at 在7天内，如果播放量为0，也需要更新
+        # ✅ 改进：如果视频发布时间在最近30天内，即使updated_at在7天内也更新（新视频播放量增长快）
         if not force_update:
             from datetime import timedelta
             cutoff_date = datetime.now() - timedelta(days=7)
+            # 新视频判断：发布时间在最近30天内
+            recent_video_date = datetime.now() - timedelta(days=30)
             query = query.filter(
                 (BilibiliVideo.updated_at < cutoff_date) | 
                 (BilibiliVideo.updated_at.is_(None)) |
-                (BilibiliVideo.play == 0)  # ✅ 播放量为0的视频也需要更新
+                (BilibiliVideo.play == 0) |  # ✅ 播放量为0的视频也需要更新
+                ((BilibiliVideo.pubdate >= recent_video_date) & (BilibiliVideo.updated_at < datetime.now() - timedelta(hours=6)))  # ✅ 新视频（30天内发布）且6小时未更新
             )
         
         videos = query.order_by(BilibiliVideo.updated_at.asc()).all()
