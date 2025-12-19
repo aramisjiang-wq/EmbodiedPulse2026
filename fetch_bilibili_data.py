@@ -75,6 +75,11 @@ def fetch_and_save_up_data(uid, video_count=50, fetch_all=False):
         user_stat = data.get('user_stat', {})
         videos = data.get('videos', [])
         
+        # ✅ 调试：记录获取到的视频数量
+        logger.info(f"从API获取到 {len(videos)} 个视频")
+        if len(videos) > 0:
+            logger.info(f"前3个视频BV号: {[v.get('bvid') for v in videos[:3]]}")
+        
         # 更新或创建UP主信息
         up = session.query(BilibiliUp).filter_by(uid=uid).first()
         if not up:
@@ -154,9 +159,10 @@ def fetch_and_save_up_data(uid, video_count=50, fetch_all=False):
                 # 这里可以调用 update_video_play_counts 的逻辑，但为了简单，先跳过
                 # 建议使用独立的视频播放量更新脚本
         
-        for video_data in videos:
+        for idx, video_data in enumerate(videos):
             bvid = video_data.get('bvid', '')
             if not bvid:
+                logger.warning(f"视频数据 {idx} 缺少BV号，跳过: {video_data}")
                 continue
             
             # 查找或创建视频记录
@@ -200,9 +206,27 @@ def fetch_and_save_up_data(uid, video_count=50, fetch_all=False):
             video.is_deleted = False
             video.updated_at = datetime.now()
         
-        session.commit()
-        total_count = updated_count + created_count
-        logger.info(f"UP主 {up.name} 的视频数据已更新: 更新{updated_count}条, 新增{created_count}条, 共{total_count}条")
+        try:
+            session.commit()
+            total_count = updated_count + created_count
+            logger.info(f"UP主 {up.name} 的视频数据已更新: 更新{updated_count}条, 新增{created_count}条, 共{total_count}条")
+            
+            # ✅ 验证：检查是否真的保存成功
+            if created_count > 0:
+                # 验证新创建的视频是否真的在数据库中
+                sample_bvids = [v.get('bvid') for v in videos[:min(5, len(videos))] if v.get('bvid')]
+                for sample_bvid in sample_bvids:
+                    saved = session.query(BilibiliVideo).filter_by(bvid=sample_bvid).first()
+                    if saved:
+                        logger.debug(f"✅ 验证成功: {sample_bvid} 已保存到数据库")
+                    else:
+                        logger.error(f"❌ 验证失败: {sample_bvid} 未保存到数据库！")
+        except Exception as commit_error:
+            logger.error(f"❌ 数据库提交失败: {commit_error}")
+            import traceback
+            logger.error(traceback.format_exc())
+            session.rollback()
+            raise
         
         return True
         
