@@ -39,8 +39,27 @@ def fetch_single_video_by_bvid(bvid: str, uid: int = None):
         url = "https://api.bilibili.com/x/web-interface/view"
         params = {"bvid": bvid}
         
+        # 添加请求头，模拟浏览器访问
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Referer': 'https://www.bilibili.com/',
+            'Accept': 'application/json, text/plain, */*',
+            'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
+        }
+        
         try:
-            response = requests.get(url, params=params, timeout=10)
+            response = requests.get(url, params=params, timeout=10, headers=headers)
+            
+            # 检查412错误
+            if response.status_code == 412:
+                print(f"❌ API返回412风控错误")
+                print(f"   说明：服务器IP可能被B站风控限制")
+                print(f"   建议：")
+                print(f"     1. 等待几小时到一天后重试")
+                print(f"     2. 更换服务器IP地址")
+                print(f"     3. 使用代理服务器")
+                return False
+            
             response.raise_for_status()
             data = response.json()
         except Exception as e:

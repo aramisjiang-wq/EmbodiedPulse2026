@@ -673,6 +673,7 @@ class BilibiliClient:
                 videos = self.get_all_videos_paginated(mid, page_size=50)
                 if not videos or len(videos) == 0:
                     logger.warning(f"分页抓取失败，尝试fallback方法分页抓取所有视频...")
+                    import time
                     time.sleep(2.0)  # 延迟2秒避免频繁请求
                     # fallback时也分页抓取所有视频
                     videos = self._fallback_user_videos(mid, page_size=50, max_pages=None)
