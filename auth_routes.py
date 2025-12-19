@@ -2071,8 +2071,8 @@ def get_bilibili_videos():
             if min_play is not None:
                 query = query.filter(BilibiliVideo.play >= min_play)
             
-            # 排序（按发布时间倒序）
-            query = query.order_by(BilibiliVideo.pubdate.desc())
+            # 排序（按发布时间倒序）- 使用pubdate_raw避免NULL值问题
+            query = query.order_by(BilibiliVideo.pubdate_raw.desc().nullslast())
             
             # 分页
             total = query.count()
@@ -2081,9 +2081,14 @@ def get_bilibili_videos():
             # 组装数据
             videos = []
             for video, up in results:
-                video_dict = video.to_dict()
-                video_dict['up_name'] = up.name
-                videos.append(video_dict)
+                try:
+                    video_dict = video.to_dict()
+                    video_dict['up_name'] = up.name
+                    videos.append(video_dict)
+                except Exception as e:
+                    logger.error(f"处理视频 {video.bvid} 失败: {e}")
+                    # 跳过有问题的视频，继续处理其他视频
+                    continue
             
             return jsonify({
                 'success': True,

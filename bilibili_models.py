@@ -9,6 +9,17 @@ from datetime import datetime
 import os
 import json
 
+# 尝试加载.env文件（确保环境变量被正确加载）
+try:
+    from dotenv import load_dotenv
+    env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '.env')
+    if os.path.exists(env_path):
+        load_dotenv(env_path)
+except ImportError:
+    pass  # python-dotenv未安装，跳过
+except Exception:
+    pass  # 加载失败，跳过
+
 Base = declarative_base()
 
 class BilibiliUp(Base):
@@ -47,7 +58,18 @@ class BilibiliUp(Base):
     def to_dict(self):
         """转换为字典"""
         # 导入格式化函数（如果views_formatted为空，使用views_count格式化）
-        from bilibili_client import format_number
+        try:
+            from bilibili_client import format_number
+        except ImportError:
+            # 如果导入失败，定义本地format_number函数
+            def format_number(num: int) -> str:
+                """格式化数字（万、亿）"""
+                if num >= 100000000:
+                    return f"{num / 100000000:.1f}亿"
+                elif num >= 10000:
+                    return f"{num / 10000:.1f}万"
+                else:
+                    return str(num)
         
         # ✅ 修复：如果数据库值为0，尝试从视频表计算
         videos_count = self.videos_count or 0
@@ -143,6 +165,20 @@ class BilibiliVideo(Base):
     
     def to_dict(self):
         """转换为字典"""
+        # 导入format_number函数（延迟导入避免循环依赖）
+        try:
+            from bilibili_client import format_number
+        except ImportError:
+            # 如果导入失败，定义本地format_number函数
+            def format_number(num: int) -> str:
+                """格式化数字（万、亿）"""
+                if num >= 100000000:
+                    return f"{num / 100000000:.1f}亿"
+                elif num >= 10000:
+                    return f"{num / 10000:.1f}万"
+                else:
+                    return str(num)
+        
         return {
             'bvid': self.bvid,
             'aid': self.aid,
@@ -150,7 +186,8 @@ class BilibiliVideo(Base):
             'pic': self.pic or '',
             'description': self.description or '',
             'length': self.length or '',
-            'play': self.play_formatted or '0',
+            # 修复：实时格式化play字段，不依赖可能过时的play_formatted
+            'play': format_number(self.play) if self.play else '0',
             'play_raw': self.play,
             'video_review': self.video_review_formatted or '0',
             'favorites': self.favorites_formatted or '0',
