@@ -615,6 +615,133 @@ function showToast(message, type = 'info') {
     }, 3000);
 }
 
+// 触发B站数据更新
+async function triggerFetchBilibiliData() {
+    const fetchBtn = document.getElementById('fetch-bilibili-btn');
+    const statusDiv = document.getElementById('fetch-task-status');
+    const messageSpan = document.getElementById('fetch-task-message');
+    const progressSpan = document.getElementById('fetch-task-progress');
+    const progressBar = document.getElementById('fetch-task-progress-bar');
+    
+    if (!fetchBtn) return;
+    
+    // 禁用按钮
+    fetchBtn.disabled = true;
+    fetchBtn.innerHTML = '<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" style="animation: spin 1s linear infinite;"><path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46C19.54 15.03 20 13.57 20 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74C4.46 8.97 4 10.43 4 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z"/></svg> 更新中...';
+    
+    // 显示状态区域
+    statusDiv.style.display = 'block';
+    messageSpan.textContent = '正在启动更新任务...';
+    progressSpan.textContent = '0%';
+    progressBar.style.width = '0%';
+    
+    try {
+        const response = await fetch('/api/admin/bilibili/fetch-data', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                update_play_counts: true,
+                video_count: 50
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showToast('数据更新任务已启动', 'success');
+            // 开始轮询状态
+            pollFetchStatus();
+        } else {
+            showToast('启动更新任务失败: ' + data.message, 'error');
+            fetchBtn.disabled = false;
+            fetchBtn.innerHTML = '<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M19 12h-2v3h-3v2h5v-5zM7 8h3V6H5v5h2V8zm14-4H3c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 14H3V6h18v12z"/></svg> 更新B站数据';
+            statusDiv.style.display = 'none';
+        }
+    } catch (error) {
+        console.error('触发更新失败:', error);
+        showToast('触发更新失败', 'error');
+        fetchBtn.disabled = false;
+        fetchBtn.innerHTML = '<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M19 12h-2v3h-3v2h5v-5zM7 8h3V6H5v5h2V8zm14-4H3c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 14H3V6h18v12z"/></svg> 更新B站数据';
+        statusDiv.style.display = 'none';
+    }
+}
+
+// 轮询更新状态
+let statusPollInterval = null;
+function pollFetchStatus() {
+    // 清除之前的轮询
+    if (statusPollInterval) {
+        clearInterval(statusPollInterval);
+    }
+    
+    const messageSpan = document.getElementById('fetch-task-message');
+    const progressSpan = document.getElementById('fetch-task-progress');
+    const progressBar = document.getElementById('fetch-task-progress-bar');
+    const fetchBtn = document.getElementById('fetch-bilibili-btn');
+    const statusDiv = document.getElementById('fetch-task-status');
+    
+    // 立即查询一次
+    checkFetchStatus();
+    
+    // 每2秒查询一次
+    statusPollInterval = setInterval(() => {
+        checkFetchStatus();
+    }, 2000);
+    
+    function checkFetchStatus() {
+        fetch('/api/admin/bilibili/fetch-status', {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success && data.status) {
+                const status = data.status;
+                
+                // 更新状态显示
+                messageSpan.textContent = status.message || '处理中...';
+                const progress = status.progress || 0;
+                progressSpan.textContent = `${progress}%`;
+                progressBar.style.width = `${progress}%`;
+                
+                // 如果任务完成，停止轮询并刷新数据
+                if (!status.running) {
+                    clearInterval(statusPollInterval);
+                    statusPollInterval = null;
+                    
+                    // 恢复按钮
+                    fetchBtn.disabled = false;
+                    fetchBtn.innerHTML = '<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M19 12h-2v3h-3v2h5v-5zM7 8h3V6H5v5h2V8zm14-4H3c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 14H3V6h18v12z"/></svg> 更新B站数据';
+                    
+                    // 3秒后隐藏状态区域
+                    setTimeout(() => {
+                        statusDiv.style.display = 'none';
+                    }, 3000);
+                    
+                    // 刷新统计数据
+                    loadStats();
+                    
+                    // 刷新当前列表
+                    if (currentTab === 'ups') {
+                        loadUps(currentPage);
+                    } else {
+                        loadVideos(currentPage);
+                    }
+                    
+                    showToast('数据更新完成！', 'success');
+                }
+            }
+        })
+        .catch(error => {
+            console.error('查询状态失败:', error);
+        });
+    }
+}
+
 // 页面加载时执行
 document.addEventListener('DOMContentLoaded', async () => {
     // 刷新配置按钮
@@ -624,6 +751,18 @@ document.addEventListener('DOMContentLoaded', async () => {
             loadConfig();
         });
     }
+    
+    // 更新B站数据按钮
+    const fetchBilibiliBtn = document.getElementById('fetch-bilibili-btn');
+    if (fetchBilibiliBtn) {
+        fetchBilibiliBtn.addEventListener('click', () => {
+            if (!confirm('确定要更新B站数据吗？这将更新UP主信息、视频列表和播放量数据。')) {
+                return;
+            }
+            triggerFetchBilibiliData();
+        });
+    }
+    
     // 验证身份
     try {
         const response = await fetch('/api/admin/profile', {
@@ -659,6 +798,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             await loadConfig();
             await loadStats();
             loadUps(1);
+            
+            // 检查是否有正在运行的任务
+            checkInitialFetchStatus();
         }
     } catch (error) {
         console.error('验证身份失败:', error);
@@ -666,6 +808,32 @@ document.addEventListener('DOMContentLoaded', async () => {
         window.location.href = '/admin/login';
     }
 });
+
+// 检查初始状态（页面加载时）
+async function checkInitialFetchStatus() {
+    try {
+        const response = await fetch('/api/admin/bilibili/fetch-status', {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        
+        const data = await response.json();
+        if (data.success && data.status && data.status.running) {
+            // 如果有正在运行的任务，开始轮询
+            const fetchBtn = document.getElementById('fetch-bilibili-btn');
+            const statusDiv = document.getElementById('fetch-task-status');
+            if (fetchBtn && statusDiv) {
+                fetchBtn.disabled = true;
+                fetchBtn.innerHTML = '<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" style="animation: spin 1s linear infinite;"><path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46C19.54 15.03 20 13.57 20 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74C4.46 8.97 4 10.43 4 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z"/></svg> 更新中...';
+                statusDiv.style.display = 'block';
+                pollFetchStatus();
+            }
+        }
+    } catch (error) {
+        console.error('检查初始状态失败:', error);
+    }
+}
 
 // 全局函数（供onclick使用）
 window.viewUp = viewUp;

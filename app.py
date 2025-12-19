@@ -133,6 +133,15 @@ bilibili_cache = {
 bilibili_cache_lock = threading.Lock()
 BILIBILI_CACHE_DURATION = 600  # 缓存10分钟（600秒），force=1 时跳过缓存
 
+# Bilibili数据更新任务状态（用于管理后台）
+bilibili_fetch_status = {
+    'running': False,
+    'progress': 0,
+    'message': '',
+    'last_update': ''
+}
+bilibili_fetch_status_lock = threading.Lock()
+
 # 全局定时任务调度器（用于Gunicorn启动时自动启动）
 scheduler = None
 
@@ -1318,7 +1327,8 @@ def get_all_bilibili():
                         'bvid': video.bvid,
                         'title': video.title or '',
                         'pic': video.pic or '',
-                        'play': video.play_formatted or '0',
+                        # 修复：实时格式化play字段，不依赖可能过时的play_formatted
+                        'play': format_number(video.play) if video.play else '0',
                         'play_raw': video.play or 0,
                         'favorites': video.favorites_formatted or '0',
                         'video_review': video.video_review_formatted or '0',

@@ -2351,5 +2351,163 @@ def get_bilibili_stats():
         }), 500
 
 
+@admin_bp.route('/bilibili/fetch-data', methods=['POST'])
+@admin_required
+def trigger_fetch_bilibili_data():
+    """
+    手动触发B站数据更新
+    包括：UP主信息、视频列表、播放量数据
+    
+    POST /api/admin/bilibili/fetch-data
+    {
+        "update_play_counts": true,  // 是否更新播放量（默认true）
+        "video_count": 50  // 每个UP主抓取的视频数量（默认50）
+    }
+    """
+    try:
+        import threading
+        import app
+        
+        data = request.get_json() or {}
+        update_play_counts = data.get('update_play_counts', True)
+        video_count = data.get('video_count', 50)
+        
+        # 检查是否有任务正在运行
+        with app.bilibili_fetch_status_lock:
+            if app.bilibili_fetch_status.get('running', False):
+                return jsonify({
+                    'success': False,
+                    'message': '数据更新任务正在运行中，请稍候...',
+                    'status': app.bilibili_fetch_status.copy()
+                }), 400
+        
+        def fetch_task():
+            """后台数据更新任务"""
+            try:
+                with app.bilibili_fetch_status_lock:
+                    app.bilibili_fetch_status['running'] = True
+                    app.bilibili_fetch_status['progress'] = 0
+                    app.bilibili_fetch_status['message'] = '开始更新B站数据...'
+                    app.bilibili_fetch_status['last_update'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                
+                logger.info("=" * 60)
+                logger.info("开始执行手动B站数据更新任务...")
+                logger.info("=" * 60)
+                
+                # 1. 更新UP主信息和视频列表
+                with app.bilibili_fetch_status_lock:
+                    app.bilibili_fetch_status['message'] = '正在更新UP主信息和视频列表...'
+                    app.bilibili_fetch_status['progress'] = 20
+                
+                from fetch_bilibili_data import fetch_all_bilibili_data
+                fetch_all_bilibili_data(video_count=video_count, delay_between_requests=2.0)
+                
+                # 2. 更新播放量（如果需要）
+                if update_play_counts:
+                    with app.bilibili_fetch_status_lock:
+                        app.bilibili_fetch_status['message'] = '正在更新视频播放量...'
+                        app.bilibili_fetch_status['progress'] = 60
+                    
+                    import sys
+                    import os
+                    # 获取项目根目录
+                    current_file = os.path.abspath(__file__)
+                    # auth_routes.py 在项目根目录，scripts也在项目根目录
+                    project_root = os.path.dirname(current_file)
+                    scripts_path = os.path.join(project_root, 'scripts')
+                    if scripts_path not in sys.path:
+                        sys.path.insert(0, scripts_path)
+                    
+                    from update_video_play_counts import update_video_play_counts
+                    update_video_play_counts(force_update=True)
+                
+                # 3. 清除API缓存
+                with app.bilibili_fetch_status_lock:
+                    app.bilibili_fetch_status['message'] = '正在清除缓存...'
+                    app.bilibili_fetch_status['progress'] = 90
+                
+                # 清除缓存
+                with app.bilibili_cache_lock:
+                    app.bilibili_cache['all_data'] = None
+                    app.bilibili_cache['all_expires_at'] = None
+                    app.bilibili_cache['data'] = None
+                    app.bilibili_cache['expires_at'] = None
+                
+                with app.bilibili_fetch_status_lock:
+                    app.bilibili_fetch_status['message'] = '更新完成！'
+                    app.bilibili_fetch_status['progress'] = 100
+                    app.bilibili_fetch_status['running'] = False
+                    app.bilibili_fetch_status['last_update'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                
+                logger.info("=" * 60)
+                logger.info("手动B站数据更新任务完成")
+                logger.info("=" * 60)
+                
+            except Exception as e:
+                error_msg = f"更新失败: {str(e)}"
+                logger.error("=" * 60)
+                logger.error(f"手动B站数据更新任务失败: {error_msg}")
+                logger.error("=" * 60)
+                import traceback
+                logger.error(traceback.format_exc())
+                
+                with app.bilibili_fetch_status_lock:
+                    app.bilibili_fetch_status['message'] = error_msg
+                    app.bilibili_fetch_status['running'] = False
+                    app.bilibili_fetch_status['progress'] = 0
+                    app.bilibili_fetch_status['last_update'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        
+        # 在后台线程中运行
+        thread = threading.Thread(target=fetch_task)
+        thread.daemon = True
+        thread.start()
+        
+        # 立即返回
+        with app.bilibili_fetch_status_lock:
+            status_copy = app.bilibili_fetch_status.copy()
+        
+        return jsonify({
+            'success': True,
+            'message': '数据更新任务已启动',
+            'status': status_copy
+        })
+        
+    except Exception as e:
+        logger.error(f"触发B站数据更新失败: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return jsonify({
+            'success': False,
+            'message': f'触发更新失败: {str(e)}'
+        }), 500
+
+
+@admin_bp.route('/bilibili/fetch-status', methods=['GET'])
+@admin_required
+def get_bilibili_fetch_status():
+    """
+    获取B站数据更新任务状态
+    
+    GET /api/admin/bilibili/fetch-status
+    """
+    try:
+        import app
+        
+        with app.bilibili_fetch_status_lock:
+            status_copy = app.bilibili_fetch_status.copy()
+        
+        return jsonify({
+            'success': True,
+            'status': status_copy
+        })
+        
+    except Exception as e:
+        logger.error(f"获取更新状态失败: {e}")
+        return jsonify({
+            'success': False,
+            'message': f'获取状态失败: {str(e)}'
+        }), 500
+
+
 # ==================== Phase 3 管理端API开发完成 ====================
 
