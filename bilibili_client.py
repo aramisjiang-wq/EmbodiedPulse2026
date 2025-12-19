@@ -193,10 +193,17 @@ class BilibiliClient:
     def _fallback_user_stat(self, mid: int, videos: List[Dict]) -> Dict:
         """风控触发时，基于兜底接口获取统计数据"""
         likes = 0
-        # 优先使用upstat接口获取获赞数
+        total_views = 0
+        
+        # ✅ 修复：优先使用upstat接口获取总播放量和获赞数
         try:
             upstat = self._get_upstat(mid)
             if upstat:
+                archive = upstat.get('archive', {})
+                if isinstance(archive, dict):
+                    # ✅ 从 archive.view 获取总播放量
+                    total_views = archive.get('view', 0)
+                    logger.debug(f"fallback: 从upstat接口获取总播放量: {total_views}")
                 likes = upstat.get('likes', 0)
         except Exception as e:
             logger.debug(f"获取upstat数据失败: {e}")
@@ -209,10 +216,13 @@ class BilibiliClient:
             except Exception as e:
                 logger.debug(f"从card接口获取likes失败: {e}")
         
-        total_views = sum(v.get('play', 0) or 0 for v in videos)
-        video_count = len(videos)  # ✅ 修复：视频数量（不是总播放量）
+        # 如果总播放量还是0，从已获取的视频列表计算（作为备选）
+        if not total_views:
+            total_views = sum(v.get('play', 0) or 0 for v in videos)
+        
+        video_count = len(videos)  # ✅ 视频数量（不是总播放量）
         return {
-            'videos': video_count,  # ✅ 修复：视频数量
+            'videos': video_count,  # ✅ 视频数量
             'likes': likes,
             'views': total_views,  # 总播放量
         }
@@ -350,57 +360,57 @@ class BilibiliClient:
             # bilibili-api 的 user.User 类可能有 get_user_stat 方法
             likes = 0
             total_views = 0
+            video_count = 0
             
+            # ✅ 修复：优先使用 upstat 接口获取总播放量（这是最可靠的方式）
             try:
-                # 尝试使用 get_user_stat 方法（如果存在）
-                if hasattr(u, 'get_user_stat'):
-                    stat_info = await u.get_user_stat()
-                    if isinstance(stat_info, dict):
-                        archive = stat_info.get('archive', {})
-                        total_views = archive.get('view', 0) if isinstance(archive, dict) else 0
-                        likes = stat_info.get('likes', 0)
-            except Exception as stat_error:
-                logger.debug(f"get_user_stat 方法不可用: {stat_error}")
+                upstat = self._get_upstat(mid)
+                if upstat:
+                    archive = upstat.get('archive', {})
+                    if isinstance(archive, dict):
+                        # ✅ 从 archive.view 获取总播放量
+                        total_views = archive.get('view', 0)
+                        logger.debug(f"从upstat接口获取总播放量: {total_views}")
+                    likes = upstat.get('likes', 0)
+            except Exception as upstat_error:
+                logger.debug(f"通过upstat接口获取统计数据失败: {upstat_error}")
             
-            # 如果统计信息获取失败，尝试使用公开API获取获赞数
-            if not likes:
+            # 如果upstat失败，尝试使用 get_user_stat 方法
+            if not total_views:
                 try:
-                    upstat = self._get_upstat(mid)
-                    if upstat:
-                        likes = upstat.get('likes', 0)
-                except Exception as upstat_error:
-                    logger.debug(f"通过upstat接口获取获赞数失败: {upstat_error}")
+                    # 尝试使用 get_user_stat 方法（如果存在）
+                    if hasattr(u, 'get_user_stat'):
+                        stat_info = await u.get_user_stat()
+                        if isinstance(stat_info, dict):
+                            archive = stat_info.get('archive', {})
+                            total_views = archive.get('view', 0) if isinstance(archive, dict) else 0
+                            if not likes:
+                                likes = stat_info.get('likes', 0)
+                except Exception as stat_error:
+                    logger.debug(f"get_user_stat 方法不可用: {stat_error}")
             
-            # 如果还是获取不到，尝试从用户信息中获取
+            # 如果还是获取不到获赞数，尝试从用户信息中获取
             if not likes:
                 likes = info.get('likes', 0)
             
-            # 如果总播放数为0，尝试从视频列表计算（仅作为备选）
-            video_count = 0
-            if not total_views:
+            # 获取视频数量（需要从视频列表获取）
+            if not video_count:
                 try:
                     videos_result = await u.get_videos(pn=1, ps=50)
                     vlist = videos_result.get('list', {}).get('vlist', [])
                     video_count = len(vlist)  # 视频数量
-                    total_views = sum(
-                        v.get('play', 0) or (v.get('stat', {}).get('view', 0) if isinstance(v.get('stat'), dict) else 0)
-                        for v in vlist
-                    )
-                except Exception as video_error:
-                    logger.debug(f"从视频列表计算播放数失败: {video_error}")
-                    total_views = 0
-            else:
-                # 如果已经有总播放数，尝试获取视频数量
-                try:
-                    videos_result = await u.get_videos(pn=1, ps=50)
-                    vlist = videos_result.get('list', {}).get('vlist', [])
-                    video_count = len(vlist)  # 视频数量
+                    
+                    # 如果总播放量还是0，从视频列表计算（作为备选）
+                    if not total_views:
+                        total_views = sum(
+                            v.get('play', 0) or (v.get('stat', {}).get('view', 0) if isinstance(v.get('stat'), dict) else 0)
+                            for v in vlist
+                        )
                 except Exception as video_error:
                     logger.debug(f"获取视频数量失败: {video_error}")
-                    video_count = 0
             
             return {
-                'videos': video_count,  # ✅ 修复：视频数量（不是总播放量）
+                'videos': video_count,  # ✅ 视频数量（不是总播放量）
                 'likes': likes,  # 获赞数
                 'views': total_views,  # 总播放数
             }
@@ -412,10 +422,12 @@ class BilibiliClient:
             try:
                 upstat = self._get_upstat(mid)
                 if upstat:
+                    archive = upstat.get('archive', {})
+                    total_views = archive.get('view', 0) if isinstance(archive, dict) else 0
                     return {
-                        'videos': 0,
+                        'videos': 0,  # 无法获取视频数量
                         'likes': upstat.get('likes', 0),
-                        'views': 0,
+                        'views': total_views,  # ✅ 至少获取总播放量
                     }
             except Exception as fallback_error:
                 logger.debug(f"兜底获取统计数据失败: {fallback_error}")
