@@ -626,6 +626,10 @@ class BilibiliClient:
             if fetch_all and videos is None:
                 logger.info(f"开始分页抓取UP主 {mid} 的所有视频...")
                 videos = self.get_all_videos_paginated(mid, page_size=50)
+                if not videos or len(videos) == 0:
+                    logger.warning(f"分页抓取失败，尝试fallback方法...")
+                    # fallback时也尝试抓取更多视频
+                    videos = self._fallback_user_videos(mid, page_size=200)
             
             # 兜底补全（解决 412 风控导致的数据缺失）
             import time
@@ -646,7 +650,8 @@ class BilibiliClient:
                 except Exception as e:
                     logger.debug(f"fallback更新粉丝数失败: {e}")
             
-            if not videos:
+            # ✅ 修复：只有在非fetch_all模式下才使用fallback
+            if not videos and not fetch_all:
                 logger.info(f"使用fallback方法获取视频列表 (UID: {mid})")
                 time.sleep(1.5)  # 延迟1.5秒避免频繁请求
                 videos = self._fallback_user_videos(mid, page_size=video_count)
