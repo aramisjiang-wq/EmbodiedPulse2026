@@ -37,13 +37,14 @@ except ImportError:
     logger.warning("无法从app.py导入BILIBILI_UP_LIST，使用默认列表")
 
 
-def fetch_and_save_up_data(uid, video_count=50):
+def fetch_and_save_up_data(uid, video_count=50, fetch_all=False):
     """
     抓取并保存单个UP主的数据
     
     Args:
         uid: UP主UID
-        video_count: 抓取的视频数量
+        video_count: 抓取的视频数量（当fetch_all=False时使用）
+        fetch_all: 是否抓取所有视频（True时忽略video_count，抓取所有）
     
     Returns:
         bool: 是否成功
@@ -52,10 +53,13 @@ def fetch_and_save_up_data(uid, video_count=50):
     client = BilibiliClient()
     
     try:
-        logger.info(f"开始抓取UP主 {uid} 的数据...")
+        if fetch_all:
+            logger.info(f"开始抓取UP主 {uid} 的所有视频数据...")
+        else:
+            logger.info(f"开始抓取UP主 {uid} 的数据（最新 {video_count} 个视频）...")
         
         # 从API获取数据
-        data = client.get_all_data(uid, video_count=video_count)
+        data = client.get_all_data(uid, video_count=video_count, fetch_all=fetch_all)
         
         if not data:
             logger.warning(f"UP主 {uid} 数据获取失败")
@@ -225,18 +229,22 @@ def fetch_and_save_up_data(uid, video_count=50):
         session.close()
 
 
-def fetch_all_bilibili_data(video_count=50, delay_between_requests=1.5):
+def fetch_all_bilibili_data(video_count=50, delay_between_requests=1.5, fetch_all=False):
     """
     抓取所有UP主的数据
     
     Args:
-        video_count: 每个UP主抓取的视频数量
+        video_count: 每个UP主抓取的视频数量（当fetch_all=False时使用）
         delay_between_requests: 请求间隔（秒），避免触发风控
+        fetch_all: 是否抓取所有视频（True时忽略video_count，抓取所有）
     """
     logger.info("=" * 60)
     logger.info("开始抓取所有B站数据")
     logger.info(f"UP主数量: {len(BILIBILI_UP_LIST)}")
-    logger.info(f"每个UP主视频数量: {video_count}")
+    if fetch_all:
+        logger.info(f"抓取模式: 所有视频（分页抓取）")
+    else:
+        logger.info(f"每个UP主视频数量: {video_count}")
     logger.info("=" * 60)
     
     total = len(BILIBILI_UP_LIST)
@@ -251,7 +259,7 @@ def fetch_all_bilibili_data(video_count=50, delay_between_requests=1.5):
                 logger.info(f"请求间隔 {delay:.1f}秒，避免风控 (进度: {idx+1}/{total})")
                 time.sleep(delay)
             
-            if fetch_and_save_up_data(uid, video_count=video_count):
+            if fetch_and_save_up_data(uid, video_count=video_count, fetch_all=fetch_all):
                 success_count += 1
             else:
                 fail_count += 1
@@ -270,10 +278,11 @@ def main():
     import argparse
     
     parser = argparse.ArgumentParser(description='抓取B站数据并存储到数据库')
-    parser.add_argument('--video-count', type=int, default=50, help='每个UP主抓取的视频数量')
+    parser.add_argument('--video-count', type=int, default=50, help='每个UP主抓取的视频数量（当--fetch-all未设置时使用）')
     parser.add_argument('--delay', type=float, default=1.5, help='请求间隔（秒）')
     parser.add_argument('--init-db', action='store_true', help='初始化数据库表')
     parser.add_argument('--uid', type=int, help='只抓取指定UID的数据')
+    parser.add_argument('--fetch-all', action='store_true', help='抓取所有视频（分页抓取，忽略--video-count）')
     
     args = parser.parse_args()
     
@@ -285,12 +294,13 @@ def main():
     
     # 如果指定了UID，只抓取该UP主
     if args.uid:
-        fetch_and_save_up_data(args.uid, video_count=args.video_count)
+        fetch_and_save_up_data(args.uid, video_count=args.video_count, fetch_all=args.fetch_all)
     else:
         # 抓取所有UP主
         fetch_all_bilibili_data(
             video_count=args.video_count,
-            delay_between_requests=args.delay
+            delay_between_requests=args.delay,
+            fetch_all=args.fetch_all
         )
 
 

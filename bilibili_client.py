@@ -523,13 +523,60 @@ class BilibiliClient:
         videos = self._fallback_user_videos(mid, page_size=10)
         return self._fallback_user_stat(mid, videos)
     
-    def get_all_data(self, mid: int, video_count: int = 10) -> Optional[Dict]:
+    def get_all_videos_paginated(self, mid: int, max_videos: int = None, page_size: int = 50) -> List[Dict]:
+        """
+        分页获取UP主的所有视频
+        
+        Args:
+            mid: UP主的UID
+            max_videos: 最大抓取数量（None表示抓取所有）
+            page_size: 每页数量
+            
+        Returns:
+            所有视频列表
+        """
+        all_videos = []
+        page = 1
+        
+        while True:
+            try:
+                videos = asyncio.run(self._get_user_videos_async(mid, page=page, page_size=page_size))
+                
+                if not videos or len(videos) == 0:
+                    break
+                
+                all_videos.extend(videos)
+                logger.info(f"已抓取第 {page} 页，共 {len(videos)} 个视频，累计 {len(all_videos)} 个")
+                
+                # 如果返回的视频数量少于page_size，说明已经是最后一页
+                if len(videos) < page_size:
+                    break
+                
+                # 如果达到最大数量限制，停止
+                if max_videos and len(all_videos) >= max_videos:
+                    all_videos = all_videos[:max_videos]
+                    break
+                
+                page += 1
+                # 每页之间延迟，避免触发风控
+                import time
+                time.sleep(1.0)
+                
+            except Exception as e:
+                logger.error(f"获取第 {page} 页视频失败: {e}")
+                break
+        
+        logger.info(f"UP主 {mid} 共抓取 {len(all_videos)} 个视频")
+        return all_videos
+    
+    def get_all_data(self, mid: int, video_count: int = 10, fetch_all: bool = False) -> Optional[Dict]:
         """
         获取UP主的完整数据（信息+统计+视频列表）
         
         Args:
             mid: UP主的UID
-            video_count: 获取的视频数量
+            video_count: 获取的视频数量（当fetch_all=False时使用）
+            fetch_all: 是否抓取所有视频（True时忽略video_count，抓取所有）
             
         Returns:
             完整数据字典
@@ -545,14 +592,20 @@ class BilibiliClient:
                 # 再获取统计和视频（稍微错开）
                 user_stat_task = self._get_user_stat_async(mid)
                 await asyncio.sleep(0.3)  # 再延迟300ms
-                videos_task = self._get_user_videos_async(mid, page=1, page_size=video_count)
                 
-                # 并发获取统计和视频数据
-                user_stat, videos = await asyncio.gather(
-                    user_stat_task,
-                    videos_task,
-                    return_exceptions=True
-                )
+                # ✅ 修复：如果fetch_all=True，只获取统计，视频稍后分页抓取
+                if fetch_all:
+                    # fetch_all=True时，只获取统计，视频稍后分页抓取
+                    user_stat = await user_stat_task
+                    videos = None
+                else:
+                    videos_task = self._get_user_videos_async(mid, page=1, page_size=video_count)
+                    # 并发获取统计和视频数据
+                    user_stat, videos = await asyncio.gather(
+                        user_stat_task,
+                        videos_task,
+                        return_exceptions=True
+                    )
                 
                 # 处理异常
                 if isinstance(user_info, Exception):
@@ -568,6 +621,11 @@ class BilibiliClient:
                 return user_info, user_stat, videos
             
             user_info, user_stat, videos = asyncio.run(fetch_all())
+            
+            # ✅ 修复：如果fetch_all=True，现在分页抓取所有视频
+            if fetch_all and videos is None:
+                logger.info(f"开始分页抓取UP主 {mid} 的所有视频...")
+                videos = self.get_all_videos_paginated(mid, page_size=50)
             
             # 兜底补全（解决 412 风控导致的数据缺失）
             import time
