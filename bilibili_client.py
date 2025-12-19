@@ -592,7 +592,8 @@ class BilibiliClient:
                 logger.info(f"使用fallback方法获取视频列表 (UID: {mid})")
                 time.sleep(1.5)  # 延迟1.5秒避免频繁请求
                 videos = self._fallback_user_videos(mid, page_size=video_count)
-            if not user_stat:
+            # ✅ 修复：检查 user_stat 是否为空或所有值都为0（表示获取失败）
+            if not user_stat or (user_stat.get('videos', 0) == 0 and user_stat.get('views', 0) == 0):
                 logger.info(f"使用fallback方法获取统计数据 (UID: {mid})")
                 time.sleep(1.0)  # 延迟1秒避免频繁请求
                 user_stat = self._fallback_user_stat(mid, videos or [])
