@@ -149,33 +149,78 @@ class BilibiliClient:
             'friend': card.get('friend', 0),
         }
 
-    def _fallback_user_videos(self, mid: int, page_size: int = 20) -> List[Dict]:
-        """风控触发时，通过公开接口兜底获取视频列表（按发布时间排序）"""
-        url = "https://api.bilibili.com/x/space/arc/search"
-        data = self._request_json(url, params={"mid": mid, "ps": page_size, "pn": 1, "order": "pubdate"})
-        videos: List[Dict] = []
-        if not data:
-            return videos
-        vlist = (data.get("data") or {}).get("list", {}).get("vlist", []) or []
-        import time
-        current_timestamp = int(time.time())
-        for video in vlist:
-            pubdate = video.get('created', 0) or video.get('pubdate', 0)
-            if pubdate > current_timestamp * 10:
-                pubdate = pubdate // 1000
-            videos.append({
-                'bvid': video.get('bvid', ''),
-                'aid': video.get('aid', 0),
-                'title': video.get('title', ''),
-                'pic': video.get('pic', ''),
-                'play': video.get('play', 0),
-                'video_review': video.get('video_review', 0),
-                'favorites': video.get('favorites', 0),
-                'pubdate': pubdate,
-                'description': video.get('description', ''),
-                'length': video.get('length', ''),
-            })
-        return videos
+    def _fallback_user_videos(self, mid: int, page_size: int = 20, max_pages: int = None) -> List[Dict]:
+        """
+        风控触发时，通过公开接口兜底获取视频列表（按发布时间排序）
+        支持分页抓取
+        
+        Args:
+            mid: UP主UID
+            page_size: 每页数量
+            max_pages: 最大页数（None表示抓取所有）
+        """
+        all_videos: List[Dict] = []
+        page = 1
+        
+        while True:
+            try:
+                url = "https://api.bilibili.com/x/space/arc/search"
+                data = self._request_json(url, params={
+                    "mid": mid, 
+                    "ps": page_size, 
+                    "pn": page, 
+                    "order": "pubdate"
+                })
+                
+                if not data:
+                    logger.warning(f"Fallback API 返回空数据 (页 {page})")
+                    break
+                
+                vlist = (data.get("data") or {}).get("list", {}).get("vlist", []) or []
+                
+                if not vlist or len(vlist) == 0:
+                    logger.info(f"Fallback API 第 {page} 页无更多视频")
+                    break
+                
+                import time
+                current_timestamp = int(time.time())
+                for video in vlist:
+                    pubdate = video.get('created', 0) or video.get('pubdate', 0)
+                    if pubdate > current_timestamp * 10:
+                        pubdate = pubdate // 1000
+                    all_videos.append({
+                        'bvid': video.get('bvid', ''),
+                        'aid': video.get('aid', 0),
+                        'title': video.get('title', ''),
+                        'pic': video.get('pic', ''),
+                        'play': video.get('play', 0),
+                        'video_review': video.get('video_review', 0),
+                        'favorites': video.get('favorites', 0),
+                        'pubdate': pubdate,
+                        'description': video.get('description', ''),
+                        'length': video.get('length', ''),
+                    })
+                
+                logger.info(f"Fallback API 已抓取第 {page} 页，共 {len(vlist)} 个视频，累计 {len(all_videos)} 个")
+                
+                # 如果返回的视频数量少于page_size，说明已经是最后一页
+                if len(vlist) < page_size:
+                    break
+                
+                # 如果达到最大页数限制，停止
+                if max_pages and page >= max_pages:
+                    break
+                
+                page += 1
+                # 每页之间延迟，避免触发风控
+                time.sleep(1.5)
+                
+            except Exception as e:
+                logger.error(f"Fallback API 获取第 {page} 页视频失败: {e}")
+                break
+        
+        logger.info(f"Fallback API 共抓取 {len(all_videos)} 个视频")
+        return all_videos
 
     def _get_upstat(self, mid: int) -> Optional[Dict]:
         """通过公开API获取UP主统计数据（包括获赞数）"""
@@ -627,9 +672,10 @@ class BilibiliClient:
                 logger.info(f"开始分页抓取UP主 {mid} 的所有视频...")
                 videos = self.get_all_videos_paginated(mid, page_size=50)
                 if not videos or len(videos) == 0:
-                    logger.warning(f"分页抓取失败，尝试fallback方法...")
-                    # fallback时也尝试抓取更多视频
-                    videos = self._fallback_user_videos(mid, page_size=200)
+                    logger.warning(f"分页抓取失败，尝试fallback方法分页抓取所有视频...")
+                    time.sleep(2.0)  # 延迟2秒避免频繁请求
+                    # fallback时也分页抓取所有视频
+                    videos = self._fallback_user_videos(mid, page_size=50, max_pages=None)
             
             # 兜底补全（解决 412 风控导致的数据缺失）
             import time
