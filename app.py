@@ -1368,10 +1368,19 @@ def get_all_bilibili():
                     'updated_at': up.last_fetch_at.isoformat() if up.last_fetch_at else datetime.now().isoformat()
                 }
                 
-                # 如果有错误信息，添加错误标记
+                # 如果有错误信息，但数据存在（视频数量>0或视频列表不为空），则不标记为错误
+                # 因为fetch_error可能是历史错误，但数据已经通过其他方式恢复了
                 if up.fetch_error:
-                    card_data['error'] = True
-                    card_data['error_message'] = up.fetch_error
+                    # 只有当数据确实缺失时才标记为错误
+                    has_data = (
+                        (up.videos_count and up.videos_count > 0) or
+                        (up.views_count and up.views_count > 0) or
+                        len(formatted_videos) > 0
+                    )
+                    if not has_data:
+                        card_data['error'] = True
+                        card_data['error_message'] = up.fetch_error
+                    # 如果数据存在，即使有历史错误也不标记为error，确保前端能正常显示
                 
                 all_data.append(card_data)
                 
