@@ -13,7 +13,7 @@ cd "$PROJECT_DIR"
 if [ -f "scripts/update_video_play_counts.py" ]; then
     echo "✅ 使用专门的播放量更新脚本（直接调用B站API获取每个视频的播放量）"
     echo ""
-    python3 scripts/update_video_play_counts.py --force-update
+    python3 scripts/update_video_play_counts.py --force
 else
     echo "⚠️  未找到专门的播放量更新脚本，使用fetch_bilibili_data.py更新数据..."
     echo "   注意：这种方式可能无法获取到最新的播放量（受API限制）"
