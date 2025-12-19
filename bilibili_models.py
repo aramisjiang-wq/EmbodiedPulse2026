@@ -49,6 +49,36 @@ class BilibiliUp(Base):
         # 导入格式化函数（如果views_formatted为空，使用views_count格式化）
         from bilibili_client import format_number
         
+        # ✅ 修复：如果数据库值为0，尝试从视频表计算
+        videos_count = self.videos_count or 0
+        views_count = self.views_count or 0
+        
+        # 如果统计数据为0，尝试从视频表计算（需要数据库会话）
+        if videos_count == 0 or views_count == 0:
+            try:
+                # 避免循环导入，直接使用当前模块的函数
+                session = get_bilibili_session()
+                try:
+                    from sqlalchemy import func
+                    if videos_count == 0:
+                        video_count = session.query(func.count(BilibiliVideo.bvid)).filter_by(
+                            uid=self.uid, is_deleted=False
+                        ).scalar()
+                        if video_count and video_count > 0:
+                            videos_count = video_count
+                    
+                    if views_count == 0:
+                        total_views = session.query(func.sum(BilibiliVideo.play)).filter_by(
+                            uid=self.uid, is_deleted=False
+                        ).scalar() or 0
+                        if total_views > 0:
+                            views_count = total_views
+                finally:
+                    session.close()
+            except Exception:
+                # 如果计算失败，使用原值
+                pass
+        
         return {
             'uid': self.uid,
             'name': self.name,
@@ -60,11 +90,11 @@ class BilibiliUp(Base):
             'fans_formatted': self.fans_formatted or (format_number(self.fans) if self.fans else '0'),  # 添加格式化字段，供前端使用
             'friend': str(self.friend) if self.friend else '0',
             'space_url': self.space_url or f"https://space.bilibili.com/{self.uid}",
-            'videos_count': self.videos_count or 0,  # 确保不为None
-            'views': self.views_formatted or (format_number(self.views_count) if self.views_count else '0'),  # 如果formatted为空，使用count格式化
-            'views_formatted': self.views_formatted or (format_number(self.views_count) if self.views_count else '0'),  # 添加格式化字段，供前端使用
-            'views_raw': self.views_count,  # 保持向后兼容
-            'views_count': self.views_count or 0,  # 添加原始字段，供前端使用
+            'videos_count': videos_count,  # ✅ 修复：使用计算后的值
+            'views': format_number(views_count) if views_count > 0 else (self.views_formatted or '0'),  # ✅ 修复：使用计算后的值
+            'views_formatted': format_number(views_count) if views_count > 0 else (self.views_formatted or '0'),  # ✅ 修复：使用计算后的值
+            'views_raw': views_count,  # ✅ 修复：使用计算后的值
+            'views_count': views_count,  # ✅ 修复：使用计算后的值
             'likes': self.likes_formatted or (format_number(self.likes_count) if self.likes_count else '0'),
             'likes_formatted': self.likes_formatted or (format_number(self.likes_count) if self.likes_count else '0'),  # 添加格式化字段
             'likes_raw': self.likes_count,

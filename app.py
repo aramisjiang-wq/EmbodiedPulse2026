@@ -2846,6 +2846,78 @@ def start_scheduler():
             import traceback
             logger.error(traceback.format_exc())
         
+        # 配置视频播放量更新定时任务（每天凌晨2点执行）
+        try:
+            def scheduled_update_video_play_counts():
+                """定时更新视频播放量任务"""
+                try:
+                    logger.info("=" * 60)
+                    logger.info("开始执行定时视频播放量更新任务...")
+                    logger.info("=" * 60)
+                    
+                    # 导入更新函数（直接导入，避免路径问题）
+                    import sys
+                    import os
+                    base_dir = os.path.dirname(os.path.abspath(__file__))
+                    scripts_path = os.path.join(base_dir, 'scripts')
+                    if scripts_path not in sys.path:
+                        sys.path.insert(0, scripts_path)
+                    
+                    # 动态导入，避免启动时出错
+                    try:
+                        from update_video_play_counts import update_video_play_counts
+                        # 只更新最近7天未更新的视频（增量更新，避免触发风控）
+                        update_video_play_counts(force_update=False)
+                    except ImportError as e:
+                        logger.error(f"无法导入 update_video_play_counts: {e}")
+                        raise
+                    
+                    logger.info("=" * 60)
+                    logger.info("定时视频播放量更新任务完成")
+                    logger.info("=" * 60)
+                except Exception as e:
+                    logger.error("=" * 60)
+                    logger.error(f"定时视频播放量更新任务失败: {e}")
+                    logger.error("=" * 60)
+                    import traceback
+                    logger.error(traceback.format_exc())
+            
+            # 支持通过环境变量自定义更新频率
+            # 格式：分钟 小时 日 月 星期，如 "0 2 * * *" 表示每天凌晨2点执行
+            # 如果环境变量未设置，默认每天凌晨2点执行
+            video_plays_schedule_cron = os.getenv('AUTO_UPDATE_VIDEO_PLAYS_SCHEDULE', '0 2 * * *')  # 默认每天凌晨2点
+            
+            # 检查是否启用
+            video_plays_enabled = os.getenv('AUTO_UPDATE_VIDEO_PLAYS_ENABLED', 'true').lower() == 'true'
+            
+            if video_plays_enabled:
+                # 解析 cron 表达式
+                parts = video_plays_schedule_cron.split()
+                if len(parts) == 5:
+                    minute, hour, day, month, weekday = parts
+                    scheduler.add_job(
+                        scheduled_update_video_play_counts,
+                        trigger=CronTrigger(
+                            minute=minute,
+                            hour=hour,
+                            day=day,
+                            month=month,
+                            day_of_week=weekday
+                        ),
+                        id='daily_update_video_play_counts',
+                        name='视频播放量更新（定时）',
+                        replace_existing=True
+                    )
+                    logger.info(f"视频播放量更新定时任务已配置: {video_plays_schedule_cron}")
+                else:
+                    logger.warning(f"视频播放量更新定时任务配置无效: {video_plays_schedule_cron}")
+            else:
+                logger.info("视频播放量自动更新未启用（设置 AUTO_UPDATE_VIDEO_PLAYS_ENABLED=true 启用）")
+        except Exception as e:
+            logger.warning(f"配置视频播放量更新定时任务失败: {e}")
+            import traceback
+            logger.warning(traceback.format_exc())
+        
         scheduler.start()
         return scheduler
     except ImportError:
