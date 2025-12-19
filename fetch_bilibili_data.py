@@ -174,10 +174,13 @@ def fetch_and_save_up_data(uid, video_count=50):
             video.description = video_data.get('description', '')
             video.length = video_data.get('length', '')
             
-            # 统计数据（每次更新，确保播放量、评论数等数据最新）
+            # 统计数据（只更新有效数据，不覆盖为0）
             play_raw = video_data.get('play', 0) or 0
-            video.play = play_raw
-            video.play_formatted = format_number(play_raw)
+            if play_raw > 0:
+                # 只有播放量大于0时才更新
+                video.play = play_raw
+                video.play_formatted = format_number(play_raw)
+            # 如果 play_raw 为 0，不更新（保持原值，避免覆盖有效数据）
             video.video_review = video_data.get('video_review', 0) or 0
             video.video_review_formatted = format_number(video.video_review)
             video.favorites = video_data.get('favorites', 0) or 0

@@ -1318,8 +1318,27 @@ def get_all_bilibili():
                     })
                 
                 # 构建user_stat（确保正确处理）
-                videos_val = format_number(up.videos_count) if up.videos_count else '0'
-                views_val = up.views_formatted or (format_number(up.views_count) if up.views_count else '0')
+                # ✅ 修复：如果数据库值为0，尝试从视频表计算
+                from sqlalchemy import func
+                
+                if up.videos_count and up.videos_count > 0:
+                    videos_val = format_number(up.videos_count)
+                else:
+                    # 从视频表计算
+                    video_count = session.query(func.count(BilibiliVideo.bvid)).filter_by(
+                        uid=up.uid, is_deleted=False
+                    ).scalar()
+                    videos_val = format_number(video_count) if video_count and video_count > 0 else '0'
+                
+                if up.views_count and up.views_count > 0:
+                    views_val = up.views_formatted or format_number(up.views_count)
+                else:
+                    # 从视频表计算
+                    total_views = session.query(func.sum(BilibiliVideo.play)).filter_by(
+                        uid=up.uid, is_deleted=False
+                    ).scalar() or 0
+                    views_val = format_number(total_views) if total_views > 0 else '0'
+                
                 likes_val = up.likes_formatted or (format_number(up.likes_count) if up.likes_count else '0')
                 
                 # 调试日志（临时）
