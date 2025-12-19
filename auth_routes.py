@@ -2185,6 +2185,117 @@ def get_bilibili_video_detail(bvid):
         }), 500
 
 
+@admin_bp.route('/bilibili/config', methods=['GET'])
+@admin_required
+def get_bilibili_config():
+    """
+    获取B站视频数据库配置信息
+    GET /api/admin/bilibili/config
+    """
+    try:
+        import os
+        import socket
+        from urllib.parse import urlparse
+        from bilibili_models import BILIBILI_DATABASE_URL, get_bilibili_engine
+        
+        # 获取服务器IP
+        hostname = "未知"
+        server_ip = "未知"
+        try:
+            hostname = socket.gethostname()
+            server_ip = socket.gethostbyname(hostname)
+        except:
+            try:
+                # 尝试获取外网IP
+                import requests
+                server_ip = requests.get('https://api.ipify.org', timeout=2).text
+            except:
+                server_ip = "未知"
+        
+        # 获取Flask端口
+        port = os.getenv('FLASK_PORT', '5001')
+        
+        # 解析数据库URL
+        db_url = BILIBILI_DATABASE_URL
+        db_type = "未知"
+        db_host = "未知"
+        db_port = "未知"
+        db_name = "未知"
+        db_user = "未知"
+        db_password = "***"  # 密码不显示
+        
+        if db_url:
+            if db_url.startswith('sqlite'):
+                db_type = "SQLite"
+                # SQLite格式: sqlite:///./bilibili.db
+                db_name = db_url.replace('sqlite:///', '').replace('sqlite:///', '')
+                db_host = "本地文件"
+            elif db_url.startswith('postgresql://') or db_url.startswith('postgres://'):
+                db_type = "PostgreSQL"
+                try:
+                    parsed = urlparse(db_url)
+                    db_host = parsed.hostname or "未知"
+                    db_port = str(parsed.port) if parsed.port else "5432"
+                    db_name = parsed.path.lstrip('/').split('?')[0] or "未知"
+                    db_user = parsed.username or "未知"
+                    # 密码不显示，只显示长度
+                    if parsed.password:
+                        db_password = "*" * min(len(parsed.password), 8)
+                except:
+                    pass
+        
+        # 获取数据库文件信息（如果是SQLite）
+        db_file_size = None
+        db_file_path = None
+        if db_type == "SQLite" and db_name:
+            import os
+            if os.path.exists(db_name):
+                db_file_path = os.path.abspath(db_name)
+                db_file_size = os.path.getsize(db_name)
+        
+        # 测试数据库连接
+        connection_status = "未知"
+        try:
+            from sqlalchemy import text
+            engine = get_bilibili_engine()
+            with engine.connect() as conn:
+                conn.execute(text("SELECT 1"))
+            connection_status = "✅ 连接正常"
+        except Exception as e:
+            connection_status = f"❌ 连接失败: {str(e)[:50]}"
+        
+        return jsonify({
+            'success': True,
+            'config': {
+                'server': {
+                    'ip': server_ip,
+                    'hostname': hostname,
+                    'port': port,
+                    'url': f"http://{server_ip}:{port}"
+                },
+                'database': {
+                    'type': db_type,
+                    'host': db_host,
+                    'port': db_port,
+                    'name': db_name,
+                    'user': db_user,
+                    'password': db_password,
+                    'url': db_url.split('@')[0] + '@***' if '@' in db_url else db_url,  # 隐藏密码
+                    'file_path': db_file_path,
+                    'file_size': f"{db_file_size / (1024*1024):.2f} MB" if db_file_size else None,
+                    'connection_status': connection_status
+                }
+            }
+        })
+    except Exception as e:
+        logger.error(f"获取B站配置信息失败: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
 @admin_bp.route('/bilibili/stats', methods=['GET'])
 @admin_required
 def get_bilibili_stats():

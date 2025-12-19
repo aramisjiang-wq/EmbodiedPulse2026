@@ -80,6 +80,69 @@ function switchTab(tab) {
     }
 }
 
+// 加载系统配置信息
+async function loadConfig() {
+    try {
+        const response = await fetch('/api/admin/bilibili/config', {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            if (data.success) {
+                const config = data.config;
+                const configInfo = document.getElementById('config-info');
+                
+                let html = '';
+                
+                // 服务器信息
+                html += `
+                    <div style="background: white; padding: 12px; border-radius: 6px; border: 1px solid #e2e8f0;">
+                        <div style="font-weight: 600; color: #4a5568; margin-bottom: 8px;">
+                            <i class="fas fa-server" style="margin-right: 6px;"></i>服务器信息
+                        </div>
+                        <div style="color: #718096; font-size: 12px; line-height: 1.8;">
+                            <div><strong>IP地址:</strong> <code style="background: #f7fafc; padding: 2px 6px; border-radius: 3px;">${config.server.ip}</code></div>
+                            <div><strong>端口号:</strong> <code style="background: #f7fafc; padding: 2px 6px; border-radius: 3px;">${config.server.port}</code></div>
+                            <div><strong>主机名:</strong> <code style="background: #f7fafc; padding: 2px 6px; border-radius: 3px;">${config.server.hostname}</code></div>
+                        </div>
+                    </div>
+                `;
+                
+                // 数据库信息
+                html += `
+                    <div style="background: white; padding: 12px; border-radius: 6px; border: 1px solid #e2e8f0;">
+                        <div style="font-weight: 600; color: #4a5568; margin-bottom: 8px;">
+                            <i class="fas fa-database" style="margin-right: 6px;"></i>数据库信息
+                        </div>
+                        <div style="color: #718096; font-size: 12px; line-height: 1.8;">
+                            <div><strong>类型:</strong> <code style="background: #f7fafc; padding: 2px 6px; border-radius: 3px;">${config.database.type}</code></div>
+                            <div><strong>主机:</strong> <code style="background: #f7fafc; padding: 2px 6px; border-radius: 3px;">${config.database.host}</code></div>
+                            ${config.database.port !== '未知' ? `<div><strong>端口:</strong> <code style="background: #f7fafc; padding: 2px 6px; border-radius: 3px;">${config.database.port}</code></div>` : ''}
+                            <div><strong>数据库名:</strong> <code style="background: #f7fafc; padding: 2px 6px; border-radius: 3px;">${config.database.name}</code></div>
+                            <div><strong>用户名:</strong> <code style="background: #f7fafc; padding: 2px 6px; border-radius: 3px;">${config.database.user}</code></div>
+                            <div><strong>密码:</strong> <code style="background: #f7fafc; padding: 2px 6px; border-radius: 3px;">${config.database.password}</code></div>
+                            ${config.database.file_path ? `<div><strong>文件路径:</strong> <code style="background: #f7fafc; padding: 2px 6px; border-radius: 3px; font-size: 11px;">${config.database.file_path}</code></div>` : ''}
+                            ${config.database.file_size ? `<div><strong>文件大小:</strong> <code style="background: #f7fafc; padding: 2px 6px; border-radius: 3px;">${config.database.file_size}</code></div>` : ''}
+                            <div><strong>连接状态:</strong> <span style="color: ${config.database.connection_status.includes('✅') ? '#10b981' : '#ef4444'};">${config.database.connection_status}</span></div>
+                        </div>
+                    </div>
+                `;
+                
+                configInfo.innerHTML = html;
+            }
+        }
+    } catch (error) {
+        console.error('加载配置信息失败:', error);
+        const configInfo = document.getElementById('config-info');
+        if (configInfo) {
+            configInfo.innerHTML = '<div style="color: #ef4444;">加载配置信息失败</div>';
+        }
+    }
+}
+
 // 加载统计信息
 async function loadStats() {
     try {
@@ -554,6 +617,13 @@ function showToast(message, type = 'info') {
 
 // 页面加载时执行
 document.addEventListener('DOMContentLoaded', async () => {
+    // 刷新配置按钮
+    const refreshConfigBtn = document.getElementById('refresh-config-btn');
+    if (refreshConfigBtn) {
+        refreshConfigBtn.addEventListener('click', () => {
+            loadConfig();
+        });
+    }
     // 验证身份
     try {
         const response = await fetch('/api/admin/profile', {
@@ -586,6 +656,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
             
             // 加载数据
+            await loadConfig();
             await loadStats();
             loadUps(1);
         }
