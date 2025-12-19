@@ -19,7 +19,7 @@ def test_api_response():
     
     try:
         # 测试API
-        url = "http://localhost:5000/api/bilibili/all?force=1"
+        url = "http://localhost:5001/api/bilibili/all?force=1"
         print(f"\n请求URL: {url}")
         response = requests.get(url, timeout=10)
         
