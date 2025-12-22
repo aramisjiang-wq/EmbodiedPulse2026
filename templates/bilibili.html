@@ -78,6 +78,10 @@
             padding: 28px;
             border: 1px solid rgba(251, 114, 153, 0.1);
             min-height: 400px;
+            box-sizing: border-box;
+            overflow: hidden; /* 防止内容溢出 */
+            word-wrap: break-word;
+            overflow-wrap: break-word;
         }
         
         /* 最新视频挂件高度 */
@@ -90,16 +94,110 @@
             min-height: 450px;
         }
         
-        /* 年度播放量挂件高度 */
+        /* 年度播放量挂件高度 - 优化 */
         .bilibili-sidebar-widget:last-child {
-            min-height: 500px;
+            min-height: 420px; /* 从500px减少到420px */
         }
         
-        /* 年度图表样式 */
+        /* 年度图表样式 - 优化高度 */
         .bilibili-yearly-chart {
             width: 100%;
-            height: 350px;
-            margin-bottom: 12px;
+            max-width: 100%;
+            height: 280px; /* 从350px减少到280px */
+            margin-bottom: 8px; /* 从12px减少到8px */
+            position: relative;
+            overflow: hidden;
+            box-sizing: border-box;
+        }
+        
+        .bilibili-yearly-chart canvas {
+            max-width: 100% !important;
+            height: auto !important;
+        }
+        
+        /* TOP 5图表容器 */
+        .bilibili-top-chart {
+            width: 100%;
+            max-width: 100%;
+            height: 300px;
+            position: relative;
+            overflow: hidden;
+            box-sizing: border-box;
+        }
+        
+        .bilibili-top-chart canvas {
+            max-width: 100% !important;
+            height: auto !important;
+        }
+        
+        /* 最新视频列表容器 */
+        .bilibili-latest-list {
+            max-height: 400px;
+            overflow-y: auto;
+            padding-right: 4px;
+        }
+        
+        /* 最新视频列表项 */
+        .latest-video-item {
+            display: block;
+            padding: 12px;
+            margin-bottom: 8px;
+            background: #f8fafc;
+            border-radius: 8px;
+            text-decoration: none;
+            color: inherit;
+            transition: all 0.2s;
+            border: 1px solid #e2e8f0;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            box-sizing: border-box;
+        }
+        
+        .latest-video-item:hover {
+            background: rgba(251, 114, 153, 0.05);
+            border-color: var(--bilibili-pink);
+            transform: translateX(2px);
+        }
+        
+        /* 最新视频标题 */
+        .latest-video-title {
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: #2d3748;
+            margin-bottom: 6px;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            line-height: 1.4;
+            word-break: break-word;
+            overflow-wrap: break-word;
+        }
+        
+        /* 最新视频元信息 */
+        .latest-video-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            font-size: 0.75rem;
+            color: #718096;
+        }
+        
+        .latest-video-meta span {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 100%;
+        }
+        
+        .latest-video-meta i {
+            color: var(--bilibili-blue);
+            font-size: 0.7rem;
+            flex-shrink: 0;
         }
         
         /* 侧边栏滚动条样式 */
@@ -126,6 +224,19 @@
             .bilibili-sidebar {
                 width: 420px;
             }
+            
+            /* 确保挂件内容不溢出 */
+            .bilibili-sidebar-widget {
+                padding: 24px;
+            }
+            
+            .bilibili-yearly-chart {
+                height: 260px; /* 从320px减少到260px */
+            }
+            
+            .bilibili-top-chart {
+                height: 280px;
+            }
         }
         
         @media (max-width: 1200px) {
@@ -141,6 +252,13 @@
                 grid-template-columns: repeat(2, 1fr);
                 gap: 24px;
             }
+            
+            /* 网格布局时，挂件内容需要适应 */
+            .bilibili-sidebar-widget {
+                min-height: auto;
+                max-height: 600px;
+                overflow-y: auto;
+            }
         }
         
         @media (max-width: 768px) {
@@ -152,8 +270,38 @@
                 grid-template-columns: 1fr;
             }
             
+            .bilibili-sidebar-widget {
+                padding: 20px;
+                min-height: auto;
+            }
+            
+            .bilibili-yearly-chart,
+            .bilibili-top-chart {
+                height: 220px; /* 从250px减少到220px */
+            }
+            
+            .latest-video-title {
+                font-size: 0.8rem;
+            }
+            
+            .latest-video-meta {
+                font-size: 0.7rem;
+            }
+            
             .bilibili-main-content {
                 width: 100%;
+            }
+        }
+        
+        /* 超大屏幕优化 */
+        @media (min-width: 1920px) {
+            .bilibili-sidebar {
+                width: 500px;
+            }
+            
+            /* 确保内容不会因为屏幕太大而溢出 */
+            .bilibili-sidebar-widget {
+                max-width: 100%;
             }
         }
         
@@ -248,6 +396,11 @@
             gap: 16px;
         }
         
+        /* 侧边栏挂件中的标题区域 - 紧凑布局 */
+        .bilibili-sidebar-widget .bilibili-trends-header {
+            margin-bottom: 12px; /* 从24px减少到12px */
+        }
+        
         .bilibili-trends-title {
             font-size: 1.5rem;
             font-weight: 700;
@@ -256,6 +409,34 @@
             display: flex;
             align-items: center;
             gap: 12px;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            hyphens: auto;
+        }
+        
+        /* 侧边栏挂件中的标题 - 较小字体 */
+        .bilibili-sidebar-widget .bilibili-trends-title {
+            font-size: 1.25rem; /* 从1.5rem减少到1.25rem */
+            margin-bottom: 0;
+        }
+        
+        .bilibili-latest-title {
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            hyphens: auto;
+        }
+        
+        /* 统计信息文本 */
+        .bilibili-trends-info-content {
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            line-height: 1.6;
+        }
+        
+        /* 统计说明区域 - 紧凑间距（侧边栏挂件专用） */
+        .bilibili-sidebar-widget .bilibili-trends-info {
+            margin-top: 8px !important; /* 从12px减少到8px */
+            padding: 10px !important; /* 从12px减少到10px */
         }
         
         .bilibili-trends-title i {
