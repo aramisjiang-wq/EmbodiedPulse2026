@@ -34,9 +34,10 @@ def update_all_papers(limit=None, skip_existing=True, status=None, status_lock=N
         
         if skip_existing:
             # 只更新没有Semantic Scholar数据的论文
+            # 条件：citation_count为None，或者semantic_scholar_updated_at为None
+            # 注意：citation_count为0是有效值，不应该跳过
             query = query.filter(
-                (Paper.citation_count == None) | 
-                (Paper.citation_count == 0) |
+                (Paper.citation_count == None) |
                 (Paper.semantic_scholar_updated_at == None)
             )
         
@@ -100,27 +101,52 @@ def update_all_papers(limit=None, skip_existing=True, status=None, status_lock=N
                         status['message'] = f'正在更新: {paper.title[:50]}... ({idx}/{total})'
                         status['last_update'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                 
-                supplement_data = get_paper_supplement_data(paper.id)
+                # 获取ArXiv ID（确保格式正确）
+                arxiv_id = paper.id
+                if not arxiv_id:
+                    logger.warning(f"  ⚠️  论文ID为空，跳过")
+                    fail_count += 1
+                    continue
+                
+                logger.info(f"  正在获取Semantic Scholar数据: {arxiv_id}")
+                supplement_data = get_paper_supplement_data(arxiv_id)
                 
                 if supplement_data:
-                    paper.citation_count = supplement_data.get('citation_count', 0) or 0
-                    paper.influential_citation_count = supplement_data.get('influential_citation_count', 0) or 0
-                    paper.venue = supplement_data.get('venue', '') or ''
-                    paper.publication_year = supplement_data.get('publication_year')
+                    # 更新引用数（0是有效值，不应该被忽略）
+                    citation_count = supplement_data.get('citation_count', 0)
+                    if citation_count is not None:
+                        paper.citation_count = citation_count
+                    
+                    influential_count = supplement_data.get('influential_citation_count', 0)
+                    if influential_count is not None:
+                        paper.influential_citation_count = influential_count
+                    
+                    # 更新venue（期刊/会议）
+                    venue = supplement_data.get('venue', '')
+                    if venue:
+                        paper.venue = venue
+                    
+                    # 更新发表年份
+                    pub_year = supplement_data.get('publication_year')
+                    if pub_year:
+                        paper.publication_year = pub_year
                     
                     # 保存机构信息为JSON字符串
                     affiliations = supplement_data.get('author_affiliations', [])
                     if affiliations:
                         paper.author_affiliations = json.dumps(affiliations, ensure_ascii=False)
+                    elif paper.author_affiliations is None:
+                        # 如果没有机构信息，设置为空JSON数组
+                        paper.author_affiliations = json.dumps([], ensure_ascii=False)
                     
                     paper.semantic_scholar_updated_at = datetime.now()
                     
                     session.commit()
                     success_count += 1
-                    logger.info(f"  ✅ 成功: 引用数={paper.citation_count}, 机构数={len(affiliations)}")
+                    logger.info(f"  ✅ 成功更新: 引用数={paper.citation_count}, 高影响力引用={paper.influential_citation_count}, 期刊={paper.venue or 'N/A'}, 机构数={len(affiliations)}")
                 else:
                     fail_count += 1
-                    logger.warning(f"  ⚠️  未获取到数据")
+                    logger.warning(f"  ⚠️  未获取到Semantic Scholar数据 (可能论文不在Semantic Scholar数据库中)")
                 
                 # 添加延迟以避免速率限制
                 if idx < total:
@@ -128,7 +154,10 @@ def update_all_papers(limit=None, skip_existing=True, status=None, status_lock=N
                     
             except Exception as e:
                 fail_count += 1
+                import traceback
+                error_detail = traceback.format_exc()
                 logger.error(f"  ❌ 更新失败: {e}")
+                logger.debug(f"错误详情: {error_detail}")
                 session.rollback()
                 continue
         

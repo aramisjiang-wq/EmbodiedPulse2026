@@ -34,6 +34,8 @@ def get_paper_metadata(arxiv_id: str, retry_count: int = 0) -> Optional[Dict]:
         arxiv_id = arxiv_id.split('v')[0]
     
     url = f"{BASE_URL}/paper/arXiv:{arxiv_id}"
+    # Semantic Scholar API的authors字段默认包含基本信息
+    # 如果需要affiliations，可能需要通过单独的API调用或使用不同的字段
     params = {
         'fields': 'title,authors,citationCount,influentialCitationCount,venue,year,abstract,publicationDate'
     }
@@ -47,10 +49,10 @@ def get_paper_metadata(arxiv_id: str, retry_count: int = 0) -> Optional[Dict]:
         
         if response.status_code == 200:
             data = response.json()
-            logger.debug(f"成功获取论文 {arxiv_id} 的Semantic Scholar数据")
+            logger.info(f"成功获取论文 {arxiv_id} 的Semantic Scholar数据")
             return data
         elif response.status_code == 404:
-            logger.debug(f"论文 {arxiv_id} 在Semantic Scholar中不存在")
+            logger.info(f"论文 {arxiv_id} 在Semantic Scholar中不存在")
             return None
         elif response.status_code == 429:
             # 速率限制，等待后重试
@@ -81,6 +83,11 @@ def extract_author_affiliations(authors: List[Dict]) -> List[str]:
     """
     从作者列表中提取机构信息
     
+    注意：Semantic Scholar API的authors字段默认不包含affiliations
+    如果需要机构信息，可能需要：
+    1. 使用authorId单独查询作者详情
+    2. 或者通过其他API端点获取
+    
     Args:
         authors: Semantic Scholar返回的作者列表
     
@@ -89,11 +96,23 @@ def extract_author_affiliations(authors: List[Dict]) -> List[str]:
     """
     affiliations = set()
     
+    if not authors:
+        return []
+    
     for author in authors:
+        # 检查是否有affiliations字段
         if 'affiliations' in author and author['affiliations']:
             for aff in author['affiliations']:
                 if aff:
-                    affiliations.add(aff)
+                    # 处理字符串或对象格式
+                    if isinstance(aff, str):
+                        affiliations.add(aff.strip())
+                    elif isinstance(aff, dict) and 'name' in aff:
+                        affiliations.add(aff['name'].strip())
+                    elif isinstance(aff, dict) and 'longName' in aff:
+                        affiliations.add(aff['longName'].strip())
+        # 如果没有affiliations字段，尝试从其他字段获取
+        # 注意：Semantic Scholar API可能需要额外的查询才能获取机构信息
     
     return sorted(list(affiliations))
 
@@ -119,8 +138,16 @@ def parse_semantic_scholar_data(data: Dict, arxiv_id: str) -> Dict:
     
     # 提取作者机构信息
     if 'authors' in data and data['authors']:
-        affiliations = extract_author_affiliations(data['authors'])
-        result['author_affiliations'] = affiliations
+        try:
+            affiliations = extract_author_affiliations(data['authors'])
+            result['author_affiliations'] = affiliations
+            if affiliations:
+                logger.info(f"提取到 {len(affiliations)} 个机构信息")
+        except Exception as e:
+            logger.warning(f"提取机构信息失败: {e}")
+            result['author_affiliations'] = []
+    else:
+        logger.debug(f"论文 {arxiv_id} 没有作者信息")
     
     return result
 
